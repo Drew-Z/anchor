@@ -177,7 +177,7 @@ git push origin main
 # 在 GitHub 网页操作:
 # Releases → Create a new release
 # Tag: v0.1.0
-# Title: 多多学习 v0.1.0 - 首次公开发布
+# Title: Anchor Learning (锚学) v0.1.0 - 首次公开发布
 # 描述: 从 CHANGELOG.md 复制
 ```
 
@@ -215,7 +215,7 @@ git push origin main
 ### GitHub 推送报错?
 ```bash
 # 如果是新仓库,首次推送:
-git remote add origin https://github.com/bill/duoduo.git
+git remote add origin https://github.com/bill/anchor.git
 git push -u origin main
 
 # 如果远程已有内容:

@@ -1,4 +1,4 @@
-# 多多学习 APP 开源推广计划
+# Anchor Learning (锚学) APP 开源推广计划
 
 ## 📋 执行摘要
 
@@ -142,7 +142,7 @@
 ### 2.1 仓库准备
 - [ ] **README.md 完善**
   ```markdown
-  # 多多学习 - 来源可溯源的 AI 学习代理
+  # Anchor Learning (锚学) - 来源可溯源的 AI 学习代理
   
   [Demo GIF]
   

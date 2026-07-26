@@ -171,9 +171,9 @@ CREATE TABLE study_records (
 
 ## 链接
 
-- [项目主页](https://github.com/bill/duoduo)
-- [问题追踪](https://github.com/bill/duoduo/issues)
-- [讨论区](https://github.com/bill/duoduo/discussions)
+- [项目主页](https://github.com/bill/anchor)
+- [问题追踪](https://github.com/bill/anchor/issues)
+- [讨论区](https://github.com/bill/anchor/discussions)
 
 ---
 

@@ -1,6 +1,6 @@
 # 快速开始指南
 
-> 5 分钟让多多学习 APP 在你的设备上跑起来
+> 5 分钟让Anchor Learning (锚学) APP 在你的设备上跑起来
 
 ## 📋 前置要求
 
@@ -15,7 +15,7 @@
 ### 1. 克隆项目
 
 ```bash
-git clone https://github.com/bill/duoduo.git
+git clone https://github.com/bill/anchor.git
 cd duoduo
 ```
 
@@ -142,4 +142,4 @@ final questionsPerPoint = 3; // 每个知识点生成的题目数
 
 ---
 
-**遇到问题?** 在 [GitHub Issues](https://github.com/bill/duoduo/issues) 提出,或查看 [常见问题文档](FAQ.md)
+**遇到问题?** 在 [GitHub Issues](https://github.com/bill/anchor/issues) 提出,或查看 [常见问题文档](FAQ.md)

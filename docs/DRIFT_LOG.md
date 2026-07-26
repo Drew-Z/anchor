@@ -101,7 +101,7 @@
 
 ### 对于用户
 - 看到"未实现"的功能,请暂时不要依赖
-- 如果某个功能对你很重要,可以在 [GitHub Discussions](https://github.com/bill/duoduo/discussions) 投票
+- 如果某个功能对你很重要,可以在 [GitHub Discussions](https://github.com/bill/anchor/discussions) 投票
 
 ### 对于贡献者
 - 这些是很好的贡献方向

@@ -55,7 +55,7 @@
 
 ### 在应用中导入示例
 
-1. 打开"多多学习" APP
+1. 打开"Anchor Learning (锚学)" APP
 2. 点击底部导航栏的 **"导入"**
 3. 选择 **"选择 Markdown 文件"**
 4. 导航到项目目录: `assets/examples/`

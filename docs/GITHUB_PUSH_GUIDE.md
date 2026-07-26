@@ -5,7 +5,7 @@
 推送代码时遇到权限错误:
 ```
 remote: Permission to bill/duoduo.git denied to ciallo-bill.
-fatal: unable to access 'https://github.com/bill/duoduo.git/': The requested URL returned error: 403
+fatal: unable to access 'https://github.com/bill/anchor.git/': The requested URL returned error: 403
 ```
 
 **原因**: 本地 git 凭据是 `ciallo-bill`,但远程仓库属于 `bill`

@@ -111,7 +111,7 @@
   标签: #Flutter #AI #开源项目 #学习工具
   
 □ 思否 (SegmentFault)
-  标题: "多多学习:防止 AI 幻觉的个人知识助手"
+  标题: "Anchor Learning (锚学):防止 AI 幻觉的个人知识助手"
   
 □ V2EX
   节点: /share
@@ -130,7 +130,7 @@
   
 □ Hacker News
   类型: Show HN
-  标题: "Show HN: Duoduo Learning – AI Study Assistant with Source Traceability"
+  标题: "Show HN: Anchor Learning – AI Study Assistant with Source Traceability"
   
 □ Product Hunt
   需要准备: Logo, 3 张截图, 视频, 详细描述

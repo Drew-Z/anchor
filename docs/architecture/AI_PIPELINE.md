@@ -2,7 +2,7 @@
 
 ## 概述
 
-本文档详细说明多多学习中所有 AI Tasks 的设计,包括:
+本文档详细说明Anchor Learning (锚学)中所有 AI Tasks 的设计,包括:
 - 输入输出 Schema
 - Prompt 工程策略
 - 防幻觉机制

@@ -1,42 +1,44 @@
-# 多多学习 - 来源可溯源的 AI 学习代理
+# ⚓ Anchor Learning (锚学)
 
 <div align="center">
 
-![多多学习 Logo](docs/images/logo.png)
+**Anchor your knowledge with full source traceability**
 
-**把你的文档和代码变成个性化学习内容**
+Turn your documentation and code into personalized AI quizzes—every answer traces back to its source.
 
 [![Flutter](https://img.shields.io/badge/Flutter-3.0+-blue.svg)](https://flutter.dev/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-[功能特性](#-功能特性) • [快速开始](#-快速开始) • [架构设计](#-架构设计) • [文档](#-文档) • [贡献](#-贡献)
+[Features](#-features) • [Quick Start](#-quick-start) • [Architecture](#-architecture) • [Docs](#-documentation) • [Contributing](#-contributing)
 
-## 📺 Demo 视频
+---
 
-> 🎬 视频录制中,即将发布...
+**From [BIAU PORT (泊岸)](https://biau.playlab.eu.cc)** 🌊
 
-3 分钟看懂"多多学习"如何防止 AI 幻觉
+## 📺 Demo Video
+
+> 🎬 Coming soon...
+
+See how Anchor Learning prevents AI hallucinations in 3 minutes
 
 </div>
 
----
+## 📖 About
 
-## 📖 项目简介
+**Anchor Learning (锚学)** is an open-source AI learning assistant that transforms your personal documents, technical notes, and code projects into **traceable** practice questions and learning content.
 
-**多多学习**是一个开源的 AI 学习助手,帮助你从个人文档、技术笔记、代码项目中自动生成**可溯源**的练习题和学习内容。
+### Core Highlights
 
-### 核心亮点
-
-🔗 **完整的引用链**: 每道题目都能追溯到源文档的具体位置  
-🤖 **AI Agent 辅导**: 通过面试式引导帮助你理解代码项目  
-🛡️ **防幻觉机制**: Citation Verification + Question Validator 双重验证  
-🔒 **隐私优先**: 数据本地存储,可选云同步  
-📱 **跨平台**: Android / iOS / macOS / Windows / Linux
+🔗 **Complete Citation Chain**: Every question traces back to specific locations in source documents  
+🤖 **AI Agent Tutoring**: Interview-style guidance helps you understand code projects  
+🛡️ **Anti-Hallucination**: Citation Verification + Question Validator dual verification  
+🔒 **Privacy First**: Local data storage with optional cloud sync  
+📱 **Cross-Platform**: Android / iOS / macOS / Windows / Linux
 
 ---
 
-## ✨ 功能特性
+## ✨ Features
 
 ### 📚 智能导入
 
@@ -87,7 +89,7 @@
 
 ```bash
 # 1. 克隆项目
-git clone https://github.com/bill/duoduo.git
+git clone https://github.com/bill/anchor.git
 cd duoduo
 
 # 2. 安装依赖
@@ -234,8 +236,8 @@ StatefulWidget 通过 State 对象管理状态...
 
 我们欢迎所有形式的贡献!
 
-- 🐛 [报告 Bug](https://github.com/bill/duoduo/issues/new?template=bug_report.md)
-- 💡 [提出新功能](https://github.com/bill/duoduo/issues/new?template=feature_request.md)
+- 🐛 [报告 Bug](https://github.com/bill/anchor/issues/new?template=bug_report.md)
+- 💡 [提出新功能](https://github.com/bill/anchor/issues/new?template=feature_request.md)
 - 📝 改进文档
 - 💻 提交代码
 
@@ -280,17 +282,19 @@ StatefulWidget 通过 State 对象管理状态...
 
 ---
 
-## 📞 联系方式
+## 📞 Contact
 
-- **GitHub Issues**: [创建 Issue](https://github.com/bill/duoduo/issues)
-- **Discussions**: [讨论区](https://github.com/bill/duoduo/discussions)
+- **GitHub Issues**: [Report Bug / Request Feature](https://github.com/bill/anchor/issues)
+- **Discussions**: [Join Discussion](https://github.com/bill/anchor/discussions)
 
 ---
 
 <div align="center">
 
-**如果觉得有帮助,请给个 ⭐ Star!**
+**Part of the [BIAU PORT (泊岸)](https://biau.playlab.eu.cc) experiments** 🌊
 
-Made with ❤️ by the Duoduo Learning Team
+Made with ❤️ by [bill](https://github.com/bill)
+
+If this helps you, give it a ⭐ Star!
 
 </div>
