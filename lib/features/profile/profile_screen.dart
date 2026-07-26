@@ -4,6 +4,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/providers/providers.dart';
 import '../../data/models/deck.dart';
 import '../../data/models/user_stats.dart';
+import '../settings/about_screen.dart';
 import '../settings/settings_screen.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -104,7 +105,14 @@ class ProfileScreen extends ConsumerWidget {
               _buildMonthlyCheckIn(context, checkInAsync, medalsAsync),
               const SizedBox(height: 24),
               // 成就
-              _buildAchievements(context, statsAsync, decksAsync, totalCorrectAsync, perfectCountAsync, medalsAsync, checkInAsync),
+              _buildAchievements(
+                  context,
+                  statsAsync,
+                  decksAsync,
+                  totalCorrectAsync,
+                  perfectCountAsync,
+                  medalsAsync,
+                  checkInAsync),
               const SizedBox(height: 24),
               // 菜单项
               _buildMenuItems(context),
@@ -245,32 +253,35 @@ class ProfileScreen extends ConsumerWidget {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              '月度打卡',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: hasMedal ? AppColors.gold.withValues(alpha: 0.15) : AppColors.surface,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                '$checkInCount / 20 天',
+            children: [
+              const Text(
+                '月度打卡',
                 style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: hasMedal ? AppColors.gold : AppColors.textSecondary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
                 ),
               ),
-            ),
-          ],
-        ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: hasMedal
+                      ? AppColors.gold.withValues(alpha: 0.15)
+                      : AppColors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '$checkInCount / 20 天',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: hasMedal ? AppColors.gold : AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 12),
           // 日历网格
           Wrap(
@@ -278,7 +289,8 @@ class ProfileScreen extends ConsumerWidget {
             runSpacing: 4,
             children: List.generate(daysInMonth, (i) {
               final day = i + 1;
-              final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}';
+              final dateStr =
+                  '${now.year}-${now.month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}';
               final isChecked = checkInDates.contains(dateStr);
               final isToday = day == today;
               final isFuture = day > today;
@@ -306,7 +318,9 @@ class ProfileScreen extends ConsumerWidget {
                       fontWeight: isChecked ? FontWeight.w800 : FontWeight.w500,
                       color: isChecked
                           ? Colors.white
-                          : (isFuture ? AppColors.textLight : AppColors.textSecondary),
+                          : (isFuture
+                              ? AppColors.textLight
+                              : AppColors.textSecondary),
                     ),
                   ),
                 ),
@@ -357,16 +371,20 @@ class ProfileScreen extends ConsumerWidget {
               runSpacing: 8,
               children: medals.map((m) {
                 return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                     color: AppColors.gold.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.gold.withValues(alpha: 0.3), width: 1.5),
+                    border: Border.all(
+                        color: AppColors.gold.withValues(alpha: 0.3),
+                        width: 1.5),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.emoji_events, color: AppColors.gold, size: 16),
+                      const Icon(Icons.emoji_events,
+                          color: AppColors.gold, size: 16),
                       const SizedBox(width: 4),
                       Text(
                         '${m.year}年${m.month}月',
@@ -405,30 +423,130 @@ class ProfileScreen extends ConsumerWidget {
 
     final achievements = <_Achievement>[
       // 连续学习
-      _Achievement(icon: Icons.local_fire_department, title: '连续3天', desc: '坚持学习3天', unlocked: (stats?.streak ?? 0) >= 3, color: AppColors.streakOrange),
-      _Achievement(icon: Icons.local_fire_department, title: '连续7天', desc: '坚持学习7天', unlocked: (stats?.streak ?? 0) >= 7, color: AppColors.red),
-      _Achievement(icon: Icons.local_fire_department, title: '连续30天', desc: '坚持学习30天', unlocked: (stats?.streak ?? 0) >= 30, color: AppColors.purple),
-      _Achievement(icon: Icons.local_fire_department, title: '连续100天', desc: '坚持学习100天', unlocked: (stats?.streak ?? 0) >= 100, color: AppColors.gold),
+      _Achievement(
+          icon: Icons.local_fire_department,
+          title: '连续3天',
+          desc: '坚持学习3天',
+          unlocked: (stats?.streak ?? 0) >= 3,
+          color: AppColors.streakOrange),
+      _Achievement(
+          icon: Icons.local_fire_department,
+          title: '连续7天',
+          desc: '坚持学习7天',
+          unlocked: (stats?.streak ?? 0) >= 7,
+          color: AppColors.red),
+      _Achievement(
+          icon: Icons.local_fire_department,
+          title: '连续30天',
+          desc: '坚持学习30天',
+          unlocked: (stats?.streak ?? 0) >= 30,
+          color: AppColors.purple),
+      _Achievement(
+          icon: Icons.local_fire_department,
+          title: '连续100天',
+          desc: '坚持学习100天',
+          unlocked: (stats?.streak ?? 0) >= 100,
+          color: AppColors.gold),
       // 经验值
-      _Achievement(icon: Icons.diamond, title: '初心者', desc: '累计100 XP', unlocked: (stats?.xp ?? 0) >= 100, color: AppColors.blue),
-      _Achievement(icon: Icons.diamond, title: '积少成多', desc: '累计500 XP', unlocked: (stats?.xp ?? 0) >= 500, color: AppColors.blue),
-      _Achievement(icon: Icons.diamond, title: '知识富翁', desc: '累计1000 XP', unlocked: (stats?.xp ?? 0) >= 1000, color: AppColors.purple),
-      _Achievement(icon: Icons.diamond, title: '勤学者', desc: '累计2000 XP', unlocked: (stats?.xp ?? 0) >= 2000, color: AppColors.purple),
-      _Achievement(icon: Icons.diamond, title: '学霸', desc: '累计5000 XP', unlocked: (stats?.xp ?? 0) >= 5000, color: AppColors.gold),
+      _Achievement(
+          icon: Icons.diamond,
+          title: '初心者',
+          desc: '累计100 XP',
+          unlocked: (stats?.xp ?? 0) >= 100,
+          color: AppColors.blue),
+      _Achievement(
+          icon: Icons.diamond,
+          title: '积少成多',
+          desc: '累计500 XP',
+          unlocked: (stats?.xp ?? 0) >= 500,
+          color: AppColors.blue),
+      _Achievement(
+          icon: Icons.diamond,
+          title: '知识富翁',
+          desc: '累计1000 XP',
+          unlocked: (stats?.xp ?? 0) >= 1000,
+          color: AppColors.purple),
+      _Achievement(
+          icon: Icons.diamond,
+          title: '勤学者',
+          desc: '累计2000 XP',
+          unlocked: (stats?.xp ?? 0) >= 2000,
+          color: AppColors.purple),
+      _Achievement(
+          icon: Icons.diamond,
+          title: '学霸',
+          desc: '累计5000 XP',
+          unlocked: (stats?.xp ?? 0) >= 5000,
+          color: AppColors.gold),
       // 答题数
-      _Achievement(icon: Icons.check_circle, title: '答题新手', desc: '答对100题', unlocked: totalCorrect >= 100, color: AppColors.green),
-      _Achievement(icon: Icons.check_circle, title: '答题达人', desc: '答对500题', unlocked: totalCorrect >= 500, color: AppColors.blue),
-      _Achievement(icon: Icons.check_circle, title: '答题大师', desc: '答对1000题', unlocked: totalCorrect >= 1000, color: AppColors.gold),
+      _Achievement(
+          icon: Icons.check_circle,
+          title: '答题新手',
+          desc: '答对100题',
+          unlocked: totalCorrect >= 100,
+          color: AppColors.green),
+      _Achievement(
+          icon: Icons.check_circle,
+          title: '答题达人',
+          desc: '答对500题',
+          unlocked: totalCorrect >= 500,
+          color: AppColors.blue),
+      _Achievement(
+          icon: Icons.check_circle,
+          title: '答题大师',
+          desc: '答对1000题',
+          unlocked: totalCorrect >= 1000,
+          color: AppColors.gold),
       // 题包
-      _Achievement(icon: Icons.school, title: '初次学习', desc: '完成第一个题包', unlocked: decks.isNotEmpty, color: AppColors.green),
-      _Achievement(icon: Icons.star, title: '收集达人', desc: '创建5个题包', unlocked: decks.length >= 5, color: AppColors.gold),
-      _Achievement(icon: Icons.star, title: '题库大师', desc: '创建10个题包', unlocked: decks.length >= 10, color: AppColors.purple),
-      _Achievement(icon: Icons.emoji_events, title: '满分通关', desc: '完美完成1次', unlocked: perfectCount >= 1, color: AppColors.purple),
-      _Achievement(icon: Icons.emoji_events, title: '完美主义者', desc: '完美完成5次', unlocked: perfectCount >= 5, color: AppColors.gold),
+      _Achievement(
+          icon: Icons.school,
+          title: '初次学习',
+          desc: '完成第一个题包',
+          unlocked: decks.isNotEmpty,
+          color: AppColors.green),
+      _Achievement(
+          icon: Icons.star,
+          title: '收集达人',
+          desc: '创建5个题包',
+          unlocked: decks.length >= 5,
+          color: AppColors.gold),
+      _Achievement(
+          icon: Icons.star,
+          title: '题库大师',
+          desc: '创建10个题包',
+          unlocked: decks.length >= 10,
+          color: AppColors.purple),
+      _Achievement(
+          icon: Icons.emoji_events,
+          title: '满分通关',
+          desc: '完美完成1次',
+          unlocked: perfectCount >= 1,
+          color: AppColors.purple),
+      _Achievement(
+          icon: Icons.emoji_events,
+          title: '完美主义者',
+          desc: '完美完成5次',
+          unlocked: perfectCount >= 5,
+          color: AppColors.gold),
       // 月度打卡
-      _Achievement(icon: Icons.calendar_month, title: '月度全勤', desc: '单月打卡20天', unlocked: checkInCount >= 20 || medals.isNotEmpty, color: AppColors.green),
-      _Achievement(icon: Icons.calendar_month, title: '满月达人', desc: '获得3个月勋章', unlocked: medals.length >= 3, color: AppColors.blue),
-      _Achievement(icon: Icons.calendar_month, title: '持之以恒', desc: '获得6个月勋章', unlocked: medals.length >= 6, color: AppColors.gold),
+      _Achievement(
+          icon: Icons.calendar_month,
+          title: '月度全勤',
+          desc: '单月打卡20天',
+          unlocked: checkInCount >= 20 || medals.isNotEmpty,
+          color: AppColors.green),
+      _Achievement(
+          icon: Icons.calendar_month,
+          title: '满月达人',
+          desc: '获得3个月勋章',
+          unlocked: medals.length >= 3,
+          color: AppColors.blue),
+      _Achievement(
+          icon: Icons.calendar_month,
+          title: '持之以恒',
+          desc: '获得6个月勋章',
+          unlocked: medals.length >= 6,
+          color: AppColors.gold),
     ];
 
     return Column(
@@ -491,11 +609,8 @@ class ProfileScreen extends ConsumerWidget {
           icon: Icons.info,
           title: '关于',
           onTap: () {
-            showAboutDialog(
-              context: context,
-              applicationName: '多多学',
-              applicationVersion: '1.0.0',
-              applicationLegalese: '自定义题库 + AI 拆题学习 APP',
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AboutScreen()),
             );
           },
         ),
@@ -586,7 +701,10 @@ class _AchievementBadge extends StatelessWidget {
           SnackBar(
             content: Row(
               children: [
-                Icon(achievement.icon, color: achievement.unlocked ? achievement.color : Colors.grey, size: 20),
+                Icon(achievement.icon,
+                    color:
+                        achievement.unlocked ? achievement.color : Colors.grey,
+                    size: 20),
                 const SizedBox(width: 8),
                 Text(
                   '${achievement.title} - ${achievement.desc}',
@@ -597,7 +715,9 @@ class _AchievementBadge extends StatelessWidget {
                   achievement.unlocked ? '已解锁' : '未解锁',
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
-                    color: achievement.unlocked ? AppColors.green : AppColors.textLight,
+                    color: achievement.unlocked
+                        ? AppColors.green
+                        : AppColors.textLight,
                   ),
                 ),
               ],
@@ -609,10 +729,14 @@ class _AchievementBadge extends StatelessWidget {
       },
       child: Container(
         decoration: BoxDecoration(
-          color: achievement.unlocked ? achievement.color.withValues(alpha: 0.1) : AppColors.surface,
+          color: achievement.unlocked
+              ? achievement.color.withValues(alpha: 0.1)
+              : AppColors.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: achievement.unlocked ? achievement.color.withValues(alpha: 0.3) : AppColors.border,
+            color: achievement.unlocked
+                ? achievement.color.withValues(alpha: 0.3)
+                : AppColors.border,
             width: 2,
           ),
         ),
@@ -622,7 +746,9 @@ class _AchievementBadge extends StatelessWidget {
             Icon(
               achievement.icon,
               size: 24,
-              color: achievement.unlocked ? achievement.color : AppColors.textLight,
+              color: achievement.unlocked
+                  ? achievement.color
+                  : AppColors.textLight,
             ),
             const SizedBox(height: 4),
             Text(
@@ -633,7 +759,9 @@ class _AchievementBadge extends StatelessWidget {
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
-                color: achievement.unlocked ? AppColors.textPrimary : AppColors.textLight,
+                color: achievement.unlocked
+                    ? AppColors.textPrimary
+                    : AppColors.textLight,
               ),
             ),
           ],

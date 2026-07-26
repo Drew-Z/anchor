@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/providers/providers.dart';
 import '../../data/models/deck.dart';
-import '../../shared/widgets/stats_widgets.dart';
 import '../learning/quiz_screen.dart';
 import '../ingestion/ingestion_screen.dart';
+import '../knowledge_base/knowledge_library_error_state.dart';
 
 class DeckListScreen extends ConsumerStatefulWidget {
   const DeckListScreen({super.key});
@@ -36,7 +36,8 @@ class _DeckListScreenState extends ConsumerState<DeckListScreen> {
                 onChanged: (value) => setState(() => _searchQuery = value),
                 decoration: InputDecoration(
                   hintText: '搜索题包...',
-                  prefixIcon: const Icon(Icons.search, color: AppColors.textLight),
+                  prefixIcon:
+                      const Icon(Icons.search, color: AppColors.textLight),
                   filled: true,
                   fillColor: AppColors.surface,
                   border: OutlineInputBorder(
@@ -54,23 +55,20 @@ class _DeckListScreenState extends ConsumerState<DeckListScreen> {
                   final filtered = decks
                       .where((d) =>
                           _searchQuery.isEmpty ||
-                          d.title.toLowerCase().contains(_searchQuery.toLowerCase()))
+                          d.title
+                              .toLowerCase()
+                              .contains(_searchQuery.toLowerCase()))
                       .toList();
                   if (filtered.isEmpty) {
                     return _buildEmptyState(context);
                   }
                   return ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     itemCount: filtered.length,
                     itemBuilder: (context, index) => _DeckCard(
                       deck: filtered[index],
-                      onStudy: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => QuizScreen(deckId: filtered[index].id),
-                          ),
-                        );
-                      },
+                      onStudy: () => _startDeckStudy(filtered[index]),
                       onDelete: () => _confirmDelete(context, filtered[index]),
                     ),
                   );
@@ -78,7 +76,18 @@ class _DeckListScreenState extends ConsumerState<DeckListScreen> {
                 loading: () => const Center(
                   child: CircularProgressIndicator(color: AppColors.green),
                 ),
-                error: (err, _) => Center(child: Text('加载失败: $err')),
+                error: (err, _) => KnowledgeLibraryErrorState(
+                  title: '题包列表读取失败',
+                  retryLabel: '重试读取题包',
+                  diagnosticTitle: '题库题包列表读取失败',
+                  diagnosticSuccessMessage: '已复制题包读取诊断',
+                  diagnosticLines: [
+                    '入口: 题库',
+                    '搜索词: ${_searchQuery.trim().isEmpty ? '无' : _searchQuery.trim()}',
+                  ],
+                  error: err,
+                  onRetry: () => ref.invalidate(deckListProvider),
+                ),
               ),
             ),
           ],
@@ -146,9 +155,27 @@ class _DeckListScreenState extends ConsumerState<DeckListScreen> {
       await ref.read(deckOperationsProvider).deleteDeck(deck.id);
     }
   }
+
+  Future<void> _startDeckStudy(Deck deck) async {
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => QuizScreen(deckId: deck.id),
+      ),
+    );
+    if (!mounted) return;
+    ref.invalidate(deckListProvider);
+    ref.invalidate(todayReviewQueueProvider);
+    ref.invalidate(allQuestionsProvider);
+    ref.invalidate(verifiedQuestionsProvider);
+    ref.invalidate(knowledgePointListProvider);
+    ref.invalidate(evidenceBackedKnowledgePointListProvider);
+    ref.invalidate(practiceableKnowledgePointListProvider);
+    ref.invalidate(deckQuestionsProvider(deck.id));
+    ref.invalidate(verifiedDeckQuestionsProvider(deck.id));
+  }
 }
 
-class _DeckCard extends StatelessWidget {
+class _DeckCard extends ConsumerWidget {
   final Deck deck;
   final VoidCallback onStudy;
   final VoidCallback onDelete;
@@ -160,12 +187,24 @@ class _DeckCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final verifiedQuestionsAsync =
+        ref.watch(verifiedDeckQuestionsProvider(deck.id));
     final masteryColor = deck.masteryLevel >= 100
         ? AppColors.gold
         : deck.masteryLevel >= 50
             ? AppColors.green
             : AppColors.blue;
+    final verifiedCount = verifiedQuestionsAsync.maybeWhen(
+      data: (questions) => questions.length,
+      orElse: () => null,
+    );
+    final canStudy = verifiedCount != null && verifiedCount > 0;
+    final countLabel = verifiedQuestionsAsync.when(
+      data: (questions) => '${questions.length} 已核验 / ${deck.questionCount} 总题',
+      loading: () => '正在读取核验状态',
+      error: (_, __) => '核验状态读取失败',
+    );
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -212,7 +251,7 @@ class _DeckCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${deck.questionCount} 题  ·  ${_formatDate(deck.createdAt)}',
+                      '$countLabel  ·  ${_formatDate(deck.createdAt)}',
                       style: const TextStyle(
                         fontSize: 13,
                         color: AppColors.textSecondary,
@@ -284,10 +323,13 @@ class _DeckCard extends StatelessWidget {
             children: [
               Expanded(
                 child: ElevatedButton(
-                  onPressed: onStudy,
+                  onPressed: canStudy ? onStudy : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.green,
+                    backgroundColor:
+                        canStudy ? AppColors.green : AppColors.surface,
                     foregroundColor: Colors.white,
+                    disabledForegroundColor: AppColors.textLight,
+                    disabledBackgroundColor: AppColors.surface,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -295,7 +337,9 @@ class _DeckCard extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   child: Text(
-                    deck.masteryLevel > 0 ? '继续学习' : '开始学习',
+                    canStudy
+                        ? (deck.masteryLevel > 0 ? '继续学习' : '开始学习')
+                        : '待核验',
                     style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
                 ),

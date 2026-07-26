@@ -3,7 +3,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/question.dart';
 import '../../../data/models/question_type.dart';
-import '../../../shared/widgets/duo_button.dart';
 
 /// 选择题 Widget
 class MultipleChoiceWidget extends StatefulWidget {
@@ -97,8 +96,12 @@ class _MultipleChoiceWidgetState extends State<MultipleChoiceWidget> {
                     ),
                     child: Center(
                       child: iconColor != null
-                          ? Icon(iconColor == AppColors.green ? Icons.check : Icons.close,
-                              color: iconColor, size: 20)
+                          ? Icon(
+                              iconColor == AppColors.green
+                                  ? Icons.check
+                                  : Icons.close,
+                              color: iconColor,
+                              size: 20)
                           : Text(
                               optionLetter,
                               style: TextStyle(
@@ -228,7 +231,8 @@ class _FillBlankWidgetState extends State<FillBlankWidget> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.check_circle, color: AppColors.green, size: 20),
+                const Icon(Icons.check_circle,
+                    color: AppColors.green, size: 20),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -293,7 +297,8 @@ class _TrueFalseWidgetState extends State<TrueFalseWidget> {
         Color textColor = AppColors.textSecondary;
         if (isSelected || showCorrect) textColor = Colors.white;
         if (showWrong) textColor = Colors.white;
-        if (!isSelected && !widget.showResult) textColor = AppColors.textSecondary;
+        if (!isSelected && !widget.showResult)
+          textColor = AppColors.textSecondary;
 
         Color borderColor = AppColors.border;
         if (isSelected && !widget.showResult) borderColor = AppColors.blue;
@@ -368,16 +373,28 @@ class _MatchingWidgetState extends State<MatchingWidget> {
 
   // 每对使用不同颜色，让用户直观看到配对关系
   static const List<Color> _pairBgColors = [
-    Color(0xFFE3F2FD), Color(0xFFFCE4EC), Color(0xFFE8F5E9),
-    Color(0xFFFFF8E1), Color(0xFFF3E5F5), Color(0xFFE0F7FA),
+    Color(0xFFE3F2FD),
+    Color(0xFFFCE4EC),
+    Color(0xFFE8F5E9),
+    Color(0xFFFFF8E1),
+    Color(0xFFF3E5F5),
+    Color(0xFFE0F7FA),
   ];
   static const List<Color> _pairBorderColors = [
-    Color(0xFF1E88E5), Color(0xFFEC407A), Color(0xFF43A047),
-    Color(0xFFFFB300), Color(0xFF8E24AA), Color(0xFF00ACC1),
+    Color(0xFF1E88E5),
+    Color(0xFFEC407A),
+    Color(0xFF43A047),
+    Color(0xFFFFB300),
+    Color(0xFF8E24AA),
+    Color(0xFF00ACC1),
   ];
   static const List<Color> _pairTextColors = [
-    Color(0xFF0D47A1), Color(0xFFAD1457), Color(0xFF1B5E20),
-    Color(0xFFE65100), Color(0xFF4A148C), Color(0xFF006064),
+    Color(0xFF0D47A1),
+    Color(0xFFAD1457),
+    Color(0xFF1B5E20),
+    Color(0xFFE65100),
+    Color(0xFF4A148C),
+    Color(0xFF006064),
   ];
 
   int _getColorIndex(String leftItem) {
@@ -421,8 +438,12 @@ class _MatchingWidgetState extends State<MatchingWidget> {
               final isMatched = matchedRight != null;
               final isSelected = _selectedLeft == item && !isMatched;
               final colorIndex = _getColorIndex(item);
-              final isCorrect = widget.showResult && isMatched && correct[item] == matchedRight;
-              final isWrong = widget.showResult && isMatched && correct[item] != matchedRight;
+              final isCorrect = widget.showResult &&
+                  isMatched &&
+                  correct[item] == matchedRight;
+              final isWrong = widget.showResult &&
+                  isMatched &&
+                  correct[item] != matchedRight;
 
               Color bgColor = Colors.white;
               Color borderColor = AppColors.border;
@@ -460,12 +481,14 @@ class _MatchingWidgetState extends State<MatchingWidget> {
                             // 点击已匹配项可取消配对
                             setState(() => _matches.remove(item));
                           } else {
-                            setState(() => _selectedLeft = isSelected ? null : item);
+                            setState(
+                                () => _selectedLeft = isSelected ? null : item);
                           }
                         },
                   child: AnimatedContainer(
                     duration: 200.ms,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 14),
                     decoration: BoxDecoration(
                       color: bgColor,
                       borderRadius: BorderRadius.circular(12),
@@ -508,9 +531,16 @@ class _MatchingWidgetState extends State<MatchingWidget> {
             children: rightItems.map((item) {
               final isUsed = usedRights.contains(item);
               final matchedLeft = _getMatchedLeft(item);
-              final colorIndex = matchedLeft != null ? _getColorIndex(matchedLeft) : 0;
-              final isCorrect = widget.showResult && isUsed && matchedLeft != null && correct[matchedLeft] == item;
-              final isWrong = widget.showResult && isUsed && matchedLeft != null && correct[matchedLeft] != item;
+              final colorIndex =
+                  matchedLeft != null ? _getColorIndex(matchedLeft) : 0;
+              final isCorrect = widget.showResult &&
+                  isUsed &&
+                  matchedLeft != null &&
+                  correct[matchedLeft] == item;
+              final isWrong = widget.showResult &&
+                  isUsed &&
+                  matchedLeft != null &&
+                  correct[matchedLeft] != item;
 
               Color bgColor = Colors.white;
               Color borderColor = AppColors.border;
@@ -550,7 +580,8 @@ class _MatchingWidgetState extends State<MatchingWidget> {
                         },
                   child: AnimatedContainer(
                     duration: 200.ms,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 14),
                     decoration: BoxDecoration(
                       color: bgColor,
                       borderRadius: BorderRadius.circular(12),
@@ -680,7 +711,9 @@ class _OrderingWidgetState extends State<OrderingWidget> {
                       '${index + 1}',
                       style: TextStyle(
                         fontWeight: FontWeight.w800,
-                        color: widget.showResult ? Colors.white : AppColors.textSecondary,
+                        color: widget.showResult
+                            ? Colors.white
+                            : AppColors.textSecondary,
                       ),
                     ),
                   ),
@@ -699,13 +732,19 @@ class _OrderingWidgetState extends State<OrderingWidget> {
                 if (!widget.showResult) ...[
                   IconButton(
                     icon: const Icon(Icons.arrow_upward, size: 18),
-                    color: index > 0 ? AppColors.textSecondary : AppColors.textLight,
+                    color: index > 0
+                        ? AppColors.textSecondary
+                        : AppColors.textLight,
                     onPressed: index > 0 ? () => _moveUp(index) : null,
                   ),
                   IconButton(
                     icon: const Icon(Icons.arrow_downward, size: 18),
-                    color: index < _items.length - 1 ? AppColors.textSecondary : AppColors.textLight,
-                    onPressed: index < _items.length - 1 ? () => _moveDown(index) : null,
+                    color: index < _items.length - 1
+                        ? AppColors.textSecondary
+                        : AppColors.textLight,
+                    onPressed: index < _items.length - 1
+                        ? () => _moveDown(index)
+                        : null,
                   ),
                 ],
               ],
@@ -760,7 +799,8 @@ class QuestionWidget extends StatelessWidget {
           question: question,
           showResult: showResult,
           onMatchComplete: (matches) {
-            final answerStr = matches.entries.map((e) => '${e.key}-${e.value}').join('|');
+            final answerStr =
+                matches.entries.map((e) => '${e.key}-${e.value}').join('|');
             onAnswerSelected(answerStr);
           },
         );

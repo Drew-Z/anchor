@@ -137,7 +137,8 @@ class GamificationService {
   Future<void> recordCheckIn() async {
     final prefs = await SharedPreferences.getInstance();
     final now = DateTime.now();
-    final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final dateStr =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     final monthKey = 'checkin_${now.year}_${now.month}';
     final dates = prefs.getStringList(monthKey) ?? [];
     if (!dates.contains(dateStr)) {
@@ -170,7 +171,9 @@ class GamificationService {
   /// 获取所有已获得的月度勋章
   Future<List<({int year, int month})>> getEarnedMedals() async {
     final prefs = await SharedPreferences.getInstance();
-    final keys = prefs.getKeys().where((k) => k.startsWith('medal_') && prefs.getBool(k) == true);
+    final keys = prefs
+        .getKeys()
+        .where((k) => k.startsWith('medal_') && prefs.getBool(k) == true);
     final medals = <({int year, int month})>[];
     for (final key in keys) {
       final parts = key.split('_');

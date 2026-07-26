@@ -17,37 +17,37 @@ class AppTheme {
         error: AppColors.red,
       ),
       textTheme: const TextTheme(
-          displayLarge: TextStyle(
-            fontSize: 32,
-            fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary,
-          ),
-          displayMedium: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary,
-          ),
-          headlineMedium: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
-          ),
-          bodyLarge: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-          bodyMedium: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textSecondary,
-          ),
-          bodySmall: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textSecondary,
-          ),
+        displayLarge: TextStyle(
+          fontSize: 32,
+          fontWeight: FontWeight.w800,
+          color: AppColors.textPrimary,
         ),
+        displayMedium: TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.w800,
+          color: AppColors.textPrimary,
+        ),
+        headlineMedium: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary,
+        ),
+        bodyLarge: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textPrimary,
+        ),
+        bodyMedium: TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+          color: AppColors.textSecondary,
+        ),
+        bodySmall: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+          color: AppColors.textSecondary,
+        ),
+      ),
       appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.background,
         elevation: 0,
@@ -87,7 +87,8 @@ class AppTheme {
           borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: AppColors.blue, width: 2),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       ),
       cardTheme: CardThemeData(
         color: AppColors.cardBackground,
@@ -102,8 +103,10 @@ class AppTheme {
         backgroundColor: AppColors.background,
         selectedItemColor: AppColors.blue,
         unselectedItemColor: AppColors.textLight,
-        selectedLabelStyle: TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
-        unselectedLabelStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+        selectedLabelStyle:
+            TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+        unselectedLabelStyle:
+            TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
         type: BottomNavigationBarType.fixed,
         elevation: 0,
       ),

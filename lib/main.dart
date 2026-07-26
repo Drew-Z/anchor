@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app.dart';
 import 'core/theme/app_theme.dart';
+import 'features/onboarding/first_run_gate.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -58,7 +59,7 @@ class DIYDuolingoApp extends StatelessWidget {
       title: '多多学',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      home: const MainApp(),
+      home: const FirstRunGate(completedChild: MainApp()),
     );
   }
 }

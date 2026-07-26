@@ -26,6 +26,7 @@ class HomeScreen extends ConsumerWidget {
             _buildTopBar(context, ref, statsAsync, mode),
             // 每日目标进度条
             _buildDailyGoalBar(statsAsync),
+            _buildTodayReviewBanner(context, ref),
             // 内容区
             Expanded(
               child: mode == LearningMode.random
@@ -50,6 +51,126 @@ class HomeScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildTodayReviewBanner(BuildContext context, WidgetRef ref) {
+    final reviewQueueAsync = ref.watch(todayReviewQueueProvider);
+    return reviewQueueAsync.when(
+      data: (items) {
+        if (items.isEmpty) return const SizedBox.shrink();
+
+        final questionCount =
+            items.fold<int>(0, (sum, item) => sum + item.questionCount);
+        final topTitles =
+            items.take(3).map((item) => item.knowledgePoint.title).join('、');
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.blueLight,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.blue, width: 2),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: const BoxDecoration(
+                    color: AppColors.blue,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.refresh,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '今日复习 · ${items.length} 个知识点 · $questionCount 题',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        topTitles,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                ElevatedButton.icon(
+                  onPressed: () => _startTodayReview(context, ref),
+                  icon: const Icon(Icons.play_arrow, size: 18),
+                  label: const Text(
+                    '复习',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.blue,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
+  Future<void> _startTodayReview(BuildContext context, WidgetRef ref) async {
+    final questions = await ref
+        .read(reviewSchedulerServiceProvider)
+        .getTodayReviewQuestions(limit: 10);
+    if (questions.isEmpty || !context.mounted) return;
+
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => QuizScreen(questions: questions)),
+    );
+    _refreshLearningState(ref);
+  }
+
+  void _refreshLearningState(WidgetRef ref, {String? deckId}) {
+    ref.invalidate(todayReviewQueueProvider);
+    ref.invalidate(deckListProvider);
+    ref.invalidate(allQuestionsProvider);
+    ref.invalidate(verifiedQuestionsProvider);
+    ref.invalidate(knowledgePointListProvider);
+    ref.invalidate(evidenceBackedKnowledgePointListProvider);
+    ref.invalidate(practiceableKnowledgePointListProvider);
+    if (deckId != null && deckId.isNotEmpty) {
+      ref.invalidate(deckQuestionsProvider(deckId));
+      ref.invalidate(verifiedDeckQuestionsProvider(deckId));
+    }
   }
 
   // ============ 顶部栏 ============
@@ -105,7 +226,9 @@ class HomeScreen extends ConsumerWidget {
             data: (stats) {
               final heartColor = stats.hearts <= 0
                   ? AppColors.red
-                  : (stats.hearts <= 1 ? AppColors.streakOrange : AppColors.heartRed);
+                  : (stats.hearts <= 1
+                      ? AppColors.streakOrange
+                      : AppColors.heartRed);
               return Row(
                 children: [
                   _StatChip(
@@ -248,7 +371,7 @@ class HomeScreen extends ConsumerWidget {
   // ============ 随机模式 ============
 
   Widget _buildRandomMode(BuildContext context, WidgetRef ref) {
-    final questionsAsync = ref.watch(allQuestionsProvider);
+    final questionsAsync = ref.watch(verifiedQuestionsProvider);
     final completedLevels = ref.watch(randomLevelProgressProvider);
 
     return questionsAsync.when(
@@ -311,7 +434,7 @@ class HomeScreen extends ConsumerWidget {
               final nextOffset = math.sin((index + 1) * 0.7) * 140;
               final horizontalDiff = (nextOffset - waveOffset).abs();
               double verticalSpacing = (14 - horizontalDiff * 0.1).clamp(3, 14);
-              
+
               final isCompleted = level <= completedLevels;
               final isCurrent = level == completedLevels + 1;
               final isLocked = !isCompleted && !isCurrent;
@@ -354,20 +477,22 @@ class HomeScreen extends ConsumerWidget {
 
   Future<void> _startRandomLevel(
       BuildContext context, WidgetRef ref, int level) async {
-    final db = ref.read(databaseProvider);
-    final questions = await db.getRandomQuestions(5);
-    if (questions.isEmpty) return;
+    final verifiedQuestions = await ref.read(verifiedQuestionsProvider.future);
+    final questions = [...verifiedQuestions]..shuffle(math.Random());
+    final levelQuestions = questions.take(5).toList();
+    if (levelQuestions.isEmpty) return;
     if (!context.mounted) return;
 
     final completed = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => QuizScreen(questions: questions),
+        builder: (_) => QuizScreen(questions: levelQuestions),
       ),
     );
 
     if (completed == true) {
-      ref.read(randomLevelProgressProvider.notifier).completeLevel(level);
+      await ref.read(randomLevelProgressProvider.notifier).completeLevel(level);
     }
+    _refreshLearningState(ref);
   }
 
   // ============ 知识点模式 ============
@@ -375,7 +500,7 @@ class HomeScreen extends ConsumerWidget {
   Widget _buildKnowledgePointMode(BuildContext context, WidgetRef ref) {
     final decksAsync = ref.watch(deckListProvider);
     return decksAsync.when(
-      data: (decks) => _buildLearningPath(context, decks),
+      data: (decks) => _buildLearningPath(context, ref, decks),
       loading: () => const Center(
         child: CircularProgressIndicator(color: AppColors.green),
       ),
@@ -383,7 +508,11 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildLearningPath(BuildContext context, List<Deck> decks) {
+  Widget _buildLearningPath(
+    BuildContext context,
+    WidgetRef ref,
+    List<Deck> decks,
+  ) {
     if (decks.isEmpty) {
       return _buildEmptyState(context);
     }
@@ -410,14 +539,18 @@ class HomeScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 32),
-          ..._buildPathNodes(context, decks),
+          ..._buildPathNodes(context, ref, decks),
           const SizedBox(height: 80),
         ],
       ),
     );
   }
 
-  List<Widget> _buildPathNodes(BuildContext context, List<Deck> decks) {
+  List<Widget> _buildPathNodes(
+    BuildContext context,
+    WidgetRef ref,
+    List<Deck> decks,
+  ) {
     final nodes = <Widget>[];
     for (var i = 0; i < decks.length; i++) {
       final deck = decks[i];
@@ -434,13 +567,7 @@ class HomeScreen extends ConsumerWidget {
             deck: deck,
             isCompleted: isCompleted,
             isCurrent: isCurrent,
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => QuizScreen(deckId: deck.id),
-                ),
-              );
-            },
+            onTap: () => _startDeckPractice(context, ref, deck),
           ),
         ).animate().fadeIn(duration: 300.ms, delay: (i * 100).ms).slideY(
               begin: 0.2,
@@ -470,6 +597,20 @@ class HomeScreen extends ConsumerWidget {
       }
     }
     return nodes;
+  }
+
+  Future<void> _startDeckPractice(
+    BuildContext context,
+    WidgetRef ref,
+    Deck deck,
+  ) async {
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => QuizScreen(deckId: deck.id),
+      ),
+    );
+    if (!context.mounted) return;
+    _refreshLearningState(ref, deckId: deck.id);
   }
 
   // ============ 空状态 ============
@@ -528,8 +669,8 @@ class HomeScreen extends ConsumerWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.green,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 32, vertical: 16),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
@@ -703,7 +844,8 @@ class _RandomPathNode extends StatelessWidget {
           const SizedBox(height: 2), // 从4缩小到2，让标签更靠近图标
           Container(
             constraints: const BoxConstraints(maxWidth: 100), // 从120缩小到100
-            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2), // 从6,3缩小到5,2
+            padding: const EdgeInsets.symmetric(
+                horizontal: 5, vertical: 2), // 从6,3缩小到5,2
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(6), // 从8缩小到6
@@ -726,7 +868,7 @@ class _RandomPathNode extends StatelessWidget {
 
 // ============ 知识点模式路径节点 ============
 
-class _PathNode extends StatelessWidget {
+class _PathNode extends ConsumerWidget {
   final Deck deck;
   final bool isCompleted;
   final bool isCurrent;
@@ -740,13 +882,31 @@ class _PathNode extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final verifiedQuestionsAsync =
+        ref.watch(verifiedDeckQuestionsProvider(deck.id));
+    final verifiedCount = verifiedQuestionsAsync.maybeWhen(
+      data: (questions) => questions.length,
+      orElse: () => null,
+    );
+    final canStudy = verifiedCount != null && verifiedCount > 0;
+    final countLabel = verifiedQuestionsAsync.when(
+      data: (questions) =>
+          questions.isEmpty ? '待核验' : '${questions.length} 已核验',
+      loading: () => '核验中',
+      error: (_, __) => '核验状态异常',
+    );
     Color nodeColor = AppColors.surface;
     Color borderColor = AppColors.border;
     Color iconColor = AppColors.textLight;
     IconData icon = Icons.lock;
 
-    if (isCompleted) {
+    if (!canStudy) {
+      nodeColor = AppColors.surface;
+      borderColor = AppColors.border;
+      iconColor = AppColors.textLight;
+      icon = Icons.lock;
+    } else if (isCompleted) {
       nodeColor = AppColors.gold;
       borderColor = AppColors.goldDark;
       iconColor = Colors.white;
@@ -759,7 +919,7 @@ class _PathNode extends StatelessWidget {
     }
 
     return GestureDetector(
-      onTap: onTap,
+      onTap: canStudy ? onTap : null,
       child: Column(
         children: [
           Container(
@@ -769,7 +929,7 @@ class _PathNode extends StatelessWidget {
               color: nodeColor,
               shape: BoxShape.circle,
               border: Border.all(color: borderColor, width: 4),
-              boxShadow: isCurrent
+              boxShadow: canStudy && isCurrent
                   ? [
                       BoxShadow(
                         color: AppColors.green.withValues(alpha: 0.3),
@@ -804,7 +964,7 @@ class _PathNode extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${deck.questionCount} 题',
+                  countLabel,
                   style: const TextStyle(
                     fontSize: 11,
                     color: AppColors.textSecondary,

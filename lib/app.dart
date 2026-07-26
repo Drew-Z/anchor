@@ -2,8 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
+import '../features/agent/agent_home_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/deck/deck_list_screen.dart';
+import '../features/knowledge_base/knowledge_base_screen.dart';
 import '../features/profile/profile_screen.dart';
 import '../features/ingestion/ingestion_screen.dart';
 
@@ -21,6 +23,8 @@ class _MainAppState extends ConsumerState<MainApp> {
   final _screens = const [
     HomeScreen(),
     DeckListScreen(),
+    AgentHomeScreen(),
+    KnowledgeBaseScreen(),
     ProfileScreen(),
   ];
 
@@ -33,7 +37,9 @@ class _MainAppState extends ConsumerState<MainApp> {
   void _initSharingIntent() {
     try {
       // 处理 APP 通过分享启动时的内容(文本和图片)
-      ReceiveSharingIntent.instance.getInitialMedia().then((List<SharedMediaFile> files) {
+      ReceiveSharingIntent.instance
+          .getInitialMedia()
+          .then((List<SharedMediaFile> files) {
         if (files.isNotEmpty) {
           _handleSharedFiles(files);
         }
@@ -41,7 +47,9 @@ class _MainAppState extends ConsumerState<MainApp> {
       }).catchError((_) {});
 
       // 监听 APP 运行时的分享事件
-      _sharingSubscription = ReceiveSharingIntent.instance.getMediaStream().listen((List<SharedMediaFile> files) {
+      _sharingSubscription = ReceiveSharingIntent.instance
+          .getMediaStream()
+          .listen((List<SharedMediaFile> files) {
         if (files.isNotEmpty) {
           _handleSharedFiles(files);
         }
@@ -89,6 +97,7 @@ class _MainAppState extends ConsumerState<MainApp> {
         children: _screens,
       ),
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
         items: const [
@@ -101,6 +110,16 @@ class _MainAppState extends ConsumerState<MainApp> {
             icon: Icon(Icons.quiz_outlined),
             activeIcon: Icon(Icons.quiz),
             label: '题库',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.smart_toy_outlined),
+            activeIcon: Icon(Icons.smart_toy),
+            label: 'Agent',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.library_books_outlined),
+            activeIcon: Icon(Icons.library_books),
+            label: '知识库',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),

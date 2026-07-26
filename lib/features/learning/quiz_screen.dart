@@ -5,9 +5,12 @@ import '../../core/constants/app_colors.dart';
 import '../../core/providers/providers.dart';
 import '../../data/models/question.dart';
 import '../../data/models/question_type.dart';
+import '../../data/models/source_chunk.dart';
 import '../../data/models/user_stats.dart';
 import '../../shared/widgets/duo_button.dart';
+import '../../shared/widgets/source_citation_block.dart';
 import '../../shared/widgets/stats_widgets.dart';
+import '../knowledge_base/knowledge_library_error_state.dart';
 import 'widgets/question_widgets.dart';
 
 class QuizScreen extends ConsumerStatefulWidget {
@@ -44,7 +47,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     // 随机模式直接传入题目
     if (widget.questions != null) {
       setState(() {
-        _questions = widget.questions!;
+        _questions = _verifiedQuestions(widget.questions!);
         _isLoading = false;
       });
       return;
@@ -53,12 +56,19 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       setState(() => _isLoading = false);
       return;
     }
-    final db = ref.read(databaseProvider);
-    final questions = await db.getQuestionsByDeck(widget.deckId!);
+    final questions = await ref
+        .read(questionRepositoryProvider)
+        .getQuestionsByDeck(widget.deckId!);
     setState(() {
-      _questions = questions;
+      _questions = _verifiedQuestions(questions);
       _isLoading = false;
     });
+  }
+
+  List<Question> _verifiedQuestions(List<Question> questions) {
+    return questions
+        .where((question) => question.sourceStatus == SourceStatus.verified)
+        .toList();
   }
 
   Future<void> _checkAnswer() async {
@@ -103,6 +113,15 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       await ref.read(userStatsProvider.notifier).onWrong();
     }
 
+    final updatedQuestion = await ref
+        .read(reviewSchedulerServiceProvider)
+        .recordQuestionReview(question: question, isCorrect: isCorrect);
+    await ref
+        .read(masteryServiceProvider)
+        .updateFromQuestionAttempt(question: question, isCorrect: isCorrect);
+    _questions[_currentIndex] = updatedQuestion;
+    _refreshAfterQuestionAttempt(updatedQuestion);
+
     setState(() {
       _showResult = true;
     });
@@ -117,6 +136,25 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     }
   }
 
+  void _refreshAfterQuestionAttempt(Question question) {
+    ref.invalidate(todayReviewQueueProvider);
+    ref.invalidate(allQuestionsProvider);
+    ref.invalidate(verifiedQuestionsProvider);
+    if (question.deckId.isNotEmpty) {
+      ref.invalidate(deckQuestionsProvider(question.deckId));
+      ref.invalidate(verifiedDeckQuestionsProvider(question.deckId));
+    }
+
+    final knowledgePointId = question.knowledgePointId;
+    if (knowledgePointId != null && knowledgePointId.isNotEmpty) {
+      ref.invalidate(knowledgePointListProvider);
+      ref.invalidate(evidenceBackedKnowledgePointListProvider);
+      ref.invalidate(practiceableKnowledgePointListProvider);
+      ref.invalidate(knowledgePointProvider(knowledgePointId));
+      ref.invalidate(knowledgePointQuestionsProvider(knowledgePointId));
+    }
+  }
+
   bool _checkCorrect(Question question, String answer) {
     switch (question.type) {
       case QuestionType.multipleChoice:
@@ -124,12 +162,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         return answer.trim() == question.answer.trim();
       case QuestionType.fillBlank:
         // 去除空格和标点，忽略大小写
-        return answer.trim().toLowerCase() == question.answer.trim().toLowerCase();
+        return answer.trim().toLowerCase() ==
+            question.answer.trim().toLowerCase();
       case QuestionType.matching:
       case QuestionType.ordering:
         // 对于匹配和排序，答案格式为 "item1-match1|item2-match2" 或 "step1|step2|step3"
         // 比较时需要规范化
-        final normalize = (String s) => s.split('|').map((e) => e.trim()).join('|');
+        final normalize =
+            (String s) => s.split('|').map((e) => e.trim()).join('|');
         return normalize(answer) == normalize(question.answer);
     }
   }
@@ -152,7 +192,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   Future<void> _finishQuiz() async {
     final allCorrect = _correctCount == _questions.length;
     final statsBefore = ref.read(userStatsProvider).value;
-    await ref.read(userStatsProvider.notifier).onDeckComplete(allCorrect: allCorrect);
+    await ref
+        .read(userStatsProvider.notifier)
+        .onDeckComplete(allCorrect: allCorrect);
     final statsAfter = ref.read(userStatsProvider).value;
 
     // 计算总 XP（含连续天数奖励）
@@ -189,7 +231,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     if (before.streak < 3 && after.streak >= 3) newAchievements.add('连续3天');
     if (before.streak < 7 && after.streak >= 7) newAchievements.add('连续7天');
     if (before.streak < 30 && after.streak >= 30) newAchievements.add('连续30天');
-    if (before.streak < 100 && after.streak >= 100) newAchievements.add('连续100天');
+    if (before.streak < 100 && after.streak >= 100)
+      newAchievements.add('连续100天');
     // XP
     if (before.xp < 100 && after.xp >= 100) newAchievements.add('初心者');
     if (before.xp < 500 && after.xp >= 500) newAchievements.add('积少成多');
@@ -202,7 +245,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -210,26 +254,33 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                 const SizedBox(height: 12),
                 const Text(
                   '成就解锁！',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.gold),
+                  style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.gold),
                 ),
                 const SizedBox(height: 16),
                 ...newAchievements.map((a) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.star, color: AppColors.gold, size: 20),
-                      const SizedBox(width: 6),
-                      Text(a, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                    ],
-                  ),
-                )),
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.star,
+                              color: AppColors.gold, size: 20),
+                          const SizedBox(width: 6),
+                          Text(a,
+                              style: const TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    )),
               ],
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('太棒了', style: TextStyle(fontWeight: FontWeight.w700)),
+                child: const Text('太棒了',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
               ),
             ],
           ),
@@ -249,7 +300,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     if (_questions.isEmpty) {
       return Scaffold(
         appBar: AppBar(title: const Text('答题')),
-        body: const Center(child: Text('此题包暂无题目')),
+        body: const Center(child: Text('暂无已核验题目，请先在知识库完成来源核验')),
       );
     }
 
@@ -264,6 +315,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     final stats = ref.watch(userStatsProvider);
     final question = _questions[_currentIndex];
     final isCorrect = _showResult && _isCorrectAnswer;
+    final citationChunksAsync = _showResult
+        ? ref.watch(
+            questionCitationChunksProvider(question.citationIds.join('\x00')),
+          )
+        : null;
 
     return Scaffold(
       body: SafeArea(
@@ -287,7 +343,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                   children: [
                     // 题型标签
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: AppColors.surface,
                         borderRadius: BorderRadius.circular(8),
@@ -340,7 +397,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                                 Icon(
                                   isCorrect ? Icons.lightbulb : Icons.info,
                                   size: 18,
-                                  color: isCorrect ? AppColors.green : AppColors.blue,
+                                  color: isCorrect
+                                      ? AppColors.green
+                                      : AppColors.blue,
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
@@ -348,7 +407,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w800,
-                                    color: isCorrect ? AppColors.green : AppColors.blue,
+                                    color: isCorrect
+                                        ? AppColors.green
+                                        : AppColors.blue,
                                   ),
                                 ),
                               ],
@@ -364,6 +425,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                             ),
                           ],
                         ),
+                      ),
+                    ],
+                    if (citationChunksAsync != null) ...[
+                      const SizedBox(height: 16),
+                      _QuizCitationSection(
+                        question: question,
+                        chunksAsync: citationChunksAsync,
                       ),
                     ],
                   ],
@@ -455,7 +523,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
-                      color: isCorrect ? AppColors.greenDark : AppColors.redDark,
+                      color:
+                          isCorrect ? AppColors.greenDark : AppColors.redDark,
                     ),
                   ),
                   if (isCorrect)
@@ -582,7 +651,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   }
 
   Widget _buildResultScreen() {
-    final accuracy = _questions.isNotEmpty ? _correctCount / _questions.length : 0.0;
+    final accuracy =
+        _questions.isNotEmpty ? _correctCount / _questions.length : 0.0;
     final allCorrect = _correctCount == _questions.length;
     final stats = ref.watch(userStatsProvider).value;
     final streakBonus = (stats?.streak ?? 0) * 5;
@@ -728,6 +798,82 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _QuizCitationSection extends ConsumerWidget {
+  final Question question;
+  final AsyncValue<List<SourceChunk>> chunksAsync;
+
+  const _QuizCitationSection({
+    required this.question,
+    required this.chunksAsync,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final citationKey = question.citationIds.join('\x00');
+    return chunksAsync.when(
+      data: (chunks) {
+        if (chunks.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.blueLight,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.blue, width: 2),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.fact_check_outlined, color: AppColors.blue),
+                  SizedBox(width: 8),
+                  Text(
+                    '引用依据',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.blueDark,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              ...chunks.map(
+                (chunk) => SourceCitationBlock(
+                  chunk: chunk,
+                  border: Border.all(color: AppColors.border, width: 1.5),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+      loading: () => const LinearProgressIndicator(color: AppColors.green),
+      error: (error, _) => KnowledgeLibraryErrorState(
+        title: '引用依据读取失败',
+        retryLabel: '重试读取引用',
+        diagnosticTitle: '答题引用依据读取失败',
+        diagnosticSuccessMessage: '已复制答题引用读取诊断',
+        diagnosticLines: [
+          '入口: 答题结果',
+          '题目 ID: ${question.id}',
+          '题包 ID: ${question.deckId}',
+          '题目: ${question.content}',
+          '引用数量: ${question.citationIds.length}',
+          '引用 ID: ${question.citationIds.isEmpty ? '无' : question.citationIds.join(', ')}',
+        ],
+        error: error,
+        onRetry: () => ref.invalidate(
+          questionCitationChunksProvider(citationKey),
+        ),
       ),
     );
   }
