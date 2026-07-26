@@ -3,12 +3,56 @@ import 'package:crypto/crypto.dart';
 import '../../data/models/question.dart';
 import '../../data/models/source_chunk.dart';
 
-/// 题目质量验证器 - 确保 AI 生成的题目事实准确
+/// 题目质量验证服务 - 防止 AI 生成事实性错误的题目
 ///
-/// 参考: aicoding-cookbook/docs-to-book 的 quality-checks.md
-/// 核心原则: AI 会编数字、瞎断言、抄过时代码 - 必须回源验证
+/// **为什么需要验证**:
+/// AI 在生成题目时常见的三大问题:
+/// 1. **编造数字**: "Flutter 有 7 个核心组件" (实际文档说 5 个)
+/// 2. **瞎断言**: "Vue 不支持 TypeScript" (实际支持)
+/// 3. **抄过时代码**: 从文档中抄了一段已废弃的 API 写法
+///
+/// **验证维度**:
+/// 1. **事实准确性**: 题目中的关键词、数字、术语是否在原文中存在
+/// 2. **引用完整性**: 正确答案是否有原文支撑
+/// 3. **逻辑一致性**: 选项设计是否合理,排序是否符合原文顺序
+///
+/// **置信度评分** (0.0-1.0):
+/// - **1.0**: 完全通过,无任何问题
+/// - **0.7**: 发现 1 个小问题,可能需要人工复核
+/// - **0.5**: 发现 2 个问题,建议人工复核
+/// - **0.3**: 发现 3+ 个问题,强烈建议删除或重新生成
+///
+/// **使用示例**:
+/// ```dart
+/// final validator = QuestionValidator();
+///
+/// final result = await validator.validate(
+///   question: question,
+///   sourceChunks: relatedChunks,
+/// );
+///
+/// if (result.needsManualReview) {
+///   print('需要人工复核: ${result.issues.join(", ")}');
+/// }
+/// ```
+///
+/// **参考**: aicoding-cookbook/docs-to-book 的 quality-checks 策略
 class QuestionValidator {
-  /// 验证题目的事实准确性
+  /// 验证单个题目的事实准确性
+  ///
+  /// **验证流程**:
+  /// 1. 根据题型调用对应的验证方法
+  /// 2. 收集所有发现的问题
+  /// 3. 计算置信度分数
+  ///
+  /// **参数**:
+  /// - [question]: 待验证的题目
+  /// - [sourceChunks]: 题目对应的原文片段(用于回源验证)
+  ///
+  /// **返回**: QuestionValidationResult 包含:
+  /// - `isValid`: 是否通过验证
+  /// - `issues`: 发现的问题列表
+  /// - `confidence`: 置信度(0-1)
   Future<QuestionValidationResult> validate({
     required Question question,
     required List<SourceChunk> sourceChunks,
@@ -45,6 +89,14 @@ class QuestionValidator {
   }
 
   /// 批量验证题目
+  ///
+  /// **适用场景**: 一次性验证导入流程生成的所有题目
+  ///
+  /// **参数**:
+  /// - [questions]: 待验证的题目列表
+  /// - [sourceChunks]: 对应的原文片段
+  ///
+  /// **返回**: Map<题目ID, 验证结果>
   Future<Map<String, QuestionValidationResult>> validateBatch({
     required List<Question> questions,
     required List<SourceChunk> sourceChunks,
@@ -63,6 +115,15 @@ class QuestionValidator {
   }
 
   /// 验证选择题
+  ///
+  /// **检查点**:
+  /// 1. 题干关键词是否在原文中(防止 AI 凭空创造问题)
+  /// 2. 选项中的数字/术语是否在原文中(AI 最容易编造数字)
+  /// 3. 正确答案是否有原文明确支撑
+  ///
+  /// **常见问题示例**:
+  /// - 题干: "Flutter 有几个核心 Widget?" (原文根本没提数量)
+  /// - 选项: "7个" (AI 编造的数字,原文是 5 个)
   Future<List<String>> _validateMultipleChoice(
     Question question,
     List<SourceChunk> chunks,
@@ -113,6 +174,14 @@ class QuestionValidator {
   }
 
   /// 验证填空题
+  ///
+  /// **检查点**:
+  /// 1. 答案必须在原文中逐字出现(填空题答案不容模糊)
+  /// 2. 题干中的代码片段必须来自原文(防止 AI 抄过时代码)
+  ///
+  /// **常见问题示例**:
+  /// - 答案: "StatefulWidget" (原文中是 "StatelessWidget")
+  /// - 题干包含代码: `setState(() {})` (但原文已改用 hooks)
   Future<List<String>> _validateFillInBlank(
     Question question,
     List<SourceChunk> chunks,
@@ -152,6 +221,14 @@ class QuestionValidator {
   }
 
   /// 验证判断题
+  ///
+  /// **检查点**:
+  /// 1. 陈述的关键词在原文中的匹配率(要求 ≥ 70%)
+  /// 2. 警惕否定性陈述(AI 容易瞎断言 "不支持"、"无法")
+  ///
+  /// **常见问题示例**:
+  /// - "Vue 不支持 TypeScript" (实际支持,AI 瞎断言)
+  /// - "Flutter 无法进行热重载" (实际可以,AI 理解错误)
   Future<List<String>> _validateTrueFalse(
     Question question,
     List<SourceChunk> chunks,
@@ -200,6 +277,13 @@ class QuestionValidator {
   }
 
   /// 验证匹配题
+  ///
+  /// **检查点**:
+  /// 1. 左右两侧的所有条目都必须在原文中
+  /// 2. 匹配关系必须在原文中有依据(同时出现在同一 chunk 中)
+  ///
+  /// **示例**: "Widget - UI组件" 这对匹配,要求原文同一段落中
+  /// 既提到 Widget 又提到 UI组件,且说明了它们的关系
   Future<List<String>> _validateMatching(
     Question question,
     List<SourceChunk> chunks,
@@ -238,6 +322,13 @@ class QuestionValidator {
   }
 
   /// 验证排序题
+  ///
+  /// **检查点**:
+  /// 1. 每个步骤都必须在原文中
+  /// 2. 排序顺序应与原文中的出现顺序一致
+  ///
+  /// **示例**: "安装 → 配置 → 运行" 的排序,要求原文中
+  /// 这三个词的出现位置也是这个顺序
   Future<List<String>> _validateOrdering(
     Question question,
     List<SourceChunk> chunks,
@@ -363,7 +454,17 @@ class QuestionValidator {
   }
 }
 
-/// 验证结果
+/// 题目验证结果
+///
+/// **字段说明**:
+/// - [isValid]: 是否通过验证(无任何问题)
+/// - [issues]: 发现的具体问题列表
+/// - [confidence]: 置信度评分 (0.0-1.0)
+///   - 1.0: 完全通过
+///   - 0.7: 1个问题
+///   - 0.5: 2个问题
+///   - 0.3: 3+问题
+/// - [needsManualReview]: 是否需要人工复核(派生属性)
 class QuestionValidationResult {
   final bool isValid;
   final List<String> issues;

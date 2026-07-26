@@ -2,26 +2,88 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import '../../data/models/source_chunk.dart';
 
-/// 语义切分器 - 按文档结构(标题/代码块/列表)切分,而非固定字数
+/// 语义切分服务 - 将文档切分为可引用的最小语义单元
 ///
-/// 参考: aicoding-cookbook/docs-to-book 的 codebase-survey.md
-/// 核心原则: 保持语义完整性,不破坏段落/代码块/列表边界
+/// **设计理念**:
+/// 传统的固定字数切分(如每500字一块)会破坏文档结构,导致:
+/// - 代码块被截断,语法不完整
+/// - 段落被切断,语义不连贯
+/// - 引用溯源时难以定位
+///
+/// SemanticChunker 按文档的 **自然结构** 切分:
+/// - **Markdown**: 按标题层级(##, ###)切分,保持章节完整性
+/// - **代码**: 按函数/类边界切分,保留精确行号
+/// - **纯文本**: 按段落(空行)切分,保持段落连贯性
+///
+/// **核心优势**:
+/// 1. **语义完整**: 每个 chunk 是独立可理解的单元
+/// 2. **精确溯源**: 生成人类可读的 locator
+///    - 示例: `README.md → ## 快速开始 → ### 安装步骤`
+///    - 示例: `lib/main.dart:15-42`
+/// 3. **AI 友好**: 切分边界与 AI 理解边界一致,提升题目质量
+///
+/// **使用示例**:
+/// ```dart
+/// final chunker = SemanticChunker();
+///
+/// // Markdown 文档
+/// final markdownChunks = chunker.chunkMarkdown(
+///   sourceId: 'source_123',
+///   markdown: markdownContent,
+///   baseLocator: 'README.md',
+///   createdAt: DateTime.now(),
+/// );
+///
+/// // 代码文件
+/// final codeChunks = chunker.chunkCode(
+///   sourceId: 'source_456',
+///   code: codeContent,
+///   filePath: 'lib/main.dart',
+///   createdAt: DateTime.now(),
+/// );
+/// ```
+///
+/// **参考**: aicoding-cookbook/docs-to-book 的 semantic chunking 策略
 class SemanticChunker {
   /// 目标 chunk 大小(字符数)
+  ///
+  /// 经验值: 1500字符约对应 GPT-3.5 的 400 tokens,在上下文窗口中
+  /// 既能保持足够信息密度,又不会占用过多 token
   static const int targetChunkSize = 1500;
 
   /// 最小 chunk 大小(避免切太碎)
+  ///
+  /// 过小的 chunk 缺乏上下文,AI 难以理解其含义
   static const int minChunkSize = 500;
 
   /// 最大 chunk 大小(避免单个 chunk 太大)
+  ///
+  /// 过大的 chunk 会让 AI 提取知识点时遗漏细节
   static const int maxChunkSize = 3000;
 
   /// 按语义结构切分 Markdown 文档
   ///
-  /// 返回的每个 chunk 包含:
-  /// - content: 切分后的内容
-  /// - locator: 定位信息(如 "## 架构设计" 章节标题)
-  /// - startLine/endLine: 行号范围(便于溯源)
+  /// **切分策略**:
+  /// 1. 提取文档中的所有标题(##, ###, ####)
+  /// 2. 按标题层级划分章节
+  /// 3. 如果章节内容 ≤ 3000字符,整个章节作为一个 chunk
+  /// 4. 如果章节内容过大,进一步按段落/代码块边界切分
+  ///
+  /// **关键设计**:
+  /// - **不破坏代码块**: 检测 ``` 边界,代码块内不切分
+  /// - **保持段落完整**: 在空行处切分,不截断段落
+  /// - **生成可读 locator**: `README.md → ## 快速开始 → ### 安装`
+  ///
+  /// **参数**:
+  /// - [sourceId]: 所属源文档ID
+  /// - [markdown]: Markdown 内容
+  /// - [baseLocator]: 基础定位符(通常是文件名)
+  /// - [createdAt]: 创建时间
+  ///
+  /// **返回**: 切分后的 SourceChunk 列表,每个 chunk 包含:
+  /// - `content`: 切分后的内容
+  /// - `locator`: 定位信息(如 "README.md → ## 架构设计")
+  /// - `startLine`/`endLine`: 行号范围(便于溯源)
   List<SourceChunk> chunkMarkdown({
     required String sourceId,
     required String markdown,
@@ -88,6 +150,24 @@ class SemanticChunker {
   }
 
   /// 切分纯代码文件(无 Markdown 标题)
+  ///
+  /// **切分策略**:
+  /// - 按固定行数(约100行)切分,但尽量保持函数/类边界完整
+  /// - 简单策略: 向前查找空行作为边界
+  /// - 生成精确的行号定位: `lib/main.dart:15-42`
+  ///
+  /// **为什么按行数而非字符数**:
+  /// - 代码定位习惯按行号(IDE跳转、错误提示都是行号)
+  /// - 保持与原文件的对应关系,便于用户溯源
+  ///
+  /// **参数**:
+  /// - [sourceId]: 所属源文档ID
+  /// - [code]: 代码内容
+  /// - [filePath]: 文件路径(用于生成 locator)
+  /// - [createdAt]: 创建时间
+  ///
+  /// **返回**: 切分后的 SourceChunk 列表,每个 chunk 的 locator 格式为:
+  /// `<filePath>:<startLine>-<endLine>`
   List<SourceChunk> chunkCode({
     required String sourceId,
     required String code,
