@@ -7,6 +7,23 @@ import '../../../data/models/source_chunk.dart';
 import '../../openai_service.dart';
 import '../ai_task_result.dart';
 
+/// AI 生成的题目草稿(未持久化)
+///
+/// **与 Question 的区别**:
+/// - GeneratedQuestionDraft: AI 生成的临时结果,不包含 id/createdAt 等持久化字段
+/// - Question: 持久化到数据库的题目,包含完整的元数据和统计数据
+///
+/// **字段说明**:
+/// - [type]: 题目类型(选择题/填空题/匹配题等)
+/// - [content]: 题目内容
+/// - [options]: 选项列表(选择题/匹配题使用)
+/// - [answer]: 标准答案
+/// - [explanation]: 解析(可选)
+/// - [knowledgePointId]: 关联的知识点ID(可选)
+/// - [difficulty]: 难度等级 1-5
+/// - [sourceStatus]: 来源状态(是否有引用支撑)
+/// - [citationIds]: 引用的 SourceChunk ID 列表
+/// - [matchLeft]/[matchRight]: 匹配题的左右列表
 class GeneratedQuestionDraft {
   final QuestionType type;
   final String content;
@@ -102,6 +119,12 @@ class GeneratedQuestionDraft {
     );
   }
 
+  /// 转换为可持久化的 Question 对象
+  ///
+  /// **参数**:
+  /// - [deckId]: 题目所属的卡组ID
+  ///
+  /// **注意**: 返回的 Question 的 id 为空字符串,需要在插入数据库时生成
   Question toQuestion({required String deckId}) {
     return Question(
       id: '',
@@ -121,11 +144,19 @@ class GeneratedQuestionDraft {
   }
 }
 
+/// 题目生成结果
+///
+/// 包含 AI 生成的所有题目草稿列表
 class QuestionGenerationResult {
   final List<GeneratedQuestionDraft> questions;
 
   QuestionGenerationResult({required this.questions});
 
+  /// 从 JSON 解析,自动过滤无效题目
+  ///
+  /// **过滤规则**:
+  /// - content 为空的题目
+  /// - answer 为空的题目
   factory QuestionGenerationResult.fromJson(Map<String, dynamic> json) {
     final questionsJson = json['questions'] as List<dynamic>? ?? [];
     return QuestionGenerationResult(
@@ -140,6 +171,38 @@ class QuestionGenerationResult {
   }
 }
 
+/// 题目生成任务
+///
+/// **功能**: 根据知识点和原文片段生成可学习题目(选择题/填空题/匹配题等)
+///
+/// **核心原则**:
+/// 1. **Source-grounded**: 每道题必须基于提供的知识点和原文,不能编造
+/// 2. **引用可溯源**: 题目的答案必须能在原文中找到支撑(citation_ids)
+/// 3. **自动过滤无效题目**: 过滤掉内容或答案为空的题目
+///
+/// **支持的题型**:
+/// - multiple_choice: 选择题(4个选项)
+/// - fill_blank: 填空题(content 中使用 ___ 表示空缺)
+/// - true_false: 判断题(正确/错误)
+/// - matching: 匹配题(左右两列,答案格式 "左-右|左-右")
+/// - ordering: 排序题(打乱顺序的选项,答案格式 "第一步|第二步|第三步")
+///
+/// **使用示例**:
+/// ```dart
+/// final task = QuestionGenerationTask(openAIService);
+///
+/// final result = await task.run(
+///   knowledgePoints: [kp1, kp2],
+///   sourceChunks: [chunk1, chunk2],
+/// );
+///
+/// if (result.isSuccess) {
+///   for (final question in result.data!.questions) {
+///     print('生成题目: ${question.content}');
+///     print('答案: ${question.answer}');
+///   }
+/// }
+/// ```
 class QuestionGenerationTask {
   static const String _systemPrompt = '''
 你是一个严谨的 source-grounded 出题助手。你的任务是根据知识点和来源片段生成可学习题目。
@@ -184,6 +247,22 @@ JSON schema：
 
   QuestionGenerationTask(this._openai);
 
+  /// 执行题目生成任务
+  ///
+  /// **参数**:
+  /// - [knowledgePoints]: 知识点列表(不能为空)
+  /// - [sourceChunks]: 原文片段列表(不能为空)
+  /// - [questionCount]: 期望生成的题目数量(默认 8)
+  ///
+  /// **返回**: AiTaskResult<QuestionGenerationResult>
+  /// - 成功: 包含生成的题目列表
+  /// - 失败: 包含错误类型和详细信息
+  ///
+  /// **错误类型**:
+  /// - validation: 参数校验失败(如知识点或原文为空)
+  /// - request: OpenAI API 调用失败
+  /// - parse: JSON 解析失败
+  /// - emptyResult: AI 未生成有效题目
   Future<AiTaskResult<QuestionGenerationResult>> run({
     required List<KnowledgePoint> knowledgePoints,
     required List<SourceChunk> sourceChunks,
