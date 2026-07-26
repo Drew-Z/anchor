@@ -1,0 +1,399 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://duoduo.local/schema/private-alpha-readiness-v2.schema.json",
+  "title": "Duoduo Private Alpha Readiness Evidence v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "privacy_scan",
+    "automated_gate",
+    "android_build",
+    "automated_gate_passed",
+    "android_build_verified",
+    "physical_device_passed",
+    "controlled_credential_available",
+    "data_processing_owner_assigned",
+    "release_day_acceptance_passed",
+    "cohort_completed"
+  ],
+  "properties": {
+    "schema_version": { "const": 2 },
+    "privacy_scan": { "$ref": "#/$defs/privacyScan" },
+    "automated_gate": { "$ref": "#/$defs/automatedGate" },
+    "android_build": { "$ref": "#/$defs/androidBuild" },
+    "automated_gate_passed": { "type": "boolean" },
+    "android_build_verified": { "type": "boolean" },
+    "physical_device_passed": { "type": "boolean" },
+    "controlled_credential_available": { "type": "boolean" },
+    "data_processing_owner_assigned": { "type": "boolean" },
+    "release_day_acceptance_passed": { "type": "boolean" },
+    "cohort_completed": { "type": "boolean" },
+    "physical_device_evidence": { "$ref": "#/$defs/physicalDeviceEvidence" },
+    "controlled_credential": { "$ref": "#/$defs/controlledCredential" },
+    "operator_pack": { "$ref": "#/$defs/operatorPack" },
+    "release_day_acceptance": { "$ref": "#/$defs/releaseDayAcceptance" },
+    "cohort_evidence": { "$ref": "#/$defs/cohortEvidence" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "physical_device_passed": { "const": true } } },
+      "then": { "required": ["physical_device_evidence"] }
+    },
+    {
+      "if": { "properties": { "controlled_credential_available": { "const": true } } },
+      "then": { "required": ["controlled_credential"] }
+    },
+    {
+      "if": { "properties": { "data_processing_owner_assigned": { "const": true } } },
+      "then": { "required": ["operator_pack"] }
+    },
+    {
+      "if": { "properties": { "release_day_acceptance_passed": { "const": true } } },
+      "then": { "required": ["release_day_acceptance"] }
+    },
+    {
+      "if": { "properties": { "cohort_completed": { "const": true } } },
+      "then": { "required": ["cohort_evidence"] }
+    }
+  ],
+  "$defs": {
+    "hash": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{64}$"
+    },
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "not": { "pattern": "^(?:[A-Za-z]:[\\\\/]|/|file:)" }
+    },
+    "automatedGate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "completed_at",
+        "tests_passed",
+        "analyzer_errors",
+        "analyzer_warnings",
+        "format_passed",
+        "diff_check_passed"
+      ],
+      "properties": {
+        "completed_at": { "type": "string", "format": "date-time" },
+        "tests_passed": { "type": "integer", "minimum": 1 },
+        "analyzer_errors": { "type": "integer", "minimum": 0 },
+        "analyzer_warnings": { "type": "integer", "minimum": 0 },
+        "format_passed": { "type": "boolean" },
+        "diff_check_passed": { "type": "boolean" }
+      }
+    },
+    "androidBuild": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["apk_path", "bytes", "sha256", "arm64_only", "v2_signed"],
+      "properties": {
+        "apk_path": { "$ref": "#/$defs/relativePath" },
+        "bytes": { "type": "integer", "minimum": 1 },
+        "sha256": { "$ref": "#/$defs/hash" },
+        "arm64_only": { "type": "boolean" },
+        "v2_signed": { "type": "boolean" }
+      }
+    },
+    "privacyScan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["paths"],
+      "properties": {
+        "paths": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/relativePath" }
+        }
+      }
+    },
+    "scope": {
+      "enum": ["controlled", "participantOwned", "sharedPublic"]
+    },
+    "acceptanceCases": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "structuredJson",
+        "chinesePoem",
+        "dartCoding",
+        "claimGrounding",
+        "evidenceRefusal"
+      ],
+      "properties": {
+        "structuredJson": { "type": "string" },
+        "chinesePoem": { "type": "string" },
+        "dartCoding": { "type": "string" },
+        "claimGrounding": { "type": "string" },
+        "evidenceRefusal": { "type": "string" }
+      }
+    },
+    "modelProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "provider_id",
+        "endpoint",
+        "model",
+        "protocol",
+        "fingerprint",
+        "completed_at",
+        "apk_sha256",
+        "credential_scope",
+        "cases"
+      ],
+      "properties": {
+        "role": { "enum": ["primary", "fallback"] },
+        "provider_id": { "type": "string", "minLength": 1 },
+        "endpoint": { "type": "string", "format": "uri", "pattern": "^https://" },
+        "model": { "type": "string", "minLength": 1 },
+        "protocol": { "type": "string", "minLength": 1 },
+        "fingerprint": { "$ref": "#/$defs/hash" },
+        "completed_at": { "type": "string", "format": "date-time" },
+        "apk_sha256": { "$ref": "#/$defs/hash" },
+        "credential_scope": { "$ref": "#/$defs/scope" },
+        "cases": { "$ref": "#/$defs/acceptanceCases" }
+      }
+    },
+    "releaseDayAcceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fallback_offered", "profiles"],
+      "properties": {
+        "fallback_offered": { "type": "boolean" },
+        "profiles": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "items": { "$ref": "#/$defs/modelProfile" }
+        }
+      }
+    },
+    "credentialBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "scope",
+        "credential_reference",
+        "profile_fingerprint",
+        "quota_owner_declared",
+        "quota_limit_known",
+        "revocation_supported",
+        "revocation_owner_declared",
+        "retention_policy_declared",
+        "data_handling_policy_declared"
+      ],
+      "properties": {
+        "role": { "enum": ["primary", "fallback"] },
+        "scope": { "$ref": "#/$defs/scope" },
+        "credential_reference": {
+          "type": "string",
+          "pattern": "^CRED-[A-Z0-9-]{3,64}$"
+        },
+        "profile_fingerprint": { "$ref": "#/$defs/hash" },
+        "quota_owner_declared": { "type": "boolean" },
+        "quota_limit_known": { "type": "boolean" },
+        "revocation_supported": { "type": "boolean" },
+        "revocation_owner_declared": { "type": "boolean" },
+        "retention_policy_declared": { "type": "boolean" },
+        "data_handling_policy_declared": { "type": "boolean" }
+      }
+    },
+    "controlledCredential": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bindings"],
+      "properties": {
+        "bindings": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "items": { "$ref": "#/$defs/credentialBinding" }
+        }
+      }
+    },
+    "operatorPack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role_codes",
+        "external_record_locator",
+        "access_restricted",
+        "retention_policy_declared",
+        "deletion_procedure_declared",
+        "incident_response_declared"
+      ],
+      "properties": {
+        "role_codes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string" },
+          "allOf": [
+            { "contains": { "const": "alphaOwner" } },
+            { "contains": { "const": "privacyReviewer" } },
+            { "contains": { "const": "reliabilityOwner" } }
+          ]
+        },
+        "external_record_locator": {
+          "type": "string",
+          "pattern": "^OPS-[A-Z0-9-]{3,64}$"
+        },
+        "access_restricted": { "type": "boolean" },
+        "retention_policy_declared": { "type": "boolean" },
+        "deletion_procedure_declared": { "type": "boolean" },
+        "incident_response_declared": { "type": "boolean" }
+      }
+    },
+    "physicalDeviceEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["completed_at", "report"],
+      "properties": {
+        "completed_at": { "type": "string", "format": "date-time" },
+        "report": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["status", "apk", "device", "execution"],
+          "properties": {
+            "status": { "type": "string" },
+            "apk": {
+              "type": "object",
+              "required": ["sha256"],
+              "properties": { "sha256": { "$ref": "#/$defs/hash" } }
+            },
+            "device": {
+              "type": "object",
+              "required": ["kind", "abi", "api_level"],
+              "properties": {
+                "kind": { "type": "string" },
+                "abi": { "type": "string" },
+                "api_level": { "type": "integer" }
+              }
+            },
+            "execution": {
+              "type": "object",
+              "required": [
+                "requested",
+                "attempted",
+                "install_succeeded",
+                "cold_start_succeeded",
+                "process_alive",
+                "log_error_matches"
+              ],
+              "properties": {
+                "requested": { "type": "boolean" },
+                "attempted": { "type": "boolean" },
+                "install_succeeded": { "type": "boolean" },
+                "cold_start_succeeded": { "type": "boolean" },
+                "process_alive": { "type": "boolean" },
+                "log_error_matches": { "type": "integer", "minimum": 0 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "cohortParticipant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "track",
+        "consent",
+        "invitation",
+        "profile_fingerprint",
+        "credential_scope",
+        "d0_status",
+        "d0_grounded_turn_completed",
+        "d0_evidence_reference",
+        "d7_status",
+        "d7_grounded_turn_completed",
+        "d7_evidence_reference",
+        "d14_status",
+        "learning_claim_status",
+        "d14_evidence_reference"
+      ],
+      "properties": {
+        "code": { "type": "string", "pattern": "^A(?:0[1-9]|10)$" },
+        "track": { "enum": ["observed", "selfServe"] },
+        "consent": { "enum": ["accepted", "declined", "withdrawn"] },
+        "invitation": { "enum": ["complete", "declined", "withdrawn"] },
+        "profile_fingerprint": { "$ref": "#/$defs/hash" },
+        "credential_scope": { "$ref": "#/$defs/scope" },
+        "d0_status": { "$ref": "#/$defs/phaseStatus" },
+        "d0_grounded_turn_completed": { "type": "boolean" },
+        "d0_evidence_reference": { "$ref": "#/$defs/eventReference" },
+        "d7_status": { "$ref": "#/$defs/phaseStatus" },
+        "d7_grounded_turn_completed": { "type": "boolean" },
+        "d7_evidence_reference": { "$ref": "#/$defs/eventReference" },
+        "d14_status": { "$ref": "#/$defs/phaseStatus" },
+        "learning_claim_status": {
+          "enum": ["supported", "unsupported", "unclear", "none"]
+        },
+        "d14_evidence_reference": { "$ref": "#/$defs/eventReference" }
+      }
+    },
+    "phaseStatus": {
+      "enum": ["completed", "blocked", "absent", "withdrawn"]
+    },
+    "eventReference": {
+      "type": "string",
+      "pattern": "^EV-[A-Z0-9-]{3,64}$"
+    },
+    "cohortEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freeze_reference",
+        "frozen_at",
+        "formal_denominator",
+        "apk_sha256",
+        "profile_fingerprints",
+        "participants",
+        "decision",
+        "decision_at",
+        "report_reference",
+        "operator_record_locator"
+      ],
+      "properties": {
+        "freeze_reference": {
+          "type": "string",
+          "pattern": "^COHORT-[A-Z0-9-]{3,64}$"
+        },
+        "frozen_at": { "type": "string", "format": "date-time" },
+        "formal_denominator": { "const": 10 },
+        "apk_sha256": { "$ref": "#/$defs/hash" },
+        "profile_fingerprints": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/hash" }
+        },
+        "participants": {
+          "type": "array",
+          "minItems": 10,
+          "maxItems": 10,
+          "items": { "$ref": "#/$defs/cohortParticipant" }
+        },
+        "decision": { "enum": ["go", "conditionalGo", "noGo"] },
+        "decision_at": { "type": "string", "format": "date-time" },
+        "report_reference": {
+          "type": "string",
+          "pattern": "^REPORT-[A-Z0-9-]{3,64}$"
+        },
+        "operator_record_locator": {
+          "type": "string",
+          "pattern": "^OPS-[A-Z0-9-]{3,64}$"
+        }
+      }
+    }
+  }
+}
