@@ -258,6 +258,7 @@ StatefulWidget 通过 State 对象管理状态...
 
 本项目受以下项目启发:
 
+- [xuanli199/duoduo](https://github.com/xuanli199/duoduo) - 早期探索阶段的参考
 - [aicoding-cookbook](https://github.com/lili-luo/aicoding-cookbook) - Claude Code Skills 最佳实践
 - [Anki](https://apps.ankiweb.net/) - 间隔重复算法先驱
 - [Obsidian](https://obsidian.md/) - 个人知识管理理念
