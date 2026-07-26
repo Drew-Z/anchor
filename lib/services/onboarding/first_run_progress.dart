@@ -3,11 +3,13 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../data/database/database_helper.dart';
 import '../../data/models/learning_session.dart';
 import '../../data/repositories/deck_repository.dart';
 import '../../data/repositories/knowledge_point_repository.dart';
 import '../../data/repositories/learning_session_repository.dart';
 import '../../data/repositories/question_repository.dart';
+import '../../data/seeders/demo_data_seeder.dart';
 import '../../data/repositories/source_chunk_repository.dart';
 import '../../data/repositories/source_repository.dart';
 import '../agent/learning_agent_planner_service.dart';
@@ -228,6 +230,7 @@ class FirstRunBootstrapService {
   final DeckRepository _deckRepository;
   final QuestionRepository _questionRepository;
   final LearningSessionRepository _learningSessionRepository;
+  final DatabaseHelper _databaseHelper;
   final Future<SharedPreferences> Function() _preferencesLoader;
 
   FirstRunBootstrapService({
@@ -237,6 +240,7 @@ class FirstRunBootstrapService {
     required DeckRepository deckRepository,
     required QuestionRepository questionRepository,
     required LearningSessionRepository learningSessionRepository,
+    required DatabaseHelper databaseHelper,
     Future<SharedPreferences> Function()? preferencesLoader,
   })  : _sourceRepository = sourceRepository,
         _sourceChunkRepository = sourceChunkRepository,
@@ -244,7 +248,14 @@ class FirstRunBootstrapService {
         _deckRepository = deckRepository,
         _questionRepository = questionRepository,
         _learningSessionRepository = learningSessionRepository,
+        _databaseHelper = databaseHelper,
         _preferencesLoader = preferencesLoader ?? SharedPreferences.getInstance;
+
+  /// 导入 Demo 数据(Vue.js 响应式系统)
+  Future<void> seedDemoData() async {
+    final seeder = DemoDataSeeder(_databaseHelper);
+    await seeder.seedVueCoreDemo();
+  }
 
   Future<bool> hasExistingUserData() async {
     final preferences = await _preferencesLoader();
@@ -379,7 +390,16 @@ class FirstRunProgressNotifier
             legacyUser: true,
           );
         } else {
-          progress = FirstRunProgress.initial(now: now);
+          // 新用户:自动导入 Demo 数据并标记为已完成
+          await _bootstrapService.seedDemoData();
+          progress = FirstRunProgress(
+            step: FirstRunStep.completed,
+            selectedGoal: LearningAgentGoal.sourceCodeLearning,
+            startedAt: now,
+            updatedAt: now,
+            completedAt: now,
+            legacyUser: false,
+          );
         }
         await _store.write(progress);
       } else {

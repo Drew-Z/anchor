@@ -181,6 +181,7 @@ final firstRunBootstrapServiceProvider =
     deckRepository: ref.read(deckRepositoryProvider),
     questionRepository: ref.read(questionRepositoryProvider),
     learningSessionRepository: ref.read(learningSessionRepositoryProvider),
+    databaseHelper: ref.read(databaseProvider),
   );
 });
 
