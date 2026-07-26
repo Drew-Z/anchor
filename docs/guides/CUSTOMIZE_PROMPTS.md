@@ -1,676 +1,397 @@
-# 自定义 AI Prompt
+# 自定义 AI Prompts
 
-本指南教你如何调整 AI 的行为,生成符合你需求的学习内容。
-
----
-
-## 为什么要自定义 Prompt?
-
-默认 Prompt 设计为通用场景,但你可能有特殊需求:
-
-- 📚 **学习风格**: 更多实践题 vs 更多概念题
-- 🎯 **难度偏好**: 只要简单题 vs 挑战困难题
-- 🌍 **语言风格**: 正式学术 vs 轻松口语
-- 🔍 **题型偏好**: 只要选择题 vs 多样化题型
+> 修改 AI 行为,让题目生成、面试风格、讲解方式符合你的需求
 
 ---
 
-## Prompt 文件位置
+## 🎯 为什么要自定义 Prompts?
 
-所有 AI Tasks 位于 `lib/services/ai/tasks/` 目录:
+默认的 AI Prompts 适合通用场景,但你可能需要:
+
+- **调整题目难度**: 为初学者生成更简单的题,或为高级用户生成深度题
+- **改变面试风格**: 从温和引导变为严格追问
+- **定制讲解语气**: 从技术文档风格变为对话式教学
+- **适配特定领域**: 为数学/算法/系统设计等领域优化
+
+---
+
+## 📂 Prompt 文件位置
+
+所有 AI 任务的 Prompts 都在 `lib/services/ai/tasks/` 目录下:
 
 ```
 lib/services/ai/tasks/
-├── knowledge_extraction_task.dart      # 知识点提取
-├── question_generation_task.dart       # 题目生成
-├── citation_verification_task.dart     # 引用验证
-├── answer_evaluation_task.dart         # 答案评估
-├── tutor_socratic_task.dart           # 苏格拉底式辅导
-└── ...
+├── question_generation_task.dart     # 题目生成
+├── answer_evaluation_task.dart       # 答案评估(面试模式)
+├── interview_question_task.dart      # 面试问题生成
+├── tutor_explanation_task.dart       # 知识点讲解
+├── knowledge_extraction_task.dart    # 知识点提取
+└── citation_verification_task.dart   # 引用核验
 ```
 
 ---
 
-## 1. 调整题目生成策略
+## 🔧 修改示例
 
-### 文件: `question_generation_task.dart`
+### 1. 调整题目生成风格
 
-#### 修改题型分布
+**文件**: `lib/services/ai/tasks/question_generation_task.dart`
 
-**默认配置**:
+**默认 Prompt** (第 45-60 行):
 ```dart
 String get systemPrompt => '''
-你是一个专业出题专家...
-
-题型要求:
-- singleChoice: 单选题,4个选项,只有1个正确
-- multipleChoice: 多选题,4-5个选项,2-3个正确
-- fillBlank: 填空题,答案简短明确
-- trueFalse: 判断题,陈述清晰
-
-题型分布: 50% 单选, 30% 多选, 20% 填空/判断
-难度分布: 30% 简单, 50% 中等, 20% 困难
-''';
-```
-
-#### 自定义 1: 只生成选择题
-
-```dart
-String get systemPrompt => '''
-你是一个专业出题专家...
-
-题型要求:
-- 只生成单选题和多选题
-- 每道题必须有 4 个选项
-- 选项设计要有干扰性
-
-题型分布: 70% 单选, 30% 多选
-难度分布: 20% 简单, 60% 中等, 20% 困难
-''';
-```
-
-#### 自定义 2: 偏向实践题
-
-```dart
-String get systemPrompt => '''
-你是一个专业出题专家...
-
-题目要求:
-- 优先设计代码分析题和场景应用题
-- 避免纯记忆类题目
-- 每道题应该考察实际编程能力
-
-题型分布: 40% 代码选择, 40% 场景判断, 20% 填空
-难度分布: 10% 简单, 40% 中等, 50% 困难
-''';
-```
-
-#### 自定义 3: 适合初学者
-
-```dart
-String get systemPrompt => '''
-你是一个专业出题专家...
-
-题目要求:
-- 针对初学者,避免过于复杂的概念
-- 题干使用简单易懂的语言
-- 解析要详细,包含原理说明
-
-题型分布: 60% 单选, 20% 判断, 20% 填空
-难度分布: 60% 简单, 30% 中等, 10% 困难
-''';
-```
-
----
-
-## 2. 调整知识点提取策略
-
-### 文件: `knowledge_extraction_task.dart`
-
-#### 默认配置
-
-```dart
-String get systemPrompt => '''
-你是一个专业的技术内容分析专家...
+你是一个严格的出题专家,根据提供的知识点和原文片段生成练习题。
 
 要求:
-1. 每个知识点必须是独立的、可学习的概念
-2. 标题简洁明确,描述详细准确
-3. 分类到: 核心概念/API 用法/最佳实践/常见陷阱
+1. 题目必须基于原文内容,不允许编造
+2. 选择题的错误选项要有迷惑性
+3. 难度适中,适合自学者
 ''';
 ```
 
-#### 自定义 1: 更细粒度的知识点
-
+**修改为初学者友好模式**:
 ```dart
 String get systemPrompt => '''
-你是一个专业的技术内容分析专家...
+你是一个耐心的编程导师,为初学者生成基础练习题。
 
 要求:
-1. 尽可能详细地拆分知识点
-2. 一个 API 的每个参数都可以是独立知识点
-3. 每个示例代码都提取为独立知识点
+1. 题目简单直接,一次只考察一个知识点
+2. 选择题提供提示性选项(如"以下哪个不是..."更明确)
+3. 避免复杂术语,用通俗语言表达
+4. 每题附带学习建议(如"这题考察 X 概念,建议先复习 Y")
 
-分类更细: 
-- 核心概念/API 用法/参数说明/返回值/异常处理/最佳实践/常见陷阱/性能优化
+示例风格:
+❌ 避免:"在异步编程范式中,Future 的单子结构如何体现?"
+✅ 推荐:"下面哪个代码能正确等待网络请求完成?"
 ''';
 ```
 
-#### 自定义 2: 只关注实践要点
-
+**修改为面试准备模式**:
 ```dart
 String get systemPrompt => '''
-你是一个专业的技术内容分析专家...
+你是一个资深技术面试官,生成接近真实面试的深度题目。
 
 要求:
-1. 只提取实际编程中会用到的知识点
-2. 忽略理论背景和历史介绍
-3. 重点关注: 如何使用、注意事项、常见错误
+1. 题目考察原理理解,而非API记忆
+2. 包含"为什么这样设计"类型的思考题
+3. 错误选项来自常见误解(如"单例模式必须用 static")
+4. 难度分布:30% 基础(定义) + 50% 应用(场景) + 20% 深度(权衡)
 
-分类: 使用方法/注意事项/常见错误/最佳实践
+示例:
+- 基础:"Dart 的 late 关键字用于?"
+- 应用:"在以下场景中,使用 StatefulWidget 而非 StatelessWidget 的理由是?"
+- 深度:"为什么 Flutter 选择声明式 UI 而非命令式?"
 ''';
 ```
 
----
+### 2. 定制面试评估标准
 
-## 3. 调整 AI 辅导风格
+**文件**: `lib/services/ai/tasks/answer_evaluation_task.dart`
 
-### 文件: `tutor_socratic_task.dart`
-
-#### 默认配置
-
+**默认评估维度** (第 50-65 行):
 ```dart
 String get systemPrompt => '''
-你是一个苏格拉底式导师...
+你是一个面试官,评估用户对知识点的理解程度。
 
-反馈风格:
-- 肯定正确的部分
-- 指出不足,但不直接纠正
-- 提出启发式问题,而不是直接讲解
+评分标准:
+- 正确性(40%):答案是否与原文一致
+- 完整度(30%):是否覆盖关键点
+- 理解深度(30%):是否理解背后原理
+
+输出:
+- score: 0-100
+- isCorrect: true/false
+- feedback: 详细反馈
+- shouldFollowUp: 是否需要追问
 ''';
 ```
 
-#### 自定义 1: 更直接的反馈
-
+**修改为温和鼓励模式**:
 ```dart
 String get systemPrompt => '''
-你是一个直接友好的导师...
+你是一个鼓励式导师,重点关注学习进步而非严格打分。
 
-反馈风格:
-- 明确指出错误
-- 给出正确答案和原因
-- 提供相关示例代码
-- 语气轻松友好,避免说教
+评估原则:
+- 只要答对核心概念,就判定 isCorrect: true
+- 反馈先肯定正确部分,再指出可改进点
+- 追问时给予提示(而非直接告知答案)
+
+示例反馈:
+❌ 避免:"你的答案不完整,遗漏了 X 和 Y"
+✅ 推荐:"很好!你已经理解了核心概念 A。如果再补充 X 的场景,答案会更完整。"
+
+追问风格:
+❌ 避免:"那为什么 StatefulWidget 要有 State 类?"
+✅ 推荐:"你提到了 setState,想一想:如果把状态直接放在 Widget 里会有什么问题?"
 ''';
 ```
 
-#### 自定义 2: 更严格的苏格拉底式
+### 3. 改变知识点讲解语气
 
+**文件**: `lib/services/ai/tasks/tutor_explanation_task.dart`
+
+**默认讲解风格** (第 40-55 行):
 ```dart
 String get systemPrompt => '''
-你是一个严格的苏格拉底式导师...
+你是一个技术导师,基于原文为用户讲解知识点。
 
-反馈风格:
-- 永远不直接给答案
-- 通过连续追问,引导学生自己发现
-- 即使学生答对了,也追问"为什么"
-- 挑战学生的假设和思维盲点
+讲解结构:
+1. 概念定义(1-2 句)
+2. 关键细节(引用原文)
+3. 实际应用场景(1 个例子)
+4. 常见误区(如果有)
+
+要求:
+- 必须引用原文片段,标注来源
+- 用通俗语言解释技术术语
+- 不编造原文没有的内容
 ''';
 ```
 
----
-
-## 4. 调整引用验证严格度
-
-### 文件: `citation_verification_task.dart`
-
-#### 默认配置
-
+**修改为苏格拉底式提问**:
 ```dart
 String get systemPrompt => '''
-你是一个严格的事实核查专家...
+你是一个苏格拉底式导师,通过提问引导用户自己理解知识点。
 
-判断标准:
-- verified (confidence >= 0.8): 引用充分,事实准确
-- suspicious (0.5 <= confidence < 0.8): 引用部分支持,但有疑点
-- invalid (confidence < 0.5): 引用不支持或答案错误
+讲解方式:
+1. 先提出一个引导性问题(让用户思考)
+2. 给出答案框架(引用原文关键句)
+3. 提出深入问题(连接相关概念)
+4. 总结要点
+
+示例:
+用户问:"什么是 Future?"
+
+回答:
+"在回答这个问题前,先想一想:如果你点了个外卖,你会站在门口一直等吗?还是该干嘛干嘛,外卖到了再去拿?
+
+Future 就是 Dart 的'外卖订单'——[引用原文]'表示一个可能还没完成的异步操作'。
+
+思考:如果没有 Future,网络请求时 APP 会怎样?
+
+要点:Future 让程序可以继续执行,而不用阻塞等待。"
 ''';
 ```
 
-#### 自定义 1: 更宽松(快速生成)
+### 4. 优化知识点提取精度
 
+**文件**: `lib/services/ai/tasks/knowledge_extraction_task.dart`
+
+**默认提取策略** (第 35-50 行):
 ```dart
 String get systemPrompt => '''
-你是一个事实核查专家...
+你是一个知识图谱专家,从文档片段中提取关键知识点。
 
-判断标准:
-- verified (confidence >= 0.6): 引用基本合理
-- suspicious (0.4 <= confidence < 0.6): 有明显问题
-- invalid (confidence < 0.4): 完全错误
+提取规则:
+1. 一个片段提取 1-3 个知识点
+2. 每个知识点包含:标题、描述、分类(concept/architecture/implementation)
+3. 只提取明确陈述的事实,不推测
 
-策略: 鼓励通过,除非有严重错误
+知识点类型:
+- concept: 定义、术语解释
+- architecture: 系统设计、模块关系
+- implementation: 具体实现、代码细节
 ''';
 ```
 
-#### 自定义 2: 更严格(高质量优先)
-
+**修改为面向学习路径的提取**:
 ```dart
 String get systemPrompt => '''
-你是一个极其严格的事实核查专家...
+你是一个学习路径设计师,提取知识点并标注学习顺序。
 
-判断标准:
-- verified (confidence >= 0.95): 引用精确,逻辑完美
-- suspicious (0.7 <= confidence < 0.95): 有任何瑕疵
-- invalid (confidence < 0.7): 不够严谨
+提取策略:
+1. 识别前置依赖(学这个之前需要先懂什么)
+2. 标注难度等级(beginner/intermediate/advanced)
+3. 关联实践场景(这个知识点在哪些项目中会用到)
 
-策略: 宁可拒绝,不可通过低质量题目
-''';
-```
-
----
-
-## 5. 调整生成数量
-
-### 文件: `lib/services/ingestion/source_grounded_ingestion_service.dart`
-
-#### 默认配置
-
-```dart
-int questionCountFor(int knowledgePointCount) {
-  return knowledgePointCount * 2; // 每个知识点生成 2 道题
-}
-
-int maxKnowledgePointsFor(int chunkCount) {
-  return math.min(chunkCount ~/ 3, 50); // 最多 50 个知识点
-}
-```
-
-#### 自定义 1: 少而精
-
-```dart
-int questionCountFor(int knowledgePointCount) {
-  return knowledgePointCount; // 每个知识点只生成 1 道高质量题
-}
-
-int maxKnowledgePointsFor(int chunkCount) {
-  return math.min(chunkCount ~/ 5, 20); // 只提取核心知识点
-}
-```
-
-#### 自定义 2: 海量练习
-
-```dart
-int questionCountFor(int knowledgePointCount) {
-  return knowledgePointCount * 5; // 每个知识点生成 5 道题
-}
-
-int maxKnowledgePointsFor(int chunkCount) {
-  return math.min(chunkCount ~/ 2, 100); // 详尽提取
-}
-```
-
----
-
-## 6. 更换 AI 模型
-
-### 文件: `lib/services/openai_service.dart`
-
-#### 默认配置
-
-```dart
-class OpenAIService {
-  final String model;
-  
-  OpenAIService({
-    this.model = 'gpt-3.5-turbo', // 默认模型
-  });
-}
-```
-
-#### 选项 1: 使用 GPT-4(更高质量)
-
-```dart
-// 在 .env 文件中设置
-OPENAI_MODEL=gpt-4-turbo
-
-// 或在代码中修改
-OpenAIService({
-  this.model = 'gpt-4-turbo',
-});
-```
-
-**对比**:
-| 模型 | 质量 | 速度 | 成本 |
-|------|------|------|------|
-| gpt-3.5-turbo | ⭐⭐⭐ | ⚡⚡⚡ | $ |
-| gpt-4-turbo | ⭐⭐⭐⭐⭐ | ⚡⚡ | $$$ |
-
-#### 选项 2: 使用本地模型
-
-```dart
-class OpenAIService {
-  final String baseUrl;
-  final String model;
-  
-  OpenAIService({
-    this.baseUrl = 'http://localhost:11434/v1', // Ollama
-    this.model = 'llama3.1:8b',
-  });
-}
-```
-
-**兼容的本地模型**:
-- Llama 3.1 (8B, 70B)
-- Mistral (7B, 8x7B)
-- Qwen 2.5
-
----
-
-## 7. 添加自定义题型
-
-### 示例: 添加"排序题"
-
-#### 步骤 1: 定义题型
-
-编辑 `lib/data/models/question_type.dart`:
-
-```dart
-enum QuestionType {
-  singleChoice,
-  multipleChoice,
-  fillBlank,
-  trueFalse,
-  matching,
-  sorting,        // 新增
-  codeCompletion, // 新增: 代码补全题
-}
-```
-
-#### 步骤 2: 更新 Prompt
-
-编辑 `question_generation_task.dart`:
-
-```dart
-String get systemPrompt => '''
-...
-
-题型要求:
-- sorting: 排序题,给出 3-5 个步骤,要求按正确顺序排列
-
-示例 (排序题):
+输出格式:
 {
-  "type": "sorting",
-  "content": "以下是 Flutter Widget 渲染的步骤,请按正确顺序排列:",
-  "options": [
-    "A. build() 被调用",
-    "B. Widget 树转为 Element 树",
-    "C. Element 树转为 RenderObject 树",
-    "D. RenderObject 执行布局和绘制"
-  ],
-  "answer": "A,B,C,D",
-  "explanation": "..."
+  "title": "StatefulWidget 生命周期",
+  "description": "...",
+  "kind": "concept",
+  "difficulty": "intermediate",
+  "prerequisites": ["Widget 基础", "Dart 类继承"],  // 新增
+  "useCases": ["动画控制", "表单状态管理"]        // 新增
 }
+
+规则:
+- prerequisites 只列出本文档已提及的概念
+- 难度判断基于:术语数量、依赖概念数、抽象程度
 ''';
-```
-
-#### 步骤 3: 更新 UI
-
-编辑 `lib/features/learning/widgets/question_widgets.dart`:
-
-```dart
-Widget buildQuestion(Question question) {
-  switch (question.type) {
-    case QuestionType.sorting:
-      return SortingQuestionWidget(question: question);
-    // ... 其他题型
-  }
-}
-
-class SortingQuestionWidget extends StatefulWidget {
-  // 实现拖拽排序界面
-}
 ```
 
 ---
 
-## 8. Prompt 模板变量
+## 🧪 测试你的修改
 
-### 当前实现
+### 1. 局部测试
 
-Prompt 通过字符串插值实现:
-
-```dart
-String buildUserPrompt(QuestionGenerationInput input) {
-  return '''
-知识点数量: ${input.knowledgePoints.length}
-要生成的题目数: ${input.questionCount}
-''';
-}
-```
-
-### 改进: 使用模板引擎
-
-创建 `lib/services/ai/prompt_template.dart`:
-
-```dart
-class PromptTemplate {
-  final String template;
-  
-  PromptTemplate(this.template);
-  
-  String render(Map<String, dynamic> variables) {
-    var result = template;
-    variables.forEach((key, value) {
-      result = result.replaceAll('{{$key}}', value.toString());
-    });
-    return result;
-  }
-}
-
-// 使用
-final template = PromptTemplate('''
-知识点数量: {{kpCount}}
-题目数量: {{qCount}}
-难度偏好: {{difficulty}}
-''');
-
-final prompt = template.render({
-  'kpCount': 10,
-  'qCount': 20,
-  'difficulty': '中等',
-});
-```
-
----
-
-## 9. 多语言支持
-
-### 当前: 硬编码中文
-
-```dart
-String get systemPrompt => '''
-你是一个专业出题专家...
-''';
-```
-
-### 改进: 参数化语言
-
-```dart
-class QuestionGenerationTask {
-  final String language;
-  
-  QuestionGenerationTask({
-    required this.openaiService,
-    this.language = 'zh-CN',
-  });
-  
-  String get systemPrompt {
-    if (language == 'en-US') {
-      return '''
-You are a professional quiz creator...
-''';
-    } else {
-      return '''
-你是一个专业出题专家...
-''';
-    }
-  }
-}
-```
-
----
-
-## 10. 调试技巧
-
-### 记录完整的 Prompt 和 Response
-
-编辑 `lib/services/openai_service.dart`:
-
-```dart
-Future<String> complete({
-  required String systemPrompt,
-  required String userPrompt,
-}) async {
-  // 开发模式下记录
-  if (kDebugMode) {
-    print('=== System Prompt ===');
-    print(systemPrompt);
-    print('=== User Prompt ===');
-    print(userPrompt);
-  }
-  
-  final response = await _callAPI(...);
-  
-  if (kDebugMode) {
-    print('=== AI Response ===');
-    print(response);
-  }
-  
-  return response;
-}
-```
-
-### 保存到文件(详细调试)
-
-```dart
-import 'dart:io';
-
-void _logPrompt(String systemPrompt, String userPrompt, String response) {
-  final timestamp = DateTime.now().toIso8601String();
-  final file = File('logs/prompt_$timestamp.txt');
-  file.writeAsStringSync('''
-=== System ===
-$systemPrompt
-
-=== User ===
-$userPrompt
-
-=== Response ===
-$response
-''');
-}
-```
-
----
-
-## 常见问题
-
-### Q1: 修改后不生效?
-
-**解决**:
-1. 确认修改了正确的文件
-2. 热重载可能不够,尝试完全重启应用
-3. 检查是否有缓存(清除应用数据)
-
-### Q2: AI 不按照我的 Prompt 执行?
-
-**可能原因**:
-- Prompt 表述模糊
-- 与 User Prompt 冲突
-- 模型能力限制(尝试 GPT-4)
-
-**调试方法**:
-1. 启用日志,查看实际发送的 Prompt
-2. 在 OpenAI Playground 测试 Prompt
-3. 简化 Prompt,逐步添加约束
-
-### Q3: 如何测试 Prompt 效果?
-
-**方法 1**: 单元测试
-
+**创建测试脚本** (`test/prompt_test.dart`):
 ```dart
 void main() {
-  test('Question generation prompt', () async {
-    final task = QuestionGenerationTask(mockOpenAI);
-    final result = await task.run(testInput);
+  test('新 Prompt 生成题目测试', () async {
+    final task = QuestionGenerationTask();
     
-    expect(result.questions.length, 10);
-    expect(result.questions.first.type, QuestionType.singleChoice);
+    final testInput = KnowledgePoint(
+      title: 'Future 的基础用法',
+      description: 'Dart 异步编程的核心概念',
+      sourceText: 'Future 表示一个异步操作的结果...',
+    );
+    
+    final result = await task.execute(testInput);
+    
+    print('生成的题目:');
+    for (final q in result.questions) {
+      print('- ${q.questionText}');
+    }
+    
+    // 检查题目风格是否符合预期
+    expect(result.questions.first.questionText, contains('等待'));
   });
 }
 ```
 
-**方法 2**: 对比测试
+### 2. 实际验证
 
-生成两批题目(修改前后),对比质量:
-- 题目多样性
-- 引用准确性
-- 难度分布
+1. **修改 Prompt**
+2. **热重启 APP**: `flutter run` 后按 `r`
+3. **导入测试文档**:准备一个 100-200 字的 Markdown 片段
+4. **对比前后效果**:
+   - 题目风格是否改变?
+   - 难度是否调整?
+   - 讲解语气是否不同?
+
+### 3. 回滚机制
+
+**备份原 Prompt**:
+```dart
+// 在文件顶部添加
+const String _defaultPrompt = '''
+原始 Prompt 内容...
+''';
+
+String get systemPrompt => _defaultPrompt; // 或你的自定义版本
+```
 
 ---
 
-## 示例: 完整的自定义配置
+## 🎨 进阶定制
 
-### 场景: 为编程初学者定制
+### 动态 Prompt(根据用户级别调整)
 
-#### 1. 降低难度
-
+**在 `QuestionGenerationTask` 中添加参数**:
 ```dart
-// question_generation_task.dart
-String get systemPrompt => '''
-你是一个耐心的编程导师,为初学者出题...
-
-题目要求:
-- 避免复杂语法和高级特性
-- 题干使用口语化表达
-- 每道题只考察一个知识点
-- 解析要详细,包含"为什么"
-
-题型分布: 70% 单选, 30% 判断
-难度: 80% 简单, 20% 中等
-''';
-```
-
-#### 2. 增加练习量
-
-```dart
-// source_grounded_ingestion_service.dart
-int questionCountFor(int knowledgePointCount) {
-  return knowledgePointCount * 3; // 每个知识点 3 道题
+class QuestionGenerationTask {
+  final UserLevel userLevel; // 新增
+  
+  QuestionGenerationTask({this.userLevel = UserLevel.intermediate});
+  
+  String get systemPrompt {
+    switch (userLevel) {
+      case UserLevel.beginner:
+        return _beginnerPrompt;
+      case UserLevel.intermediate:
+        return _intermediatePrompt;
+      case UserLevel.advanced:
+        return _advancedPrompt;
+    }
+  }
+  
+  static const _beginnerPrompt = '''...''';
+  static const _intermediatePrompt = '''...''';
+  static const _advancedPrompt = '''...''';
 }
 ```
 
-#### 3. 友好的辅导风格
-
+**在设置中让用户选择**:
 ```dart
-// tutor_socratic_task.dart
-String get systemPrompt => '''
-你是一个友好的编程小助手...
+// settings_screen.dart
+DropdownButton<UserLevel>(
+  value: currentLevel,
+  items: [
+    DropdownMenuItem(value: UserLevel.beginner, child: Text('初学者')),
+    DropdownMenuItem(value: UserLevel.intermediate, child: Text('中级')),
+    DropdownMenuItem(value: UserLevel.advanced, child: Text('高级')),
+  ],
+  onChanged: (level) {
+    // 保存到本地配置
+  },
+);
+```
 
-回答风格:
-- 使用简单的类比和例子
-- 避免专业术语,或给出通俗解释
-- 多用鼓励性语言
-- 语气轻松,像朋友聊天
+### Few-Shot 示例增强
+
+**在 Prompt 中添加示例**:
+```dart
+String get systemPrompt => '''
+你是出题专家。以下是标准示例:
+
+示例 1:
+知识点:Flutter 的 StatelessWidget
+原文:"StatelessWidget 是不可变的,一旦创建就不能改变"
+生成题目:
+{
+  "questionText": "以下关于 StatelessWidget 的说法,正确的是?",
+  "choices": [
+    "创建后可以通过 setState 改变",
+    "创建后不可变,需要重新构建来更新 UI",  // 正确
+    "只能用于静态页面",
+    "性能比 StatefulWidget 差"
+  ],
+  "correctIndex": 1
+}
+
+现在请为以下知识点生成题目:
+[实际输入]
 ''';
 ```
 
 ---
 
-## 贡献你的 Prompt
+## 📊 Prompt 效果对比
 
-如果你设计了很棒的 Prompt 配置,欢迎分享!
+### 记录修改前后的指标
 
-1. Fork 本项目
-2. 创建 `prompts/community/` 目录
-3. 添加你的配置文件:
-   ```
-   prompts/community/
-   └── beginner-friendly/
-       ├── README.md (说明)
-       ├── question_generation_task.dart
-       └── tutor_socratic_task.dart
-   ```
-4. 提交 PR,附上效果说明
+**创建评估表格**:
 
----
+| Prompt 版本 | 题目数量 | 用户满意度 | 答题正确率 | 平均反馈长度 |
+|------------|---------|-----------|-----------|-------------|
+| 默认版本    | 3/知识点 | 3.5/5     | 65%       | 50 字       |
+| 初学者友好版 | 2/知识点 | 4.2/5     | 78%       | 80 字       |
+| 面试准备版  | 4/知识点 | 4.0/5     | 52%       | 120 字      |
 
-## 下一步
-
-- [AI Pipeline 设计](../architecture/AI_PIPELINE.md) - 理解 Task 架构
-- [贡献指南](../../CONTRIBUTING.md) - 提交你的改进
-- [社区讨论](https://github.com/你的用户名/duoduo/discussions) - 分享经验
+**收集反馈**:
+- 在 APP 中添加"题目质量反馈"按钮
+- 记录用户点击"太难"/"太简单"的次数
+- 根据数据迭代 Prompt
 
 ---
 
-**Prompt 工程是迭代的过程,大胆实验!** 🚀
+## 🔗 相关资源
+
+### OpenAI Prompt 工程指南
+- [Prompt Engineering Guide](https://platform.openai.com/docs/guides/prompt-engineering)
+- [Few-Shot Learning](https://platform.openai.com/docs/guides/few-shot-learning)
+
+### 社区分享的 Prompt
+- [GitHub Discussions](https://github.com/yourusername/duoduo/discussions/categories/prompts)
+- 标签:`#prompt-sharing` `#custom-prompts`
+
+---
+
+## 💡 贡献你的 Prompt
+
+如果你的自定义 Prompt 效果很好,欢迎分享!
+
+1. **Fork 项目**
+2. **添加到** `lib/services/ai/tasks/presets/` 目录
+3. **提交 PR**,附带说明:
+   - 适用场景(如"算法竞赛题目生成")
+   - 效果对比(修改前后的示例题目)
+   - 测试数据(至少 10 份文档验证)
+
+**优秀 Prompt 会被合并到主分支,并在文档中致谢!**
+
+---
+
+**需要帮助?** 在 [Discussions](https://github.com/yourusername/duoduo/discussions) 发起话题,分享你的定制需求
