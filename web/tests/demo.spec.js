@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+const expectedOrigin = new URL(process.env.ANCHOR_BASE_URL ?? 'http://127.0.0.1:4173').origin;
+
 test('landing and demo share a persistent bilingual locale', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('h1')).toHaveText('Anchor Learning');
@@ -19,7 +21,7 @@ test('landing and demo share a persistent bilingual locale', async ({ page }) =>
 test('a learner can answer, inspect evidence, use tutor hints, and continue', async ({ page }) => {
   const offOriginRequests = [];
   page.on('request', (request) => {
-    if (!request.url().startsWith('http://127.0.0.1:4173')) offOriginRequests.push(request.url());
+    if (new URL(request.url()).origin !== expectedOrigin) offOriginRequests.push(request.url());
   });
 
   await page.goto('/app/');
