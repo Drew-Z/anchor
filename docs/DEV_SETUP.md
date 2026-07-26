@@ -28,7 +28,13 @@
 - **Android Studio** + Flutter 插件
 - **IntelliJ IDEA** + Flutter 插件
 
-### 4. 平台特定要求
+### 4. Web Demo 工具链
+
+- Node.js 20 或更高版本
+- npm 10 或更高版本
+- Chromium (可由 Playwright 自动安装)
+
+### 5. 平台特定要求
 
 #### Android 开发
 - Android Studio (推荐)
@@ -120,6 +126,18 @@ flutter run --release
 
 应用运行时按 `r` 热重载代码,按 `R` 热重启应用。
 
+### 4. 运行 Web Demo
+
+Web Demo 是位于 `web/landing/` 的静态站点，使用预置数据和脚本导师，不会调用 AI 服务或后端。
+
+```bash
+cd web
+npm ci
+npm run serve
+```
+
+本地官网位于 `http://127.0.0.1:4173/`，Demo 位于 `http://127.0.0.1:4173/app/`。
+
 ---
 
 ## 开发工具
@@ -156,6 +174,18 @@ flutter test --coverage
 # 查看覆盖率报告 (需要 lcov)
 genhtml coverage/lcov.info -o coverage/html
 open coverage/html/index.html
+```
+
+Web 单元测试和浏览器回归测试：
+
+```bash
+cd web
+npm ci
+npx playwright install chromium
+npm test
+
+# 对已部署站点运行 12 个 Playwright 用例
+ANCHOR_BASE_URL=https://anchor.playlab.eu.cc npm run test:e2e
 ```
 
 ### 4. 调试工具
@@ -320,6 +350,7 @@ git push -u origin feature/your-feature-name
 - **代码分析**: `flutter analyze`
 - **格式检查**: `dart format --output=none --set-exit-if-changed .`
 - **运行测试**: `flutter test --coverage`
+- **Web Demo**: Node 单元测试和 12 个 Chromium Playwright 用例
 - **构建 APK**: 仅在 `main` 分支
 
 查看 `.github/workflows/ci.yml` 了解详情。

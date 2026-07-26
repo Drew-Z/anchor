@@ -18,11 +18,11 @@ Turn your documentation and code into personalized AI quizzes—every answer tra
 
 **From [BIAU PORT (泊岸)](https://biau.playlab.eu.cc)** 🌊
 
-## 📺 Demo Video
+## 🌐 Interactive Web Demo
 
-> 🎬 Coming soon...
+[Open the bilingual demo](https://anchor.playlab.eu.cc/app/) to complete 12 traceable questions across Flutter, Git, and JavaScript datasets.
 
-See how Anchor Learning prevents AI hallucinations in 3 minutes
+The browser demo uses bundled sample data and scripted tutor hints. It does not call an AI provider or replace the full Flutter application.
 
 </div>
 
