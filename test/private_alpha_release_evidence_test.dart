@@ -95,6 +95,26 @@ void main() {
       }),
       throwsA(isA<FormatException>()),
     );
+    for (final path in const [
+      'C:/private/app.apk',
+      r'C:\private\app.apk',
+      '/tmp/app.apk',
+      'file:///tmp/app.apk',
+      'https://example.com/app.apk',
+      'data:text/plain,app.apk',
+    ]) {
+      expect(
+        () => PrivateAlphaAndroidBuildEvidence.fromJson({
+          'apk_path': path,
+          'bytes': 1,
+          'sha256': List.filled(64, '0').join(),
+          'arm64_only': true,
+          'v2_signed': true,
+        }),
+        throwsA(isA<FormatException>()),
+        reason: path,
+      );
+    }
   });
 }
 

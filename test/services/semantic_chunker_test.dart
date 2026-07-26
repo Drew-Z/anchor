@@ -178,6 +178,34 @@ $largeParagraph
       expect(chunks.length, greaterThan(1));
     });
 
+    test('遵守自定义最大行数', () {
+      final code = List.generate(5, (i) => 'line $i').join('\n');
+
+      final chunks = chunker.chunkCode(
+        sourceId: 'test_source',
+        code: code,
+        filePath: 'main.dart',
+        createdAt: DateTime.now(),
+        maxLinesPerChunk: 2,
+      );
+
+      expect(chunks, hasLength(3));
+      expect(chunks.map((chunk) => chunk.endLine), [2, 4, 5]);
+    });
+
+    test('拒绝非正数最大行数', () {
+      expect(
+        () => chunker.chunkCode(
+          sourceId: 'test_source',
+          code: 'line 1',
+          filePath: 'main.dart',
+          createdAt: DateTime.now(),
+          maxLinesPerChunk: 0,
+        ),
+        throwsArgumentError,
+      );
+    });
+
     test('locator 包含文件路径和行号', () {
       final code = 'void main() {}\n' * 50;
 

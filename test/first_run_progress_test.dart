@@ -44,6 +44,7 @@ void main() {
 
   test('clean install persists every durable first-run boundary', () async {
     final store = _MemoryFirstRunProgressStore();
+    await store.write(FirstRunProgress.initial(now: startedAt));
     final notifier = FirstRunProgressNotifier(
       store: store,
       bootstrapService: _bootstrap(),
@@ -77,6 +78,31 @@ void main() {
     expect(store.writeCount, 7);
   });
 
+  test('clean install seeds demo data and completes first run', () async {
+    final store = _MemoryFirstRunProgressStore();
+    var seedCount = 0;
+    final notifier = FirstRunProgressNotifier(
+      store: store,
+      bootstrapService: _bootstrap(
+        demoDataSeeder: () async {
+          seedCount++;
+        },
+      ),
+      clock: () => startedAt,
+      autoLoad: false,
+    );
+
+    await notifier.load();
+
+    final progress = notifier.state.value!;
+    expect(seedCount, 1);
+    expect(progress.step, FirstRunStep.completed);
+    expect(progress.selectedGoal, LearningAgentGoal.programmingFoundations);
+    expect(progress.legacyUser, isFalse);
+    expect(progress.completedAt, startedAt);
+    expect(store.value, progress);
+  });
+
   test('existing local data bootstraps as a non-destructive legacy user',
       () async {
     final source = _source(startedAt);
@@ -108,6 +134,7 @@ void main() {
       deckRepository: DeckRepository(databaseHelper),
       questionRepository: QuestionRepository(databaseHelper),
       learningSessionRepository: LearningSessionRepository(databaseHelper),
+      databaseHelper: databaseHelper,
     );
 
     expect(
@@ -195,6 +222,7 @@ FirstRunBootstrapService _bootstrap({
   List<Deck> decks = const [],
   List<Question> questions = const [],
   List<LearningSession> sessions = const [],
+  Future<void> Function()? demoDataSeeder,
 }) {
   return FirstRunBootstrapService(
     sourceRepository: _FakeSourceRepository(sources),
@@ -203,6 +231,7 @@ FirstRunBootstrapService _bootstrap({
     deckRepository: _FakeDeckRepository(decks),
     questionRepository: _FakeQuestionRepository(questions),
     learningSessionRepository: _FakeLearningSessionRepository(sessions),
+    demoDataSeeder: demoDataSeeder ?? () async {},
   );
 }
 

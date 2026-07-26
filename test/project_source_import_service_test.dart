@@ -257,6 +257,30 @@ void main() {
       expect(chunks.first.contentHash, hasLength(64));
       expect(chunks.last.locator, 'lib/app.dart:5-5');
     });
+
+    test('assigns unique chunk identity and provenance across files', () async {
+      await _writeFile(tempDirectory, 'README.md', '# Demo\n\nOverview\n');
+      await _writeFile(tempDirectory, 'lib/app.dart', 'void main() {}\n');
+
+      const service = ProjectSourceImportService();
+      final snapshot = await service.scanDirectory(tempDirectory.path);
+      final chunks = service.buildSourceChunks(
+        snapshot: snapshot,
+        selectedPaths: {'README.md', 'lib/app.dart'},
+        sourceId: 'source-1',
+        createdAt: DateTime(2026, 7, 14),
+      );
+
+      expect(chunks.map((chunk) => chunk.id), [
+        'source-1_chunk_0',
+        'source-1_chunk_1',
+      ]);
+      expect(chunks.map((chunk) => chunk.chunkIndex), [0, 1]);
+      expect(
+        chunks.map((chunk) => chunk.relativePath),
+        ['README.md', 'lib/app.dart'],
+      );
+    });
   });
 }
 

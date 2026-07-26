@@ -476,6 +476,22 @@ class ProjectSourceImportService {
       ..sort((a, b) => a.relativePath.compareTo(b.relativePath));
     final chunks = <SourceChunk>[];
 
+    void appendSemanticChunks(
+      Iterable<SourceChunk> fileChunks,
+      String relativePath,
+    ) {
+      for (final chunk in fileChunks) {
+        final chunkIndex = chunks.length;
+        chunks.add(
+          chunk.copyWith(
+            id: '${sourceId}_chunk_$chunkIndex',
+            chunkIndex: chunkIndex,
+            relativePath: relativePath,
+          ),
+        );
+      }
+    }
+
     for (final file in selectedFiles) {
       // 检测文件类型
       final ext = p.extension(file.relativePath).toLowerCase();
@@ -490,7 +506,7 @@ class ProjectSourceImportService {
           createdAt: createdAt,
           baseLocator: file.relativePath,
         );
-        chunks.addAll(mdChunks);
+        appendSemanticChunks(mdChunks, file.relativePath);
       } else if (isCode) {
         // 代码文件使用固定行数切分(保持简单可溯源)
         final codeChunks = _semanticChunker.chunkCode(
@@ -500,7 +516,7 @@ class ProjectSourceImportService {
           createdAt: createdAt,
           maxLinesPerChunk: maxLinesPerChunk,
         );
-        chunks.addAll(codeChunks);
+        appendSemanticChunks(codeChunks, file.relativePath);
       } else {
         // 其他文本文件回退到行切分
         final lines = const LineSplitter().convert(file.content);

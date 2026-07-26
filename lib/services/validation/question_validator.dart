@@ -1,6 +1,5 @@
-import 'dart:convert';
-import 'package:crypto/crypto.dart';
 import '../../data/models/question.dart';
+import '../../data/models/question_type.dart';
 import '../../data/models/source_chunk.dart';
 
 /// 题目质量验证服务 - 防止 AI 生成事实性错误的题目
@@ -64,7 +63,7 @@ class QuestionValidator {
         issues.addAll(await _validateMultipleChoice(question, sourceChunks));
         break;
 
-      case QuestionType.fillInBlank:
+      case QuestionType.fillBlank:
         issues.addAll(await _validateFillInBlank(question, sourceChunks));
         break;
 
@@ -131,23 +130,29 @@ class QuestionValidator {
     final issues = <String>[];
     final allContent = chunks.map((c) => c.content).join('\n\n');
 
-    // 检查题干中的关键词是否在原文中
+    // 中文长短语允许保序字符覆盖,避免因插入修饰词误判,同时不能放过
+    // 只包含一个真实术语、其余前提均由模型虚构的题干。
     final stemKeywords = _extractKeywords(question.content);
-    for (final keyword in stemKeywords) {
-      if (!allContent.contains(keyword)) {
-        issues.add('题干关键词 "$keyword" 未在原文找到');
-      }
+    final supportedStemKeywordCount = stemKeywords
+        .where((keyword) => _containsCandidate(allContent, keyword))
+        .length;
+    final stemMatchRate = stemKeywords.isEmpty
+        ? 0.0
+        : supportedStemKeywordCount / stemKeywords.length;
+    if (stemMatchRate < 0.7) {
+      issues.add('题干关键词未在原文找到');
     }
 
-    // 检查每个选项
+    // 干扰项可以是原文中未出现的错误答案;只验证正确答案中的事实性数字和术语。
     for (int i = 0; i < question.options.length; i++) {
       final option = question.options[i];
       final isCorrect = option == question.answer;
+      if (!isCorrect) continue;
 
       // 检查选项中的数字(AI 最容易编造数字)
       final numbers = _extractNumbers(option);
       for (final number in numbers) {
-        if (!allContent.contains(number)) {
+        if (!_containsCandidate(allContent, number)) {
           issues.add(
             '选项 ${i + 1} 中的数字/术语 "$number" 在原文中不存在(可能是 AI 编造的)',
           );
@@ -155,18 +160,20 @@ class QuestionValidator {
       }
 
       // 检查正确答案是否有原文支撑
-      if (isCorrect) {
-        final answerKeywords = _extractKeywords(option);
-        bool foundSupport = false;
-        for (final chunk in chunks) {
-          if (answerKeywords.every((kw) => chunk.content.contains(kw))) {
-            foundSupport = true;
-            break;
-          }
+      final answerKeywords = _extractKeywords(option);
+      bool foundSupport = false;
+      for (final chunk in chunks) {
+        if (_containsCandidate(chunk.content, option) ||
+            (answerKeywords.isNotEmpty &&
+                answerKeywords.every(
+                  (keyword) => _containsCandidate(chunk.content, keyword),
+                ))) {
+          foundSupport = true;
+          break;
         }
-        if (!foundSupport) {
-          issues.add('正确答案 "$option" 在原文中找不到明确支撑');
-        }
+      }
+      if (!foundSupport) {
+        issues.add('正确答案 "$option" 在原文中找不到明确支撑');
       }
     }
 
@@ -197,21 +204,17 @@ class QuestionValidator {
     }
 
     // 检查答案是否在原文中
-    if (!allContent.contains(answer)) {
-      // 尝试模糊匹配(去除空格、标点)
-      final normalizedAnswer = _normalize(answer);
-      final normalizedContent = _normalize(allContent);
-
-      if (!normalizedContent.contains(normalizedAnswer)) {
-        issues.add('填空题答案 "$answer" 在原文中不存在');
-      }
+    if (!_containsNormalized(allContent, answer)) {
+      issues.add('填空题答案 "$answer" 在原文中不存在');
     }
 
     // 检查题干中的代码片段是否来自原文
     if (question.content.contains('```') || question.content.contains('`')) {
       final codeSnippets = _extractCodeSnippets(question.content);
       for (final snippet in codeSnippets) {
-        if (!allContent.contains(snippet) && snippet.length > 10) {
+        final completedSnippet = snippet.replaceAll('___', answer);
+        if (!_containsNormalized(allContent, completedSnippet) &&
+            snippet.length > 10) {
           issues.add('题干中的代码片段不在原文中(可能是 AI 从文档抄的过时版本)');
         }
       }
@@ -243,7 +246,7 @@ class QuestionValidator {
     // 至少 70% 的关键词要在原文中
     int foundCount = 0;
     for (final keyword in keywords) {
-      if (allContent.contains(keyword)) {
+      if (_containsCandidate(allContent, keyword)) {
         foundCount++;
       }
     }
@@ -305,11 +308,14 @@ class QuestionValidator {
     // 检查匹配关系是否在原文中有依据
     final pairs = _parseMatchingAnswer(question.answer);
     for (final pair in pairs) {
-      // 查找同时包含左右两项的 chunk(说明它们有关联)
+      // 要求左右项出现在同一句或同一行,仅在同一大 chunk 中出现不足以证明关系。
       bool foundRelation = false;
       for (final chunk in chunks) {
-        if (chunk.content.contains(pair.left) &&
-            chunk.content.contains(pair.right)) {
+        final segments = chunk.content.split(RegExp(r'[\r\n。！？!?;；]+'));
+        if (segments.any(
+          (segment) =>
+              segment.contains(pair.left) && segment.contains(pair.right),
+        )) {
           foundRelation = true;
           break;
         }
@@ -404,10 +410,34 @@ class QuestionValidator {
       'for',
     };
 
+    const questionFragments = {
+      '请问',
+      '是否',
+      '多少',
+      '什么',
+      '哪种',
+      '哪个',
+      '哪些',
+      '如何',
+      '怎么',
+      '支持',
+      '使用',
+    };
+
     return text
         .split(RegExp(r'[\s,。,;;\.:?!?、\[\]()（）《》「」]'))
+        .map((word) {
+          var normalized = word.trim();
+          for (final fragment in questionFragments) {
+            normalized = normalized.replaceAll(fragment, '');
+          }
+          return normalized
+              .replaceFirst(RegExp(r'^(?:的|是|种)+'), '')
+              .replaceFirst(RegExp(r'(?:吗|呢|是)$'), '');
+        })
         .where((word) =>
             word.length > 1 && !stopWords.contains(word.toLowerCase()))
+        .toSet()
         .toList();
   }
 
@@ -430,18 +460,21 @@ class QuestionValidator {
   /// 提取代码片段
   List<String> _extractCodeSnippets(String text) {
     final snippets = <String>[];
+    final codeBlockPattern = RegExp(r'```[\s\S]*?```');
 
-    // 提取反引号包裹的代码
-    final inlineCode = RegExp(r'`([^`]+)`').allMatches(text);
+    // 先提取代码块,再从移除代码块的正文中提取行内代码,避免三反引号被重复解析。
+    final inlineCode = RegExp(
+      r'`([^`]+)`',
+    ).allMatches(text.replaceAll(codeBlockPattern, ' '));
     snippets.addAll(inlineCode.map((m) => m.group(1)!.trim()));
 
     // 提取代码块
-    final codeBlocks = RegExp(r'```[\s\S]*?```').allMatches(text);
+    final codeBlocks = codeBlockPattern.allMatches(text);
     for (final match in codeBlocks) {
       final block = match.group(0)!;
       final code = block
-          .replaceAll(RegExp(r'^```\w*\n'), '')
-          .replaceAll(RegExp(r'\n```$'), '')
+          .replaceAll(RegExp(r'^```[^\r\n]*\r?\n'), '')
+          .replaceAll(RegExp(r'\r?\n```$'), '')
           .trim();
       if (code.isNotEmpty) {
         snippets.add(code);
@@ -454,6 +487,43 @@ class QuestionValidator {
   /// 规范化文本(去除空格、标点,便于模糊匹配)
   String _normalize(String text) {
     return text.toLowerCase().replaceAll(RegExp(r'[\s\-_.,;:!?，。、；：！？]'), '');
+  }
+
+  bool _containsNormalized(String content, String candidate) {
+    final normalizedCandidate = _normalize(candidate);
+    return normalizedCandidate.isNotEmpty &&
+        _normalize(content).contains(normalizedCandidate);
+  }
+
+  bool _containsCandidate(String content, String candidate) {
+    final normalizedContent = _normalize(content);
+    final normalizedCandidate = _normalize(candidate);
+    if (normalizedCandidate.isEmpty) return false;
+    if (_containsNormalized(content, candidate)) return true;
+
+    final chineseCharacters = RegExp(r'[\u4e00-\u9fff]')
+        .allMatches(normalizedCandidate)
+        .map((match) => match.group(0)!)
+        .toList();
+    if (chineseCharacters.length < 2) return false;
+
+    const negationMarkers = {'不', '无', '未', '非'};
+    for (final marker in negationMarkers) {
+      if (normalizedCandidate.contains(marker) &&
+          !normalizedContent.contains(marker)) {
+        return false;
+      }
+    }
+
+    var searchFrom = 0;
+    var supported = 0;
+    for (final character in chineseCharacters) {
+      final matchAt = normalizedContent.indexOf(character, searchFrom);
+      if (matchAt < 0) continue;
+      supported++;
+      searchFrom = matchAt + character.length;
+    }
+    return supported / chineseCharacters.length >= 0.7;
   }
 
   /// 解析匹配题答案

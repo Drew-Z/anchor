@@ -79,6 +79,31 @@ void main() {
 
     expect(() => build('readiness.json'), throwsA(isA<FormatException>()));
     expect(() => build('../readiness.json'), throwsA(isA<FormatException>()));
+
+    for (final path in const [
+      'C:/private/app.apk',
+      r'C:\private\app.apk',
+      '/tmp/app.apk',
+      'file:///tmp/app.apk',
+    ]) {
+      await expectLater(
+        initializer.build(
+          repositoryRoot: root.path,
+          apkPath: path,
+          outputPath: 'build/readiness.json',
+          completedAt: DateTime.utc(2026),
+          testsPassed: 1,
+          analyzerErrors: 0,
+          analyzerWarnings: 0,
+          formatPassed: false,
+          diffCheckPassed: false,
+          arm64Only: false,
+          v2Signed: false,
+        ),
+        throwsA(isA<FormatException>()),
+        reason: path,
+      );
+    }
   });
 
   test(

@@ -127,13 +127,21 @@ void main() {
       () => PrivateAlphaPrivacyScanEvidence.fromJson(const {}),
       throwsA(isA<FormatException>()),
     );
-    expect(
-      () => PrivateAlphaPrivacyScanEvidence.fromJson(const {
-        'privacy_scan': {
-          'paths': ['C:/private/export.json'],
-        },
-      }),
-      throwsA(isA<FormatException>()),
-    );
+    for (final path in const [
+      'C:/private/export.json',
+      r'C:\private\export.json',
+      '/tmp/export.json',
+      'file:///tmp/export.json',
+    ]) {
+      expect(
+        () => PrivateAlphaPrivacyScanEvidence.fromJson({
+          'privacy_scan': {
+            'paths': [path],
+          },
+        }),
+        throwsA(isA<FormatException>()),
+        reason: path,
+      );
+    }
   });
 }

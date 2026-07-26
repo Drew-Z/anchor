@@ -154,6 +154,7 @@ void main() {
       platform: 'test',
     );
     final store = _MemoryFirstRunProgressStore();
+    await store.write(FirstRunProgress.initial(now: startedAt));
     final notifier = FirstRunProgressNotifier(
       store: store,
       bootstrapService: FirstRunBootstrapService(
@@ -163,6 +164,7 @@ void main() {
         deckRepository: DeckRepository(helper),
         questionRepository: QuestionRepository(helper),
         learningSessionRepository: LearningSessionRepository(helper),
+        databaseHelper: helper,
       ),
       eventRecorder: recorder,
       clock: () => startedAt,

@@ -63,21 +63,9 @@ cd anchor
 flutter pub get
 ```
 
-### 3. 代码生成
+### 3. 本地数据层
 
-本项目使用 sqflite 持久化本地 SQLite 数据，并使用 Riverpod 管理状态。若当前分支包含生成代码，再按对应模块的生成器说明执行：
-
-```bash
-# 一次性生成
-dart run build_runner build --delete-conflicting-outputs
-
-# 监听模式 (开发时推荐)
-dart run build_runner watch --delete-conflicting-outputs
-```
-
-**生成的文件** (已加入 `.gitignore`):
-- `*.g.dart`: Riverpod Provider 生成代码
-- `*.drift.dart`: Drift 数据库表定义
+项目使用 sqflite 持久化本地 SQLite 数据，并通过手写 repository 管理读写；当前分支不依赖 Drift 或 build_runner 生成数据库代码。数据库文件名保留为 `dlg_q.db`，这是兼容既有安装数据的持久化技术标识，不随 Anchor 品牌名迁移。
 
 ### 4. 配置 API Keys
 
@@ -156,7 +144,7 @@ dart format --output=none --set-exit-if-changed .
 
 ```bash
 # 运行代码分析
-flutter analyze
+flutter analyze --no-fatal-infos
 
 # 修复可自动修复的问题
 dart fix --apply
@@ -201,11 +189,7 @@ flutter pub global run devtools
 
 #### 数据库检查
 
-使用 [DB Browser for SQLite](https://sqlitebrowser.org/) 查看本地数据库:
-
-- **位置**: 
-  - Android: `/data/data/com.yourcompany.anchor_learning/databases/app_database.db`
-  - iOS: `~/Library/Developer/CoreSimulator/Devices/<device-id>/data/Containers/Data/Application/<app-id>/Documents/app_database.db`
+使用 [DB Browser for SQLite](https://sqlitebrowser.org/) 查看本地数据库。实际路径由 sqflite 的 `getDatabasesPath()` 决定，文件名为 `dlg_q.db`；不要依赖文档中写死的应用沙箱绝对路径。
 
 ---
 
@@ -217,26 +201,11 @@ flutter pub global run devtools
 # 清理缓存后重新安装
 flutter clean
 flutter pub get
-dart run build_runner clean
-dart run build_runner build --delete-conflicting-outputs
 ```
 
-### 2. Drift 生成错误
+### 2. SQLite 本地数据异常
 
-确保 `build_runner` 版本正确:
-
-```yaml
-# pubspec.yaml
-dev_dependencies:
-  build_runner: ^2.4.0
-  drift_dev: ^2.20.3
-```
-
-然后重新生成:
-
-```bash
-dart run build_runner build --delete-conflicting-outputs
-```
+先确认设备存储空间和应用沙箱权限，再检查 `DatabaseHelper` 的 schema migration。开发环境如需从空库复现，可卸载调试应用或清除其本地数据；不要直接修改用户已有的 `dlg_q.db`。
 
 ### 3. OpenAI API 调用失败
 
@@ -287,7 +256,7 @@ lib/
 │   ├── constants/
 │   └── providers/      # 全局 Riverpod Providers
 ├── data/               # 数据层
-│   ├── database/       # Drift 数据库配置
+│   ├── database/       # sqflite 数据库与 schema migration
 │   ├── models/         # 数据模型
 │   └── repositories/   # 数据访问层
 ├── features/           # 功能模块 (按屏幕/功能分组)
@@ -347,7 +316,7 @@ git push -u origin feature/your-feature-name
 
 项目使用 GitHub Actions 自动化:
 
-- **代码分析**: `flutter analyze`
+- **代码分析**: `flutter analyze --no-fatal-infos` (error 和 warning 阻断，info 级 lint 保留在日志中)
 - **格式检查**: `dart format --output=none --set-exit-if-changed .`
 - **运行测试**: `flutter test --coverage`
 - **Web Demo**: Node 单元测试和 12 个 Chromium Playwright 用例

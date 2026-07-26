@@ -230,7 +230,8 @@ class FirstRunBootstrapService {
   final DeckRepository _deckRepository;
   final QuestionRepository _questionRepository;
   final LearningSessionRepository _learningSessionRepository;
-  final DatabaseHelper _databaseHelper;
+  final DatabaseHelper? _databaseHelper;
+  final Future<void> Function()? _demoDataSeeder;
   final Future<SharedPreferences> Function() _preferencesLoader;
 
   FirstRunBootstrapService({
@@ -240,7 +241,8 @@ class FirstRunBootstrapService {
     required DeckRepository deckRepository,
     required QuestionRepository questionRepository,
     required LearningSessionRepository learningSessionRepository,
-    required DatabaseHelper databaseHelper,
+    DatabaseHelper? databaseHelper,
+    Future<void> Function()? demoDataSeeder,
     Future<SharedPreferences> Function()? preferencesLoader,
   })  : _sourceRepository = sourceRepository,
         _sourceChunkRepository = sourceChunkRepository,
@@ -249,11 +251,24 @@ class FirstRunBootstrapService {
         _questionRepository = questionRepository,
         _learningSessionRepository = learningSessionRepository,
         _databaseHelper = databaseHelper,
-        _preferencesLoader = preferencesLoader ?? SharedPreferences.getInstance;
+        _demoDataSeeder = demoDataSeeder,
+        _preferencesLoader =
+            preferencesLoader ?? SharedPreferences.getInstance {
+    if (databaseHelper == null && demoDataSeeder == null) {
+      throw ArgumentError(
+        'Provide databaseHelper or demoDataSeeder for first-run demo data.',
+      );
+    }
+  }
 
   /// 导入 Demo 数据(Vue.js 响应式系统)
   Future<void> seedDemoData() async {
-    final seeder = DemoDataSeeder(_databaseHelper);
+    final demoDataSeeder = _demoDataSeeder;
+    if (demoDataSeeder != null) {
+      await demoDataSeeder();
+      return;
+    }
+    final seeder = DemoDataSeeder(_databaseHelper!);
     await seeder.seedVueCoreDemo();
   }
 
@@ -394,7 +409,7 @@ class FirstRunProgressNotifier
           await _bootstrapService.seedDemoData();
           progress = FirstRunProgress(
             step: FirstRunStep.completed,
-            selectedGoal: LearningAgentGoal.sourceCodeLearning,
+            selectedGoal: LearningAgentGoal.programmingFoundations,
             startedAt: now,
             updatedAt: now,
             completedAt: now,

@@ -342,9 +342,7 @@ final semanticChunkerProvider = Provider<SemanticChunker>((ref) {
 });
 
 final questionValidatorProvider = Provider<QuestionValidator>((ref) {
-  return QuestionValidator(
-    openaiService: ref.read(openaiServiceProvider),
-  );
+  return QuestionValidator();
 });
 
 final programmingSourceImportServiceProvider =
