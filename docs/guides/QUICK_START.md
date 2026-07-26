@@ -16,7 +16,7 @@
 
 ```bash
 git clone https://github.com/Drew-Z/anchor.git
-cd duoduo
+cd anchor
 ```
 
 ### 2. 安装依赖

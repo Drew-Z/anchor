@@ -92,7 +92,7 @@ See how Anchor Learning prevents AI hallucinations in 3 minutes
 ```bash
 # 1. 克隆项目
 git clone https://github.com/Drew-Z/anchor.git
-cd duoduo
+cd anchor
 
 # 2. 安装依赖
 flutter pub get

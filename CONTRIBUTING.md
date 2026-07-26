@@ -26,8 +26,8 @@
 ```bash
 # Fork 项目到你的 GitHub 账户
 # 然后克隆到本地
-git clone https://github.com/your-username/duoduo.git
-cd duoduo
+git clone https://github.com/your-username/anchor.git
+cd anchor
 
 # 添加上游仓库
 git remote add upstream https://github.com/Drew-Z/anchor.git

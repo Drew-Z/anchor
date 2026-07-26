@@ -81,7 +81,7 @@ personal-learning, knowledge-management, study-assistant
 ### 2. 推送代码 (1 分钟)
 ```bash
 # 在本地执行:
-cd D:/workspace4Cursor/learn/duoduo
+cd D:/workspace4Cursor/learn/anchor
 git remote set-url origin https://github.com/Drew-Z/anchor.git
 git push -u origin main
 ```

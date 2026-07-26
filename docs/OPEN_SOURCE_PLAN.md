@@ -84,8 +84,8 @@
 - [ ] `QUICK_START.md`: 5 分钟跑起来
   ```bash
   # 1. Clone & Install
-  git clone https://github.com/yourname/duoduo
-  cd duoduo && flutter pub get
+  git clone https://github.com/yourname/anchor
+  cd anchor && flutter pub get
   
   # 2. 配置 API Key
   cp .env.example .env
