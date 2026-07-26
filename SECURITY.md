@@ -11,7 +11,7 @@
 请通过以下方式私密报告:
 
 1. **GitHub Security Advisories** (推荐):
-   - 访问 [Security Advisories](https://github.com/yourusername/anchor-learning/security/advisories)
+   - 访问 [Security Advisories](https://github.com/Drew-Z/anchor/security/advisories)
    - 点击 "Report a vulnerability"
    - 填写详细信息
 
@@ -129,7 +129,7 @@
 
 安全更新将通过以下渠道发布:
 
-- **GitHub Security Advisories**: [链接](https://github.com/yourusername/anchor-learning/security/advisories)
+- **GitHub Security Advisories**: [链接](https://github.com/Drew-Z/anchor/security/advisories)
 - **GitHub Releases**: 标记为 "Security" 标签
 - **README.md**: 置顶安全公告
 
@@ -153,8 +153,8 @@
 ## 联系方式
 
 - **安全问题**: security@example.com
-- **一般问题**: [GitHub Issues](https://github.com/yourusername/anchor-learning/issues)
-- **功能讨论**: [GitHub Discussions](https://github.com/yourusername/anchor-learning/discussions)
+- **一般问题**: [GitHub Issues](https://github.com/Drew-Z/anchor/issues)
+- **功能讨论**: [GitHub Discussions](https://github.com/Drew-Z/anchor/discussions)
 
 ---
 

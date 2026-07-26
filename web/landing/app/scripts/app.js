@@ -196,9 +196,9 @@ if (typeof document !== 'undefined') {
               </article>`).join('')}
           </div>
         </div>
-        <button class="button button-secondary tutor-trigger" type="button" data-toggle-tutor="${question.id}" aria-expanded="${tutorOpen}">${escapeHtml(translate('app.tutor'))}</button>
+        <button class="button button-secondary tutor-trigger" type="button" data-toggle-tutor="${question.id}" aria-expanded="${tutorOpen}" aria-controls="tutor-${escapeHtml(question.id)}">${escapeHtml(translate('app.tutor'))}</button>
         ${tutorOpen ? `
-          <aside class="tutor-panel">
+          <aside id="tutor-${escapeHtml(question.id)}" class="tutor-panel" aria-label="${escapeHtml(translate('app.tutorPanel'))}">
             <h2>${escapeHtml(translate('app.tutorLabel'))}</h2>
             <p class="tutor-disclosure">${escapeHtml(translate('app.tutorDisclosure'))}</p>
             <ul>${question.tutorHints.map((hint) => `<li>${escapeHtml(textFor(hint, locale()))}</li>`).join('')}</ul>
@@ -236,7 +236,7 @@ if (typeof document !== 'undefined') {
         <header class="quiz-header">
           <div><h1>${escapeHtml(textFor(dataset.title, locale()))}</h1><p>${escapeHtml(textFor(dataset.summary, locale()))}</p></div>
           <div class="score-block"><span>${escapeHtml(translate('app.score'))}</span><strong>${score}/${dataset.questions.length}</strong></div>
-          <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="${dataset.questions.length}" aria-valuenow="${submittedCount}">
+          <div class="progress-track" role="progressbar" aria-label="${escapeHtml(translate('app.progress'))}" aria-valuemin="0" aria-valuemax="${dataset.questions.length}" aria-valuenow="${submittedCount}">
             <div class="progress-bar progress-step-${submittedCount}"></div>
           </div>
         </header>

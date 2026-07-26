@@ -47,8 +47,8 @@
 ### 1. 克隆仓库
 
 ```bash
-git clone https://github.com/yourusername/anchor-learning.git
-cd anchor-learning
+git clone https://github.com/Drew-Z/anchor.git
+cd anchor
 ```
 
 ### 2. 安装依赖
@@ -59,7 +59,7 @@ flutter pub get
 
 ### 3. 代码生成
 
-本项目使用 Drift (SQLite ORM) 和 Riverpod 代码生成:
+本项目使用 sqflite 持久化本地 SQLite 数据，并使用 Riverpod 管理状态。若当前分支包含生成代码，再按对应模块的生成器说明执行：
 
 ```bash
 # 一次性生成
@@ -362,7 +362,7 @@ flutter build apk --analyze-size
 遇到问题?
 
 1. 查看 [常见问题](#常见问题)
-2. 搜索 [GitHub Issues](https://github.com/yourusername/anchor-learning/issues)
+2. 搜索 [GitHub Issues](https://github.com/Drew-Z/anchor/issues)
 3. 提交新 Issue 并附上:
    - `flutter doctor -v` 输出
    - 错误日志

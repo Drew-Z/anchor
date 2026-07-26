@@ -300,7 +300,7 @@ git push origin v0.1.0-alpha
 感谢所有为本项目做出贡献的开发者!
 
 - 项目发起人: [@yourname](https://github.com/yourname)
-- 贡献者列表: 见 [Contributors](https://github.com/yourusername/anchor-learning/graphs/contributors)
+- 贡献者列表: 见 [Contributors](https://github.com/Drew-Z/anchor/graphs/contributors)
 
 ---
 

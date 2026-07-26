@@ -708,7 +708,7 @@ test:
     - uses: actions/checkout@v4
     - uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.24.0'
+        flutter-version: '3.29.3'
     
     - name: Get dependencies
       run: flutter pub get
