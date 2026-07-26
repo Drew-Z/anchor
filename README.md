@@ -81,7 +81,7 @@
 
 ```bash
 # 1. 克隆项目
-git clone https://github.com/yourusername/duoduo.git
+git clone https://github.com/xuanli199/duoduo.git
 cd duoduo
 
 # 2. 安装依赖
@@ -223,8 +223,8 @@ StatefulWidget 通过 State 对象管理状态...
 
 我们欢迎所有形式的贡献!
 
-- 🐛 [报告 Bug](https://github.com/yourusername/duoduo/issues/new?template=bug_report.md)
-- 💡 [提出新功能](https://github.com/yourusername/duoduo/issues/new?template=feature_request.md)
+- 🐛 [报告 Bug](https://github.com/xuanli199/duoduo/issues/new?template=bug_report.md)
+- 💡 [提出新功能](https://github.com/xuanli199/duoduo/issues/new?template=feature_request.md)
 - 📝 改进文档
 - 💻 提交代码
 
@@ -271,8 +271,8 @@ StatefulWidget 通过 State 对象管理状态...
 
 ## 📞 联系方式
 
-- **GitHub Issues**: [创建 Issue](https://github.com/yourusername/duoduo/issues)
-- **Discussions**: [讨论区](https://github.com/yourusername/duoduo/discussions)
+- **GitHub Issues**: [创建 Issue](https://github.com/xuanli199/duoduo/issues)
+- **Discussions**: [讨论区](https://github.com/xuanli199/duoduo/discussions)
 
 ---
 
