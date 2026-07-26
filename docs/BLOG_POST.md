@@ -295,7 +295,7 @@ if (cache.has(cacheKey)) {
 
 ## 开源代码
 
-完整实现已开源: [github.com/bill/anchor](https://github.com/bill/anchor)
+完整实现已开源: [github.com/Drew-Z/anchor](https://github.com/Drew-Z/anchor)
 
 核心文件:
 - `lib/services/content_analyzer.dart` - Semantic Chunker
@@ -323,4 +323,4 @@ if (cache.has(cacheKey)) {
 
 **作者**: bill (Anchor Learning (锚学)项目维护者)  
 **发布时间**: 2026-07-26  
-**项目主页**: https://github.com/bill/anchor
+**项目主页**: https://github.com/Drew-Z/anchor

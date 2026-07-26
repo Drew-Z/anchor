@@ -68,10 +68,10 @@ After pushing code:
 
 ## 🔗 Quick Links After Setup
 
-- **Repository**: https://github.com/bill/anchor
-- **Issues**: https://github.com/bill/anchor/issues
-- **Discussions**: https://github.com/bill/anchor/discussions
-- **Wiki**: https://github.com/bill/anchor/wiki (optional)
+- **Repository**: https://github.com/Drew-Z/anchor
+- **Issues**: https://github.com/Drew-Z/anchor/issues
+- **Discussions**: https://github.com/Drew-Z/anchor/discussions
+- **Wiki**: https://github.com/Drew-Z/anchor/wiki (optional)
 
 ---
 
@@ -107,7 +107,7 @@ Use this when posting to Chinese communities:
 **项目名的由来**:
 Anchor (锚) 来自我的主站 [BIAU PORT (泊岸)](https://biau.playlab.eu.cc) —— 船需要抛锚才能稳定停靠,知识也需要"锚定"才能记得牢固。
 
-**开源地址**: https://github.com/bill/anchor  
+**开源地址**: https://github.com/Drew-Z/anchor  
 **技术栈**: Flutter + SQLite + OpenAI API  
 **许可**: MIT
 
@@ -148,7 +148,7 @@ Existing learning apps either have fixed content or AI-generated questions that 
 **The Name**:
 "Anchor" comes from my main site [BIAU PORT](https://biau.playlab.eu.cc)—ships need anchors to dock securely, and knowledge needs to be "anchored" to stick.
 
-**Repo**: https://github.com/bill/anchor  
+**Repo**: https://github.com/Drew-Z/anchor  
 **Stack**: Flutter + SQLite + OpenAI API  
 **License**: MIT
 

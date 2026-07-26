@@ -374,7 +374,7 @@ String get systemPrompt => '''
 - [Few-Shot Learning](https://platform.openai.com/docs/guides/few-shot-learning)
 
 ### 社区分享的 Prompt
-- [GitHub Discussions](https://github.com/bill/anchor/discussions/categories/prompts)
+- [GitHub Discussions](https://github.com/Drew-Z/anchor/discussions/categories/prompts)
 - 标签:`#prompt-sharing` `#custom-prompts`
 
 ---
@@ -394,4 +394,4 @@ String get systemPrompt => '''
 
 ---
 
-**需要帮助?** 在 [Discussions](https://github.com/bill/anchor/discussions) 发起话题,分享你的定制需求
+**需要帮助?** 在 [Discussions](https://github.com/Drew-Z/anchor/discussions) 发起话题,分享你的定制需求

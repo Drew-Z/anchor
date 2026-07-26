@@ -89,7 +89,7 @@ See how Anchor Learning prevents AI hallucinations in 3 minutes
 
 ```bash
 # 1. 克隆项目
-git clone https://github.com/bill/anchor.git
+git clone https://github.com/Drew-Z/anchor.git
 cd duoduo
 
 # 2. 安装依赖
@@ -236,8 +236,8 @@ StatefulWidget 通过 State 对象管理状态...
 
 我们欢迎所有形式的贡献!
 
-- 🐛 [报告 Bug](https://github.com/bill/anchor/issues/new?template=bug_report.md)
-- 💡 [提出新功能](https://github.com/bill/anchor/issues/new?template=feature_request.md)
+- 🐛 [报告 Bug](https://github.com/Drew-Z/anchor/issues/new?template=bug_report.md)
+- 💡 [提出新功能](https://github.com/Drew-Z/anchor/issues/new?template=feature_request.md)
 - 📝 改进文档
 - 💻 提交代码
 
@@ -284,8 +284,8 @@ StatefulWidget 通过 State 对象管理状态...
 
 ## 📞 Contact
 
-- **GitHub Issues**: [Report Bug / Request Feature](https://github.com/bill/anchor/issues)
-- **Discussions**: [Join Discussion](https://github.com/bill/anchor/discussions)
+- **GitHub Issues**: [Report Bug / Request Feature](https://github.com/Drew-Z/anchor/issues)
+- **Discussions**: [Join Discussion](https://github.com/Drew-Z/anchor/discussions)
 
 ---
 
@@ -293,7 +293,7 @@ StatefulWidget 通过 State 对象管理状态...
 
 **Part of the [BIAU PORT (泊岸)](https://biau.playlab.eu.cc) experiments** 🌊
 
-Made with ❤️ by [bill](https://github.com/bill)
+Made with ❤️ by [bill](https://github.com/Drew-Z)
 
 If this helps you, give it a ⭐ Star!
 

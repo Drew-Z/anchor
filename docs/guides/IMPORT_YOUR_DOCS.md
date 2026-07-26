@@ -261,4 +261,4 @@ Dart 中实现单例可以使用 factory 构造函数...
 
 **需要帮助?** 
 - 查看 [常见问题](FAQ.md)
-- 在 [GitHub Discussions](https://github.com/bill/anchor/discussions) 分享你的使用案例
+- 在 [GitHub Discussions](https://github.com/Drew-Z/anchor/discussions) 分享你的使用案例

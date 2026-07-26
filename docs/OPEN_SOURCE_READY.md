@@ -215,7 +215,7 @@ git push origin main
 ### GitHub 推送报错?
 ```bash
 # 如果是新仓库,首次推送:
-git remote add origin https://github.com/bill/anchor.git
+git remote add origin https://github.com/Drew-Z/anchor.git
 git push -u origin main
 
 # 如果远程已有内容:

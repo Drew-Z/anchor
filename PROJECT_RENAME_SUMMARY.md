@@ -51,7 +51,7 @@
 
 ### 仓库配置
 - **仓库名**: `anchor`
-- **完整地址**: https://github.com/bill/anchor
+- **完整地址**: https://github.com/Drew-Z/anchor
 - **简短描述**: ⚓ Anchor your knowledge with full source traceability | Turn docs into AI quizzes that trace back to source
 - **主站链接**: https://biau.playlab.eu.cc
 
@@ -82,7 +82,7 @@ personal-learning, knowledge-management, study-assistant
 ```bash
 # 在本地执行:
 cd D:/workspace4Cursor/learn/duoduo
-git remote set-url origin https://github.com/bill/anchor.git
+git remote set-url origin https://github.com/Drew-Z/anchor.git
 git push -u origin main
 ```
 
@@ -159,6 +159,6 @@ git push -u origin main
 **重命名完成时间**: 2026-07-26  
 **维护者**: bill  
 **主站**: [BIAU PORT (泊岸)](https://biau.playlab.eu.cc)  
-**项目地址**: https://github.com/bill/anchor
+**项目地址**: https://github.com/Drew-Z/anchor
 
 🎉 **准备就绪,可以推送到 GitHub 了!**
