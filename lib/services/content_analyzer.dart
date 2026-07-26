@@ -16,7 +16,8 @@ class ContentAnalyzer {
 
   ContentAnalyzer(this._openai);
 
-  static const String _systemPrompt = '''你是一个专业的教育内容分析专家。你的任务是分析用户提供的文本或图片内容，提取关键知识点，并生成多种类型的题目。
+  static const String _systemPrompt =
+      '''你是一个专业的教育内容分析专家。你的任务是分析用户提供的文本或图片内容，提取关键知识点，并生成多种类型的题目。
 
 ## 要求：
 1. 仔细阅读/分析内容，提取 5-10 个核心知识点

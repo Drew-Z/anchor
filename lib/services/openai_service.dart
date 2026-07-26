@@ -1,6 +1,13 @@
 import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'ai/ai_api_credential_store.dart';
+import 'ai/ai_api_protocol.dart';
+import 'ai/ai_completion_result.dart';
+import 'ai/ai_model_acceptance.dart';
+import 'ai/ai_provider_diagnostics.dart';
 
 /// AI 厂商预设
 class AIProviderPreset {
@@ -8,6 +15,8 @@ class AIProviderPreset {
   final String name;
   final String baseUrl;
   final List<String> models;
+  final List<AiApiProtocol> protocols;
+  final AiApiProtocol defaultProtocol;
   final String keyHelpUrl;
   final String keyHint;
 
@@ -16,6 +25,8 @@ class AIProviderPreset {
     required this.name,
     required this.baseUrl,
     required this.models,
+    this.protocols = const [AiApiProtocol.chatCompletions],
+    this.defaultProtocol = AiApiProtocol.chatCompletions,
     required this.keyHelpUrl,
     required this.keyHint,
   });
@@ -23,12 +34,25 @@ class AIProviderPreset {
 
 /// 内置 AI 厂商列表
 class AIProviders {
+  static const String grokPrimaryId = 'custom_grok_primary';
+  static const String mimoFallbackId = 'custom_mimo_fallback';
+
   static const List<AIProviderPreset> builtin = [
     AIProviderPreset(
       id: 'openai',
       name: 'OpenAI',
       baseUrl: 'https://api.openai.com/v1',
-      models: ['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo'],
+      models: [
+        'gpt-5.6-terra',
+        'gpt-5.6-sol',
+        'gpt-5.6-luna',
+        'gpt-5.5',
+      ],
+      protocols: [
+        AiApiProtocol.responses,
+        AiApiProtocol.chatCompletions,
+      ],
+      defaultProtocol: AiApiProtocol.responses,
       keyHelpUrl: 'https://platform.openai.com/api-keys',
       keyHint: 'sk-...',
     ),
@@ -73,10 +97,40 @@ class AIProviders {
       keyHint: 'AIza...',
     ),
     AIProviderPreset(
+      id: grokPrimaryId,
+      name: 'Grok 4.5 通道（主）',
+      baseUrl: '',
+      models: [],
+      protocols: [
+        AiApiProtocol.responses,
+        AiApiProtocol.chatCompletions,
+      ],
+      defaultProtocol: AiApiProtocol.responses,
+      keyHelpUrl: '',
+      keyHint: '',
+    ),
+    AIProviderPreset(
+      id: mimoFallbackId,
+      name: 'Mimo 通道（备）',
+      baseUrl: '',
+      models: [],
+      protocols: [
+        AiApiProtocol.responses,
+        AiApiProtocol.chatCompletions,
+      ],
+      defaultProtocol: AiApiProtocol.responses,
+      keyHelpUrl: '',
+      keyHint: '',
+    ),
+    AIProviderPreset(
       id: 'custom',
       name: '自定义',
       baseUrl: '',
       models: [],
+      protocols: [
+        AiApiProtocol.responses,
+        AiApiProtocol.chatCompletions,
+      ],
       keyHelpUrl: '',
       keyHint: '',
     ),
@@ -90,146 +144,568 @@ class AIProviders {
   }
 }
 
+class AiHttpResponse {
+  final int? statusCode;
+  final dynamic data;
+
+  const AiHttpResponse({required this.statusCode, required this.data});
+}
+
+abstract class AiHttpTransport {
+  Future<AiHttpResponse> post({
+    required String url,
+    required Map<String, String> headers,
+    required Map<String, dynamic> body,
+  });
+}
+
+class DioAiHttpTransport implements AiHttpTransport {
+  final Dio _dio;
+
+  DioAiHttpTransport({Dio? dio})
+      : _dio = dio ??
+            Dio(
+              BaseOptions(
+                connectTimeout: const Duration(seconds: 30),
+                receiveTimeout: const Duration(seconds: 120),
+              ),
+            );
+
+  @override
+  Future<AiHttpResponse> post({
+    required String url,
+    required Map<String, String> headers,
+    required Map<String, dynamic> body,
+  }) async {
+    try {
+      final response = await _dio.post(
+        url,
+        options: Options(
+          headers: headers,
+          validateStatus: (_) => true,
+        ),
+        data: jsonEncode(body),
+      );
+      return AiHttpResponse(
+        statusCode: response.statusCode,
+        data: response.data,
+      );
+    } on DioException catch (error) {
+      return AiHttpResponse(
+        statusCode: error.response?.statusCode,
+        data: error.response?.data ??
+            {
+              'error': {
+                'code': error.type == DioExceptionType.connectionTimeout ||
+                        error.type == DioExceptionType.receiveTimeout ||
+                        error.type == DioExceptionType.sendTimeout
+                    ? 'timeout'
+                    : 'network_error',
+                'message': error.message ?? 'Network request failed.',
+              },
+            },
+      );
+    }
+  }
+}
+
+class AiProviderException implements AiProviderDiagnostic {
+  final int? statusCode;
+  final String? code;
+  @override
+  final String message;
+
+  const AiProviderException({
+    required this.message,
+    this.statusCode,
+    this.code,
+  });
+
+  @override
+  AiProviderFailureKind get kind => classifyAiProviderFailure(
+        statusCode: statusCode,
+        code: code,
+        message: message,
+      );
+
+  bool get requiresCredentialReview => statusCode == 401 || statusCode == 403;
+
+  @override
+  String toString() => message;
+}
+
+Future<SharedPreferences> _defaultPreferencesLoader() {
+  return SharedPreferences.getInstance();
+}
+
 /// AI 服务（兼容 OpenAI 接口格式）
-class OpenAIService {
+class OpenAIService implements AiCompletionClient {
+  static const String profilePreferencePrefix = 'ai_profile.';
   static const String _apiKeyKey = 'ai_api_key';
   static const String _modelKey = 'ai_model';
   static const String _baseUrlKey = 'ai_base_url';
   static const String _providerIdKey = 'ai_provider_id';
+  static const String _protocolKey = 'ai_api_protocol';
 
-  final Dio _dio = Dio(BaseOptions(
-    connectTimeout: const Duration(seconds: 30),
-    receiveTimeout: const Duration(seconds: 120),
-  ));
+  final AiHttpTransport _transport;
+  final AiApiCredentialStore _credentialStore;
+  final AiModelAcceptanceStore _acceptanceStore;
+  final Future<SharedPreferences> Function() _preferencesLoader;
+  final bool _enforceModelAcceptance;
 
-  Future<String?> getApiKey() async {
-    final prefs = await SharedPreferences.getInstance();
-    final key = prefs.getString(_apiKeyKey);
-    if (key != null) return key;
-    // 兼容旧版本 key
-    final oldKey = prefs.getString('openai_api_key');
-    if (oldKey != null) {
-      await prefs.setString(_apiKeyKey, oldKey);
-      await prefs.remove('openai_api_key');
-      return oldKey;
+  OpenAIService({
+    AiHttpTransport? transport,
+    AiApiCredentialStore? credentialStore,
+    AiModelAcceptanceStore? acceptanceStore,
+    Future<SharedPreferences> Function()? preferencesLoader,
+    bool enforceModelAcceptance = false,
+  })  : _transport = transport ?? DioAiHttpTransport(),
+        _credentialStore =
+            credentialStore ?? const SecureAiApiCredentialStore(),
+        _acceptanceStore =
+            acceptanceStore ?? SharedPreferencesAiModelAcceptanceStore(),
+        _preferencesLoader = preferencesLoader ?? _defaultPreferencesLoader,
+        _enforceModelAcceptance = enforceModelAcceptance;
+
+  Future<String?> getApiKey({String? providerId}) async {
+    final resolvedProviderId = providerId ?? await getProviderId();
+    final secureKey = await _credentialStore.readApiKey(resolvedProviderId);
+    if (secureKey != null && secureKey.trim().isNotEmpty) {
+      return secureKey;
     }
-    return null;
+
+    final prefs = await _preferencesLoader();
+    final legacyKey =
+        prefs.getString(_apiKeyKey) ?? prefs.getString('openai_api_key');
+    if (legacyKey == null || legacyKey.trim().isEmpty) return null;
+
+    await _credentialStore.writeApiKey(resolvedProviderId, legacyKey.trim());
+    await prefs.remove(_apiKeyKey);
+    await prefs.remove('openai_api_key');
+    return legacyKey.trim();
   }
 
-  Future<void> setApiKey(String key) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_apiKeyKey, key);
+  Future<void> setApiKey(String key, {String? providerId}) async {
+    final resolvedProviderId = providerId ?? await getProviderId();
+    final trimmed = key.trim();
+    if (trimmed.isEmpty) {
+      await _credentialStore.deleteApiKey(resolvedProviderId);
+    } else {
+      await _credentialStore.writeApiKey(resolvedProviderId, trimmed);
+    }
+    final prefs = await _preferencesLoader();
+    await prefs.remove(_apiKeyKey);
+    await prefs.remove('openai_api_key');
+  }
+
+  Future<void> clearApiKey({String? providerId}) async {
+    final resolvedProviderId = providerId ?? await getProviderId();
+    await _credentialStore.deleteApiKey(resolvedProviderId);
+    final prefs = await _preferencesLoader();
+    await prefs.remove(_apiKeyKey);
+    await prefs.remove('openai_api_key');
+  }
+
+  static String profilePreferenceKey(String providerId, String field) {
+    final normalized = providerId
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9._-]'), '_');
+    return '$profilePreferencePrefix${normalized.isEmpty ? 'custom' : normalized}.$field';
   }
 
   Future<String> getModel() async {
-    final prefs = await SharedPreferences.getInstance();
-    final model = prefs.getString(_modelKey);
-    if (model != null) return model;
-    // 兼容旧版本
-    final oldModel = prefs.getString('openai_model');
-    if (oldModel != null) {
-      await prefs.setString(_modelKey, oldModel);
-      await prefs.remove('openai_model');
-      return oldModel;
+    return getModelForProvider(await getProviderId());
+  }
+
+  Future<String> getModelForProvider(String providerId) async {
+    final stored = await _readProfileValue(
+      providerId: providerId,
+      field: 'model',
+      legacyKeys: const [_modelKey, 'openai_model'],
+    );
+    if (stored != null) return stored;
+    final provider = AIProviders.getById(providerId);
+    if (provider != null && provider.models.isNotEmpty) {
+      return provider.models.first;
     }
-    return 'gpt-4o-mini';
+    return providerId == 'custom' ? 'gpt-5.6-terra' : '';
   }
 
   Future<void> setModel(String model) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_modelKey, model);
+    await setModelForProvider(await getProviderId(), model);
+  }
+
+  Future<void> setModelForProvider(String providerId, String model) async {
+    final prefs = await _preferencesLoader();
+    await prefs.setString(
+      profilePreferenceKey(providerId, 'model'),
+      model.trim(),
+    );
+    await prefs.remove(_modelKey);
+    await prefs.remove('openai_model');
   }
 
   Future<String> getBaseUrl() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_baseUrlKey) ?? 'https://api.openai.com/v1';
+    return getBaseUrlForProvider(await getProviderId());
+  }
+
+  Future<String> getBaseUrlForProvider(String providerId) async {
+    final stored = await _readProfileValue(
+      providerId: providerId,
+      field: 'base_url',
+      legacyKeys: const [_baseUrlKey],
+    );
+    if (stored != null) return stored;
+    final provider = AIProviders.getById(providerId);
+    return provider?.baseUrl ?? 'https://api.openai.com/v1';
   }
 
   Future<void> setBaseUrl(String url) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_baseUrlKey, url);
+    await setBaseUrlForProvider(await getProviderId(), url);
+  }
+
+  Future<void> setBaseUrlForProvider(String providerId, String url) async {
+    final prefs = await _preferencesLoader();
+    await prefs.setString(
+      profilePreferenceKey(providerId, 'base_url'),
+      url.trim(),
+    );
+    await prefs.remove(_baseUrlKey);
   }
 
   Future<String> getProviderId() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _preferencesLoader();
     return prefs.getString(_providerIdKey) ?? 'openai';
   }
 
   Future<void> setProviderId(String id) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _preferencesLoader();
     await prefs.setString(_providerIdKey, id);
   }
 
-  Future<bool> hasApiKey() async {
-    final key = await getApiKey();
+  Future<AiApiProtocol> getApiProtocol() async {
+    return getApiProtocolForProvider(await getProviderId());
+  }
+
+  Future<AiApiProtocol> getApiProtocolForProvider(String providerId) async {
+    final stored = await _readProfileValue(
+      providerId: providerId,
+      field: 'protocol',
+      legacyKeys: const [_protocolKey],
+    );
+    if (stored != null) return AiApiProtocol.fromString(stored);
+    final provider = AIProviders.getById(providerId);
+    return provider?.defaultProtocol ?? AiApiProtocol.chatCompletions;
+  }
+
+  Future<void> setApiProtocol(AiApiProtocol protocol) async {
+    await setApiProtocolForProvider(await getProviderId(), protocol);
+  }
+
+  Future<void> setApiProtocolForProvider(
+    String providerId,
+    AiApiProtocol protocol,
+  ) async {
+    final prefs = await _preferencesLoader();
+    await prefs.setString(
+      profilePreferenceKey(providerId, 'protocol'),
+      protocol.value,
+    );
+    await prefs.remove(_protocolKey);
+  }
+
+  Future<String?> _readProfileValue({
+    required String providerId,
+    required String field,
+    required List<String> legacyKeys,
+  }) async {
+    final prefs = await _preferencesLoader();
+    final profileKey = profilePreferenceKey(providerId, field);
+    final scoped = prefs.getString(profileKey);
+    if (scoped != null) return scoped;
+
+    final activeProviderId = prefs.getString(_providerIdKey) ?? 'openai';
+    if (activeProviderId != providerId) return null;
+    for (final legacyKey in legacyKeys) {
+      final legacyValue = prefs.getString(legacyKey);
+      if (legacyValue == null) continue;
+      await prefs.setString(profileKey, legacyValue);
+      await prefs.remove(legacyKey);
+      return legacyValue;
+    }
+    return null;
+  }
+
+  Future<bool> hasApiKey({String? providerId}) async {
+    final key = await getApiKey(providerId: providerId);
     return key != null && key.isNotEmpty;
   }
 
-  /// 调用 AI Chat Completions API（OpenAI 兼容格式）
+  /// 调用配置的 OpenAI-compatible 文本生成协议。
   Future<String> chatCompletion({
     required String systemPrompt,
     required String userContent,
     String? imageBase64,
     double? temperature,
   }) async {
+    final result = await generateCompletion(
+      systemPrompt: systemPrompt,
+      userContent: userContent,
+      imageBase64: imageBase64,
+      temperature: temperature,
+    );
+    return result.text;
+  }
+
+  @override
+  Future<AiCompletionResult> generateCompletion({
+    required String systemPrompt,
+    required String userContent,
+    String? imageBase64,
+    double? temperature,
+    bool bypassAcceptanceGate = false,
+  }) async {
     final apiKey = await getApiKey();
     if (apiKey == null || apiKey.isEmpty) {
-      throw Exception('未设置 API Key，请先在设置中配置');
+      throw const AiProviderException(
+        code: 'missing_api_key',
+        message: '未设置 API Key，请先在设置中配置',
+      );
     }
 
     final model = await getModel();
-    final baseUrl = await getBaseUrl();
+    final baseUrl =
+        (await getBaseUrl()).trim().replaceFirst(RegExp(r'/+$'), '');
+    final protocol = await getApiProtocol();
+    final providerId = await getProviderId();
+    final configuration = AiModelConfiguration(
+      providerId: providerId,
+      baseUrl: baseUrl,
+      model: model,
+      protocol: protocol,
+    );
+    if (_enforceModelAcceptance && !bypassAcceptanceGate) {
+      final accepted = await _acceptanceStore.isAccepted(configuration);
+      if (!accepted) {
+        throw const AiProviderException(
+          code: 'model_not_accepted',
+          message: '当前供应商、模型和协议组合尚未通过固定能力验收',
+        );
+      }
+    }
 
+    final stopwatch = Stopwatch()..start();
+    final response = await _transport.post(
+      url: '$baseUrl/${protocol.endpoint}',
+      headers: {
+        'Authorization': 'Bearer $apiKey',
+        'Content-Type': 'application/json',
+      },
+      body: protocol == AiApiProtocol.responses
+          ? _responsesRequest(
+              model: model,
+              systemPrompt: systemPrompt,
+              userContent: userContent,
+              imageBase64: imageBase64,
+            )
+          : _chatCompletionsRequest(
+              model: model,
+              systemPrompt: systemPrompt,
+              userContent: userContent,
+              imageBase64: imageBase64,
+              temperature: temperature,
+            ),
+    );
+    stopwatch.stop();
+
+    final statusCode = response.statusCode;
+    if (statusCode == null || statusCode < 200 || statusCode >= 300) {
+      throw _providerException(response);
+    }
+
+    final data = _asMap(response.data);
+    final content = protocol == AiApiProtocol.responses
+        ? _responsesOutputText(data)
+        : _chatCompletionsOutputText(data);
+    if (content.trim().isEmpty) {
+      throw const AiProviderException(
+        code: 'empty_response',
+        message: 'API 返回空结果或不兼容的响应结构',
+      );
+    }
+    return AiCompletionResult(
+      text: content,
+      requestedModel: model,
+      resolvedModel: data['model']?.toString(),
+      protocol: protocol,
+      latency: stopwatch.elapsed,
+      usage: _tokenUsage(data, protocol),
+    );
+  }
+
+  Map<String, dynamic> _chatCompletionsRequest({
+    required String model,
+    required String systemPrompt,
+    required String userContent,
+    required String? imageBase64,
+    required double? temperature,
+  }) {
     final messages = <Map<String, dynamic>>[
       {'role': 'system', 'content': systemPrompt},
-    ];
-
-    if (imageBase64 != null) {
-      messages.add({
-        'role': 'user',
-        'content': [
-          {'type': 'text', 'text': userContent},
-          {
-            'type': 'image_url',
-            'image_url': {'url': 'data:image/jpeg;base64,$imageBase64'},
-          },
-        ],
-      });
-    } else {
-      messages.add({'role': 'user', 'content': userContent});
-    }
-
-    final response = await _dio.post(
-      '$baseUrl/chat/completions',
-      options: Options(
-        headers: {
-          'Authorization': 'Bearer $apiKey',
-          'Content-Type': 'application/json',
+      if (imageBase64 == null)
+        {'role': 'user', 'content': userContent}
+      else
+        {
+          'role': 'user',
+          'content': [
+            {'type': 'text', 'text': userContent},
+            {
+              'type': 'image_url',
+              'image_url': {'url': 'data:image/jpeg;base64,$imageBase64'},
+            },
+          ],
         },
-      ),
-      data: jsonEncode({
-        'model': model,
-        'messages': messages,
-        'temperature': temperature ?? 0.7,
-        'max_tokens': 4096,
-      }),
+    ];
+    return {
+      'model': model,
+      'messages': messages,
+      'temperature': temperature ?? 0.7,
+      'max_tokens': 4096,
+      // Keep compatible relays from switching the client into SSE mode.
+      'stream': false,
+    };
+  }
+
+  Map<String, dynamic> _responsesRequest({
+    required String model,
+    required String systemPrompt,
+    required String userContent,
+    required String? imageBase64,
+  }) {
+    return {
+      'model': model,
+      'input': [
+        {
+          'role': 'system',
+          'content': [
+            {'type': 'input_text', 'text': systemPrompt},
+          ],
+        },
+        {
+          'role': 'user',
+          'content': [
+            {'type': 'input_text', 'text': userContent},
+            if (imageBase64 != null)
+              {
+                'type': 'input_image',
+                'image_url': 'data:image/jpeg;base64,$imageBase64',
+              },
+          ],
+        },
+      ],
+      'max_output_tokens': 4096,
+      'store': false,
+      // The app consumes one complete JSON response rather than a stream.
+      'stream': false,
+    };
+  }
+
+  String _chatCompletionsOutputText(Map<String, dynamic> data) {
+    final choices = data['choices'];
+    if (choices is! List || choices.isEmpty || choices.first is! Map) {
+      return '';
+    }
+    final message = Map<String, dynamic>.from(
+      (choices.first as Map)['message'] as Map? ?? const {},
     );
+    final content = message['content'];
+    if (content is String) return content;
+    if (content is List) {
+      return content
+          .whereType<Map>()
+          .map((part) => part['text'])
+          .whereType<String>()
+          .join('\n');
+    }
+    return '';
+  }
 
-    if (response.statusCode != 200) {
-      throw Exception('API 请求失败: ${response.statusCode}');
+  String _responsesOutputText(Map<String, dynamic> data) {
+    final direct = data['output_text'];
+    if (direct is String && direct.trim().isNotEmpty) return direct;
+    final output = data['output'];
+    if (output is! List) return '';
+    final texts = <String>[];
+    for (final item in output.whereType<Map>()) {
+      final content = item['content'];
+      if (content is! List) continue;
+      for (final part in content.whereType<Map>()) {
+        if (part['type'] == 'output_text' && part['text'] is String) {
+          texts.add(part['text'] as String);
+        }
+      }
+    }
+    return texts.join('\n');
+  }
+
+  AiTokenUsage _tokenUsage(
+    Map<String, dynamic> data,
+    AiApiProtocol protocol,
+  ) {
+    final usage = data['usage'];
+    if (usage is! Map) return const AiTokenUsage();
+    int? read(String key) {
+      final value = usage[key];
+      if (value is int) return value;
+      return int.tryParse(value?.toString() ?? '');
     }
 
-    final data = response.data as Map<String, dynamic>;
-    final choices = data['choices'] as List;
-    if (choices.isEmpty) {
-      throw Exception('API 返回空结果');
-    }
+    return AiTokenUsage(
+      inputTokens: read(
+        protocol == AiApiProtocol.responses ? 'input_tokens' : 'prompt_tokens',
+      ),
+      outputTokens: read(
+        protocol == AiApiProtocol.responses
+            ? 'output_tokens'
+            : 'completion_tokens',
+      ),
+      totalTokens: read('total_tokens'),
+    );
+  }
 
-    return choices[0]['message']['content'] as String;
+  AiProviderException _providerException(AiHttpResponse response) {
+    final data = _asMap(response.data);
+    final error = data['error'];
+    final errorMap = error is Map ? Map<String, dynamic>.from(error) : data;
+    final code = errorMap['code']?.toString();
+    final providerMessage = errorMap['message']?.toString().trim();
+    final statusCode = response.statusCode;
+    final message = providerMessage == null || providerMessage.isEmpty
+        ? 'API 请求失败: ${statusCode ?? 'unknown'}'
+        : providerMessage;
+    return AiProviderException(
+      statusCode: statusCode,
+      code: code,
+      message: message,
+    );
+  }
+
+  Map<String, dynamic> _asMap(dynamic value) {
+    if (value is Map) return Map<String, dynamic>.from(value);
+    if (value is String) {
+      try {
+        final decoded = jsonDecode(value);
+        if (decoded is Map) return Map<String, dynamic>.from(decoded);
+      } catch (_) {
+        return {'message': value};
+      }
+    }
+    return const {};
   }
 
   /// AI 判断填空题答案是否正确
-  /// 
+  ///
   /// 当用户答案与标准答案不完全匹配时，调用大模型判断语义是否等价。
   /// 返回 true 表示正确，false 表示错误。
   Future<bool> judgeFillBlankAnswer({
