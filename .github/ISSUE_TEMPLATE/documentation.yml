@@ -1,0 +1,104 @@
+name: Documentation Improvement
+description: 改进文档
+title: "[Docs]: "
+labels: ["documentation"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢你帮助改进文档!清晰的文档让更多人能顺利使用 Anchor Learning。
+
+  - type: dropdown
+    id: doc-type
+    attributes:
+      label: 文档类型
+      description: 哪类文档需要改进?
+      options:
+        - README.md
+        - 快速开始指南
+        - 开发环境配置
+        - 架构文档
+        - API 文档
+        - 贡献指南
+        - 用户指南
+        - 其他
+    validations:
+      required: true
+
+  - type: input
+    id: file-path
+    attributes:
+      label: 文件路径
+      description: 需要改进的文档文件路径
+      placeholder: "例如: docs/guides/QUICK_START.md"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: issue-type
+    attributes:
+      label: 问题类型
+      description: 文档存在什么问题?
+      multiple: true
+      options:
+        - 内容错误或过时
+        - 描述不清晰
+        - 缺少重要信息
+        - 示例代码无法运行
+        - 格式排版问题
+        - 翻译问题
+        - 缺少截图或图表
+        - 链接失效
+        - 其他
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述
+      description: 详细描述文档的问题
+      placeholder: 当前文档在第 X 段说明了 Y,但实际上...
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: 改进建议
+      description: 你建议如何改进?
+      placeholder: |
+        建议将第 X 段修改为...
+        或者添加一个示例说明...
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: 影响范围
+      description: 这个问题对用户有什么影响?
+      placeholder: |
+        新用户可能因此无法完成环境配置...
+        开发者可能误解 API 用法...
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: 贡献意愿
+      description: 你愿意如何参与?
+      options:
+        - label: 我只是报告问题,希望他人修复
+        - label: 我可以提供改进建议的详细内容
+        - label: 我愿意提交 PR 修复此问题
+        - label: 我可以提供更好的示例代码
+        - label: 我可以提供截图或图表
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: 确认事项
+      options:
+        - label: 我已阅读过相关文档
+          required: true
+        - label: 我已搜索过现有 Issue,确认这不是重复报告
+          required: true

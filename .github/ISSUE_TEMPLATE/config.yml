@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 GitHub Discussions
+    url: https://github.com/Drew-Z/anchor/discussions
+    about: 提问、分享想法、展示项目、寻求帮助
+  - name: 🔒 安全漏洞报告
+    url: https://github.com/Drew-Z/anchor/security/advisories
+    about: 私密报告安全漏洞 (请勿公开创建 Issue)
+  - name: 📖 文档
+    url: https://github.com/Drew-Z/anchor#readme
+    about: 查看项目文档和用户指南
