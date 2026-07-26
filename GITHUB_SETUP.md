@@ -11,7 +11,7 @@
 ⚓ Anchor your knowledge with full source traceability | Turn docs into AI quizzes that trace back to source
 ```
 
-**Website**: `https://biau.playlab.eu.cc`
+**Website**: `https://anchor.playlab.eu.cc`
 
 **Topics** (tags):
 ```

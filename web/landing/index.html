@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anchor Learning - Turn Docs into Traceable AI Quizzes</title>
+
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="Transform your documentation and code into personalized AI quizzes. Every answer traces back to its source. Open-source, privacy-first learning tool.">
+  <meta name="keywords" content="AI learning, spaced repetition, knowledge management, citation verification, study assistant, Flutter, open source">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Anchor Learning - Traceable AI Learning">
+  <meta property="og:description" content="Turn your docs into AI quizzes that trace back to source. Open-source and privacy-first.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://biau.playlab.eu.cc/anchor">
+  <meta property="og:image" content="https://biau.playlab.eu.cc/anchor/assets/social-preview.png">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Anchor Learning - Traceable AI Learning">
+  <meta name="twitter:description" content="Turn your docs into AI quizzes that trace back to source.">
+  <meta name="twitter:image" content="https://biau.playlab.eu.cc/anchor/assets/social-preview.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="assets/anchor-icon.svg">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="styles/main.css">
+
+  <!-- Fonts - System Stack -->
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="nav">
+    <div class="container nav-container">
+      <a href="#" class="logo">
+        <span class="logo-icon">⚓</span>
+        <span class="logo-text">Anchor</span>
+      </a>
+
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#how-it-works">How It Works</a>
+        <a href="#architecture">Architecture</a>
+        <a href="https://github.com/Drew-Z/anchor#readme" target="_blank">Docs</a>
+        <a href="https://github.com/Drew-Z/anchor" target="_blank" class="github-link">
+          <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+          </svg>
+          <span id="github-stars"></span>
+        </a>
+      </div>
+
+      <button class="mobile-menu-toggle" aria-label="Toggle menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-content">
+        <h1 class="hero-title">
+          <span class="hero-icon">⚓</span>
+          Anchor your knowledge with full source traceability
+        </h1>
+        <p class="hero-subtitle">
+          Turn your documentation and code into personalized AI quizzes—every answer traces back to its source.
+        </p>
+
+        <div class="hero-badges">
+          <span class="badge badge-primary">Open Source</span>
+          <span class="badge badge-secondary">Privacy First</span>
+          <span class="badge badge-accent">AI Powered</span>
+        </div>
+
+        <div class="cta-group">
+          <a href="#demo" class="btn btn-primary">
+            Try Demo
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M8.22 2.97a.75.75 0 011.06 0l4.25 4.25a.75.75 0 010 1.06l-4.25 4.25a.75.75 0 01-1.06-1.06l2.97-2.97H3.75a.75.75 0 010-1.5h7.44L8.22 4.03a.75.75 0 010-1.06z"></path>
+            </svg>
+          </a>
+          <a href="https://github.com/Drew-Z/anchor" target="_blank" class="btn btn-secondary">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+            </svg>
+            View on GitHub
+          </a>
+        </div>
+      </div>
+
+      <div class="hero-visual">
+        <div class="hero-card">
+          <div class="hero-card-header">
+            <div class="hero-card-dots">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <span class="hero-card-title">Import → Generate → Learn</span>
+          </div>
+          <div class="hero-card-content">
+            <div class="code-snippet">
+              <span class="code-comment"># Flutter Widget 生命周期</span>
+              <span class="code-text">StatefulWidget 通过 State 对象管理状态...</span>
+            </div>
+            <div class="arrow-down">↓</div>
+            <div class="question-preview">
+              <div class="question-text">以下关于 StatefulWidget 生命周期的说法,正确的是?</div>
+              <div class="question-source">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M3.75 2.5a.25.25 0 00-.25.25v10.5c0 .138.112.25.25.25h8.5a.25.25 0 00.25-.25V5.5h-2.75A1.75 1.75 0 018 3.75V1H3.75zM9.5 1v2.75c0 .138.112.25.25.25h2.75L9.5 1z"></path>
+                </svg>
+                <span>README.md:## 关键方法</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section id="features" class="features">
+    <div class="container">
+      <h2 class="section-title">Why Anchor Learning?</h2>
+      <p class="section-subtitle">Built on three principles: traceability, accuracy, and privacy</p>
+
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🔗</div>
+          <h3>Complete Citation Chain</h3>
+          <p>Every question traces back to specific locations in source documents. Click to jump to original context.</p>
+          <div class="feature-detail">
+            <code>README.md:## Architecture:Step 2</code>
+          </div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">🛡️</div>
+          <h3>Anti-Hallucination</h3>
+          <p>Three-layer verification prevents AI from making things up: semantic chunking, citation verification, and fact validation.</p>
+          <div class="feature-stats">
+            <span>14.2% → 2.9%</span>
+            <span class="stat-label">hallucination rate</span>
+          </div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">🔒</div>
+          <h3>Privacy First</h3>
+          <p>100% local data storage. Your documents and learning progress never leave your device.</p>
+          <div class="feature-badges">
+            <span class="mini-badge">No tracking</span>
+            <span class="mini-badge">Offline capable</span>
+          </div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">🤖</div>
+          <h3>AI Agent Tutor</h3>
+          <p>Socratic-style guidance helps you understand complex codebases through interview-mode questioning.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">📊</div>
+          <h3>Spaced Repetition</h3>
+          <p>SuperMemo-based algorithm schedules reviews at optimal intervals for long-term retention.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">⚡</div>
+          <h3>Multiple Question Types</h3>
+          <p>Single choice, multiple choice, fill-in-blank, true/false, and matching questions—all generated from your docs.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works Section -->
+  <section id="how-it-works" class="workflow">
+    <div class="container">
+      <h2 class="section-title">How It Works</h2>
+      <p class="section-subtitle">From raw documentation to mastery in three steps</p>
+
+      <div class="workflow-steps">
+        <div class="workflow-step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h3>Import Your Content</h3>
+            <p>Upload Markdown files, code projects, or documentation. Semantic chunking preserves context integrity.</p>
+            <div class="step-formats">
+              <span class="format-badge">.md</span>
+              <span class="format-badge">.js</span>
+              <span class="format-badge">.py</span>
+              <span class="format-badge">.dart</span>
+              <span class="format-badge">+more</span>
+            </div>
+          </div>
+          <div class="step-visual">
+            <div class="mini-card">
+              <div class="mini-card-icon">📄</div>
+              <div class="mini-card-text">README.md</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="workflow-arrow">↓</div>
+
+        <div class="workflow-step">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h3>AI Generates Questions</h3>
+            <p>Extract knowledge points, generate diverse question types, and verify every answer against source.</p>
+            <div class="step-layers">
+              <div class="layer">Layer 1: Semantic Chunker</div>
+              <div class="layer">Layer 2: Citation Verification</div>
+              <div class="layer">Layer 3: Fact Validator</div>
+            </div>
+          </div>
+          <div class="step-visual">
+            <div class="mini-card">
+              <div class="mini-card-icon">✨</div>
+              <div class="mini-card-text">10 questions generated</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="workflow-arrow">↓</div>
+
+        <div class="workflow-step">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h3>Learn & Review</h3>
+            <p>Answer questions, see source context, get AI tutoring. Spaced repetition schedules optimal reviews.</p>
+            <div class="step-stats">
+              <div class="stat-item">
+                <span class="stat-value">87%</span>
+                <span class="stat-label">Mastery</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-value">3</span>
+                <span class="stat-label">Days until review</span>
+              </div>
+            </div>
+          </div>
+          <div class="step-visual">
+            <div class="mini-card">
+              <div class="mini-card-icon">🎯</div>
+              <div class="mini-card-text">5 reviews today</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Architecture Section -->
+  <section id="architecture" class="architecture">
+    <div class="container">
+      <h2 class="section-title">Built for Accuracy</h2>
+      <p class="section-subtitle">Three-layer anti-hallucination architecture</p>
+
+      <div class="arch-diagram">
+        <div class="arch-layer">
+          <div class="layer-badge">Layer 1</div>
+          <div class="layer-content">
+            <h3>Semantic Chunker</h3>
+            <p>Preserves document structure. Markdown chunked by headers, code by functions—never mid-paragraph.</p>
+          </div>
+        </div>
+
+        <div class="arch-arrow">→</div>
+
+        <div class="arch-layer">
+          <div class="layer-badge">Layer 2</div>
+          <div class="layer-content">
+            <h3>Citation Verification</h3>
+            <p>AI must cite specific chunk IDs. System validates citations exist and support the claim.</p>
+          </div>
+        </div>
+
+        <div class="arch-arrow">→</div>
+
+        <div class="arch-layer">
+          <div class="layer-badge">Layer 3</div>
+          <div class="layer-content">
+            <h3>Question Validator</h3>
+            <p>Second AI cross-checks: does the answer actually match cited chunks? Low-confidence flagged for review.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="arch-result">
+        <div class="result-card">
+          <div class="result-label">Hallucination Rate</div>
+          <div class="result-comparison">
+            <div class="result-bar">
+              <span class="bar-label">Direct GPT-4</span>
+              <div class="bar" style="width: 100%">
+                <span class="bar-value">14.2%</span>
+              </div>
+            </div>
+            <div class="result-bar">
+              <span class="bar-label">With 3 Layers</span>
+              <div class="bar bar-success" style="width: 20%">
+                <span class="bar-value">2.9%</span>
+              </div>
+            </div>
+          </div>
+          <div class="result-note">Tested on 100 technical documents (Flutter/React/Algorithms)</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tech Stack Section -->
+  <section class="tech-stack">
+    <div class="container">
+      <h2 class="section-title">Open Source & Modern</h2>
+
+      <div class="tech-grid">
+        <div class="tech-item">
+          <div class="tech-icon">📱</div>
+          <div class="tech-name">Flutter</div>
+          <div class="tech-desc">Cross-platform UI</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-icon">🗄️</div>
+          <div class="tech-name">SQLite</div>
+          <div class="tech-desc">Local-first data</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-icon">🤖</div>
+          <div class="tech-name">OpenAI API</div>
+          <div class="tech-desc">GPT-4 powered</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-icon">📜</div>
+          <div class="tech-name">MIT License</div>
+          <div class="tech-desc">Fully open source</div>
+        </div>
+      </div>
+
+      <div class="tech-stats">
+        <div class="stat-box">
+          <div class="stat-number">15K+</div>
+          <div class="stat-label">Lines of Code</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number">175</div>
+          <div class="stat-label">Dart Files</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number">25K+</div>
+          <div class="stat-label">Words of Docs</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number">18</div>
+          <div class="stat-label">Documentation Files</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Use Cases Section -->
+  <section class="use-cases">
+    <div class="container">
+      <h2 class="section-title">Who Is This For?</h2>
+
+      <div class="use-case-grid">
+        <div class="use-case-card">
+          <div class="use-case-icon">👨‍💻</div>
+          <h3>Developers Learning New Tech</h3>
+          <p>Turn official docs into practice questions. Master React, Flutter, or any framework faster.</p>
+        </div>
+
+        <div class="use-case-card">
+          <div class="use-case-icon">🏗️</div>
+          <h3>Engineers Onboarding</h3>
+          <p>Import your company's codebase. AI guides you through architecture with interview-style questions.</p>
+        </div>
+
+        <div class="use-case-card">
+          <div class="use-case-icon">🎓</div>
+          <h3>Interview Prep</h3>
+          <p>Generate questions from LeetCode solutions, system design notes, or past project docs.</p>
+        </div>
+
+        <div class="use-case-card">
+          <div class="use-case-icon">🔬</div>
+          <h3>Researchers & Educators</h3>
+          <p>Build custom learning materials from papers, lecture notes, or textbooks—with full citations.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Demo CTA Section -->
+  <section id="demo" class="demo-cta">
+    <div class="container">
+      <div class="demo-content">
+        <h2>Try It Now</h2>
+        <p>Experience Anchor Learning with pre-loaded example datasets. No installation required.</p>
+
+        <div class="demo-features">
+          <div class="demo-feature">
+            <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+              <path fill-rule="evenodd" d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z"></path>
+            </svg>
+            <span>3 example datasets (Flutter, Git, JavaScript)</span>
+          </div>
+          <div class="demo-feature">
+            <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+              <path fill-rule="evenodd" d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z"></path>
+            </svg>
+            <span>Full quiz experience with source tracing</span>
+          </div>
+          <div class="demo-feature">
+            <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+              <path fill-rule="evenodd" d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z"></path>
+            </svg>
+            <span>AI Agent conversation (limited)</span>
+          </div>
+        </div>
+
+        <a href="app/index.html" class="btn btn-large btn-primary">
+          Launch Demo
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8.22 2.97a.75.75 0 011.06 0l4.25 4.25a.75.75 0 010 1.06l-4.25 4.25a.75.75 0 01-1.06-1.06l2.97-2.97H3.75a.75.75 0 010-1.5h7.44L8.22 4.03a.75.75 0 010-1.06z"></path>
+          </svg>
+        </a>
+
+        <p class="demo-note">Demo runs entirely in your browser. No data is sent to servers.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Community Section -->
+  <section class="community">
+    <div class="container">
+      <h2 class="section-title">Join the Community</h2>
+
+      <div class="community-grid">
+        <a href="https://github.com/Drew-Z/anchor" target="_blank" class="community-card">
+          <div class="community-icon">
+            <svg width="32" height="32" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+            </svg>
+          </div>
+          <h3>GitHub</h3>
+          <p>Star, fork, contribute</p>
+          <span class="community-link">github.com/Drew-Z/anchor →</span>
+        </a>
+
+        <a href="https://github.com/Drew-Z/anchor/discussions" target="_blank" class="community-card">
+          <div class="community-icon">💬</div>
+          <h3>Discussions</h3>
+          <p>Ask questions, share ideas</p>
+          <span class="community-link">Join discussion →</span>
+        </a>
+
+        <a href="https://github.com/Drew-Z/anchor/blob/main/CONTRIBUTING.md" target="_blank" class="community-card">
+          <div class="community-icon">🤝</div>
+          <h3>Contributing</h3>
+          <p>Help build the future</p>
+          <span class="community-link">Read guide →</span>
+        </a>
+
+        <a href="https://github.com/Drew-Z/anchor/blob/main/FAQ.md" target="_blank" class="community-card">
+          <div class="community-icon">❓</div>
+          <h3>FAQ</h3>
+          <p>Common questions answered</p>
+          <span class="community-link">Read FAQ →</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Final CTA Section -->
+  <section class="final-cta">
+    <div class="container">
+      <h2>Ready to Anchor Your Learning?</h2>
+      <p>Open source. Privacy-first. Built for developers who learn by doing.</p>
+
+      <div class="cta-buttons">
+        <a href="app/index.html" class="btn btn-large btn-primary">Try Demo</a>
+        <a href="https://github.com/Drew-Z/anchor" target="_blank" class="btn btn-large btn-secondary">
+          View Source Code
+        </a>
+      </div>
+
+      <div class="quick-install">
+        <div class="install-title">Quick Install</div>
+        <code class="install-code">git clone https://github.com/Drew-Z/anchor.git && cd anchor && flutter run</code>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-brand">
+          <div class="footer-logo">
+            <span class="logo-icon">⚓</span>
+            <span class="logo-text">Anchor Learning</span>
+          </div>
+          <p class="footer-tagline">Traceable AI learning for developers</p>
+          <div class="footer-badge">
+            Part of <a href="https://biau.playlab.eu.cc" target="_blank">BIAU PORT (泊岸)</a> 🌊
+          </div>
+        </div>
+
+        <div class="footer-links">
+          <div class="footer-column">
+            <h4>Product</h4>
+            <a href="#features">Features</a>
+            <a href="#how-it-works">How It Works</a>
+            <a href="app/index.html">Demo</a>
+            <a href="https://github.com/Drew-Z/anchor/releases">Download</a>
+          </div>
+
+          <div class="footer-column">
+            <h4>Documentation</h4>
+            <a href="https://github.com/Drew-Z/anchor#readme" target="_blank">README</a>
+            <a href="https://github.com/Drew-Z/anchor/blob/main/docs/guides/QUICK_START.md" target="_blank">Quick Start</a>
+            <a href="https://github.com/Drew-Z/anchor/blob/main/docs/architecture/SYSTEM_OVERVIEW.md" target="_blank">Architecture</a>
+            <a href="https://github.com/Drew-Z/anchor/blob/main/FAQ.md" target="_blank">FAQ</a>
+          </div>
+
+          <div class="footer-column">
+            <h4>Community</h4>
+            <a href="https://github.com/Drew-Z/anchor" target="_blank">GitHub</a>
+            <a href="https://github.com/Drew-Z/anchor/discussions" target="_blank">Discussions</a>
+            <a href="https://github.com/Drew-Z/anchor/issues" target="_blank">Issues</a>
+            <a href="https://github.com/Drew-Z/anchor/blob/main/CONTRIBUTING.md" target="_blank">Contributing</a>
+          </div>
+
+          <div class="footer-column">
+            <h4>Legal</h4>
+            <a href="https://github.com/Drew-Z/anchor/blob/main/LICENSE" target="_blank">MIT License</a>
+            <a href="https://github.com/Drew-Z/anchor/blob/main/SECURITY.md" target="_blank">Security</a>
+            <a href="https://github.com/Drew-Z/anchor/blob/main/CODE_OF_CONDUCT.md" target="_blank">Code of Conduct</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <p>&copy; 2024 Anchor Learning. Open source under MIT License.</p>
+        <div class="footer-social">
+          <a href="https://github.com/Drew-Z/anchor" target="_blank" aria-label="GitHub">
+            <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+            </svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="scripts/main.js"></script>
+</body>
+</html>

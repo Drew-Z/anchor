@@ -1,0 +1,19 @@
+# Anchor Learning
+# Web assets directory
+
+# Images
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.ico
+
+# Optimized versions
+*-optimized.*
+*@2x.*
+*@3x.*
+
+# Temporary files
+.DS_Store
+Thumbs.db

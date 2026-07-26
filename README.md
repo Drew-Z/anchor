@@ -14,6 +14,8 @@ Turn your documentation and code into personalized AI quizzes—every answer tra
 
 ---
 
+**🌐 Website**: [anchor.playlab.eu.cc](https://anchor.playlab.eu.cc)
+
 **From [BIAU PORT (泊岸)](https://biau.playlab.eu.cc)** 🌊
 
 ## 📺 Demo Video
