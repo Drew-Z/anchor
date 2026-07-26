@@ -4,6 +4,19 @@ import '../../../data/models/source_chunk.dart';
 import '../../openai_service.dart';
 import '../ai_task_result.dart';
 
+/// 从 SourceChunk 中提取的知识点(未持久化)
+///
+/// **与 KnowledgePoint 的区别**:
+/// - ExtractedKnowledgePoint: AI 提取的临时结果,不包含 id/createTime 等持久化字段
+/// - KnowledgePoint: 持久化到数据库的知识点,包含完整的元数据
+///
+/// **字段说明**:
+/// - [title]: 知识点标题(简短,适合卡片展示)
+/// - [summary]: 知识点摘要(解释这个知识点是什么,为什么值得学习)
+/// - [tags]: 标签列表(用于分类和搜索)
+/// - [difficulty]: 难度等级 1-5 (1=最简单, 5=最难)
+/// - [interviewRelevance]: 面试相关度 0-5 (0=无关, 5=高频)
+/// - [sourceChunkIds]: 来源片段ID列表(溯源依据)
 class ExtractedKnowledgePoint {
   final String title;
   final String summary;
@@ -65,6 +78,9 @@ class ExtractedKnowledgePoint {
   }
 }
 
+/// 知识点提取结果
+///
+/// 包含 AI 从原文中提取的所有知识点列表
 class KnowledgeExtractionResult {
   final List<ExtractedKnowledgePoint> knowledgePoints;
 
@@ -85,6 +101,32 @@ class KnowledgeExtractionResult {
   }
 }
 
+/// 知识点提取任务
+///
+/// **功能**: 从用户提供的原文片段(SourceChunk)中自动提取值得学习的知识点
+///
+/// **核心原则**:
+/// 1. **只基于提供的原文** - 不引入外部知识,避免 AI 幻觉
+/// 2. **每个知识点必须可溯源** - 必须关联至少一个 source_chunk_id
+/// 3. **自动过滤无效结果** - 过滤掉没有标题/摘要/来源的知识点
+///
+/// **使用示例**:
+/// ```dart
+/// final task = KnowledgeExtractionTask(openAIService);
+///
+/// final result = await task.run(
+///   sourceChunks: [chunk1, chunk2, ...],
+/// );
+///
+/// if (result.isSuccess) {
+///   for (final point in result.data!.knowledgePoints) {
+///     print('提取到: ${point.title}');
+///     print('难度: ${point.difficulty}/5');
+///   }
+/// }
+/// ```
+///
+/// **输出格式**: JSON (严格模式,不含 Markdown)
 class KnowledgeExtractionTask {
   static const String _systemPrompt = '''
 你是一个严谨的知识库学习内容分析器。你的任务是从用户提供的来源片段中抽取可学习的知识点。
@@ -118,6 +160,20 @@ JSON schema：
 
   KnowledgeExtractionTask(this._openai);
 
+  /// 执行知识点提取任务
+  ///
+  /// **参数**:
+  /// - [sourceChunks]: 原文片段列表(不能为空)
+  ///
+  /// **返回**: AiTaskResult<KnowledgeExtractionResult>
+  /// - 成功: 包含提取的知识点列表
+  /// - 失败: 包含错误类型和详细信息
+  ///
+  /// **错误类型**:
+  /// - validation: 参数校验失败(如 sourceChunks 为空)
+  /// - request: OpenAI API 调用失败
+  /// - parse: JSON 解析失败
+  /// - emptyResult: AI 未提取出有效知识点
   Future<AiTaskResult<KnowledgeExtractionResult>> run({
     required List<SourceChunk> sourceChunks,
   }) async {
@@ -170,6 +226,14 @@ JSON schema：
     }
   }
 
+  /// 清洗提取结果 - 移除无效的知识点和引用
+  ///
+  /// **清洗规则**:
+  /// 1. 移除 AI 编造的 source_chunk_id(不在提供的 sourceChunks 中)
+  /// 2. 移除标题或摘要为空的知识点
+  /// 3. 移除没有任何有效引用的知识点
+  ///
+  /// **用途**: 防止 AI 幻觉,确保所有知识点都可溯源
   KnowledgeExtractionResult _sanitizeResult({
     required KnowledgeExtractionResult result,
     required List<SourceChunk> sourceChunks,
