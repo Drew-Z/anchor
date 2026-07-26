@@ -60,7 +60,8 @@ class Example {
 
       // 代码块不应该被切分
       final hasCompleteCodeBlock = chunks.any(
-        (chunk) => chunk.content.contains('```dart') && chunk.content.contains('```'),
+        (chunk) =>
+            chunk.content.contains('```dart') && chunk.content.contains('```'),
       );
       expect(hasCompleteCodeBlock, isTrue);
     });
@@ -87,7 +88,8 @@ $largeParagraph
 
       // 每个 chunk 不应该超过最大限制
       for (final chunk in chunks) {
-        expect(chunk.content.length, lessThanOrEqualTo(SemanticChunker.maxChunkSize + 500));
+        expect(chunk.content.length,
+            lessThanOrEqualTo(SemanticChunker.maxChunkSize + 500));
       }
     });
 
@@ -127,7 +129,8 @@ $largeParagraph
       );
 
       // locator 应该包含完整路径
-      expect(chunks.any((c) => c.locator?.contains('README.md') ?? false), isTrue);
+      expect(
+          chunks.any((c) => c.locator?.contains('README.md') ?? false), isTrue);
     });
 
     test('空内容返回空列表', () {

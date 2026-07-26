@@ -241,7 +241,8 @@ class _ProjectImportScreenState extends ConsumerState<ProjectImportScreen> {
           return q;
         }
         // 添加验证警告到解析中
-        final warningText = '\n\n⚠️ 验证发现以下问题:\n${validation.issues.map((i) => '• $i').join('\n')}\n(置信度: ${(validation.confidence * 100).toInt()}%)';
+        final warningText =
+            '\n\n⚠️ 验证发现以下问题:\n${validation.issues.map((i) => '• $i').join('\n')}\n(置信度: ${(validation.confidence * 100).toInt()}%)';
         return q.copyWith(
           explanation: (q.explanation ?? '') + warningText,
         );

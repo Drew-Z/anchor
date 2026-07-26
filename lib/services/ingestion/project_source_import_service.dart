@@ -532,9 +532,31 @@ class ProjectSourceImportService {
 
   bool _isCodeFile(String ext) {
     const codeExtensions = {
-      '.dart', '.java', '.kt', '.swift', '.js', '.ts', '.tsx', '.jsx',
-      '.py', '.rb', '.go', '.rs', '.c', '.cpp', '.h', '.hpp', '.cs',
-      '.php', '.sh', '.bash', '.sql', '.yaml', '.yml', '.json', '.xml',
+      '.dart',
+      '.java',
+      '.kt',
+      '.swift',
+      '.js',
+      '.ts',
+      '.tsx',
+      '.jsx',
+      '.py',
+      '.rb',
+      '.go',
+      '.rs',
+      '.c',
+      '.cpp',
+      '.h',
+      '.hpp',
+      '.cs',
+      '.php',
+      '.sh',
+      '.bash',
+      '.sql',
+      '.yaml',
+      '.yml',
+      '.json',
+      '.xml',
     };
     return codeExtensions.contains(ext);
   }

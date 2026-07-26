@@ -11,7 +11,8 @@ class DemoDataSeeder {
 
   /// 导入 Vue.js 核心响应式系统 Demo
   Future<void> seedVueCoreDemo() async {
-    final sourceId = 'demo_vue_reactivity_${DateTime.now().millisecondsSinceEpoch}';
+    final sourceId =
+        'demo_vue_reactivity_${DateTime.now().millisecondsSinceEpoch}';
     final now = DateTime.now();
 
     // 1. 创建 Source
@@ -190,7 +191,8 @@ function reactive(target) {
     ];
 
     for (final chunk in chunks) {
-      await _db.database.then((db) => db.insert('source_chunks', chunk.toMap()));
+      await _db.database
+          .then((db) => db.insert('source_chunks', chunk.toMap()));
     }
 
     // 3. 创建 Knowledge Points (从内容中提取的知识点)
@@ -198,7 +200,8 @@ function reactive(target) {
       KnowledgePoint(
         id: '${sourceId}_kp_1',
         title: 'Object.defineProperty 数据劫持',
-        summary: '通过 Object.defineProperty 拦截对象属性的 get/set 操作,在 get 时收集依赖,在 set 时触发更新',
+        summary:
+            '通过 Object.defineProperty 拦截对象属性的 get/set 操作,在 get 时收集依赖,在 set 时触发更新',
         kind: KnowledgePointKind.concept,
         tags: ['vue', 'reactive', 'javascript'],
         difficulty: 2,
@@ -231,7 +234,8 @@ function reactive(target) {
       KnowledgePoint(
         id: '${sourceId}_kp_4',
         title: 'Proxy 响应式代理',
-        summary: 'Vue 3 使用 Proxy 替代 Object.defineProperty,可以拦截更多操作,支持数组和集合类型,性能更优',
+        summary:
+            'Vue 3 使用 Proxy 替代 Object.defineProperty,可以拦截更多操作,支持数组和集合类型,性能更优',
         kind: KnowledgePointKind.implementation,
         tags: ['vue3', 'proxy', 'reactive'],
         difficulty: 2,
@@ -242,7 +246,8 @@ function reactive(target) {
     ];
 
     for (final kp in knowledgePoints) {
-      await _db.database.then((db) => db.insert('knowledge_points', kp.toMap()));
+      await _db.database
+          .then((db) => db.insert('knowledge_points', kp.toMap()));
     }
 
     // 4. 创建知识点依赖关系

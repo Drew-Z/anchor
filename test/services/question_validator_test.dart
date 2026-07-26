@@ -170,7 +170,8 @@ void main() {
         id: 'q1',
         deckId: 'deck1',
         type: QuestionType.fillInBlank,
-        content: '以下代码片段用于创建按钮:\n```dart\nElevatedButton(\n  onPressed: () {},\n  child: Text(___),\n)\n```',
+        content:
+            '以下代码片段用于创建按钮:\n```dart\nElevatedButton(\n  onPressed: () {},\n  child: Text(___),\n)\n```',
         answer: "'Click Me'",
         explanation: '',
         createdAt: DateTime.now(),

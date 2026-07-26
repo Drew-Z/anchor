@@ -250,7 +250,8 @@ class QuestionValidator {
 
     final matchRate = keywords.isEmpty ? 0.0 : foundCount / keywords.length;
     if (matchRate < 0.7) {
-      issues.add('判断题陈述的关键词在原文中匹配率过低(${(matchRate * 100).toStringAsFixed(0)}%)');
+      issues
+          .add('判断题陈述的关键词在原文中匹配率过低(${(matchRate * 100).toStringAsFixed(0)}%)');
     }
 
     // 检查否定性陈述(AI 容易瞎断言 "无 X" / "不支持 Y")
@@ -373,14 +374,40 @@ class QuestionValidator {
   /// 提取关键词(去除停用词)
   List<String> _extractKeywords(String text) {
     final stopWords = {
-      '的', '了', '在', '是', '和', '与', '或', '等', '如', '但',
-      '可以', '能够', '需要', '要求', '必须', '应该', '可能',
-      'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
+      '的',
+      '了',
+      '在',
+      '是',
+      '和',
+      '与',
+      '或',
+      '等',
+      '如',
+      '但',
+      '可以',
+      '能够',
+      '需要',
+      '要求',
+      '必须',
+      '应该',
+      '可能',
+      'the',
+      'a',
+      'an',
+      'and',
+      'or',
+      'but',
+      'in',
+      'on',
+      'at',
+      'to',
+      'for',
     };
 
     return text
         .split(RegExp(r'[\s,。,;;\.:?!?、\[\]()（）《》「」]'))
-        .where((word) => word.length > 1 && !stopWords.contains(word.toLowerCase()))
+        .where((word) =>
+            word.length > 1 && !stopWords.contains(word.toLowerCase()))
         .toList();
   }
 
@@ -393,7 +420,8 @@ class QuestionValidator {
     numbers.addAll(numberMatches.map((m) => m.group(0)!));
 
     // 提取专有名词(连续大写字母或首字母大写的词)
-    final properNouns = RegExp(r'\b[A-Z][a-z]+\b|\b[A-Z]{2,}\b').allMatches(text);
+    final properNouns =
+        RegExp(r'\b[A-Z][a-z]+\b|\b[A-Z]{2,}\b').allMatches(text);
     numbers.addAll(properNouns.map((m) => m.group(0)!));
 
     return numbers.toSet().toList();
@@ -425,9 +453,7 @@ class QuestionValidator {
 
   /// 规范化文本(去除空格、标点,便于模糊匹配)
   String _normalize(String text) {
-    return text
-        .toLowerCase()
-        .replaceAll(RegExp(r'[\s\-_.,;:!?，。、；：！？]'), '');
+    return text.toLowerCase().replaceAll(RegExp(r'[\s\-_.,;:!?，。、；：！？]'), '');
   }
 
   /// 解析匹配题答案

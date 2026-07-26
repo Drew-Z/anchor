@@ -197,7 +197,8 @@ class SemanticChunker {
           sourceId: sourceId,
           chunkIndex: chunks.length,
           content: content,
-          locator: filePath != null ? '$filePath:${startLine + 1}-$endLine' : null,
+          locator:
+              filePath != null ? '$filePath:${startLine + 1}-$endLine' : null,
           startLine: startLine + 1,
           endLine: endLine,
           createdAt: createdAt,
@@ -423,9 +424,9 @@ class SemanticChunker {
 
 /// 文档章节结构
 class _Section {
-  final int level;       // 标题层级(1-6)
-  final String title;    // 标题文本
-  final int startLine;   // 起始行号
+  final int level; // 标题层级(1-6)
+  final String title; // 标题文本
+  final int startLine; // 起始行号
 
   _Section({
     required this.level,
