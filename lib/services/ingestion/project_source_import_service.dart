@@ -8,6 +8,7 @@ import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 
 import '../../data/models/source_chunk.dart';
+import 'semantic_chunker.dart';
 
 enum ProjectSourceImportKind { directory, zip }
 
@@ -284,10 +285,12 @@ class ProjectSourceReadLimitException implements Exception {
 
 class ProjectSourceImportService {
   final ProjectSourceImportPolicy policy;
+  final SemanticChunker _semanticChunker;
 
   const ProjectSourceImportService({
     this.policy = const ProjectSourceImportPolicy(),
-  });
+    SemanticChunker? semanticChunker,
+  }) : _semanticChunker = semanticChunker ?? const SemanticChunker();
 
   Future<ProjectSourceSnapshot> scanDirectory(String rootPath) async {
     final root = Directory(rootPath);
@@ -474,30 +477,66 @@ class ProjectSourceImportService {
     final chunks = <SourceChunk>[];
 
     for (final file in selectedFiles) {
-      final lines = const LineSplitter().convert(file.content);
-      for (var start = 0; start < lines.length; start += maxLinesPerChunk) {
-        final end = math.min(start + maxLinesPerChunk, lines.length);
-        final chunkContent = lines.sublist(start, end).join('\n');
-        final chunkIndex = chunks.length;
-        final startLine = start + 1;
-        final endLine = end;
-        chunks.add(
-          SourceChunk(
-            id: '${sourceId}_chunk_$chunkIndex',
-            sourceId: sourceId,
-            chunkIndex: chunkIndex,
-            content: chunkContent,
-            locator: '${file.relativePath}:$startLine-$endLine',
-            relativePath: file.relativePath,
-            startLine: startLine,
-            endLine: endLine,
-            contentHash: sha256.convert(utf8.encode(chunkContent)).toString(),
-            createdAt: createdAt,
-          ),
+      // 检测文件类型
+      final ext = p.extension(file.relativePath).toLowerCase();
+      final isMarkdown = ext == '.md' || ext == '.markdown';
+      final isCode = _isCodeFile(ext);
+
+      if (isMarkdown) {
+        // Markdown 文件使用语义切分
+        final mdChunks = _semanticChunker.chunkMarkdown(
+          sourceId: sourceId,
+          markdown: file.content,
+          createdAt: createdAt,
+          baseLocator: file.relativePath,
         );
+        chunks.addAll(mdChunks);
+      } else if (isCode) {
+        // 代码文件使用固定行数切分(保持简单可溯源)
+        final codeChunks = _semanticChunker.chunkCode(
+          sourceId: sourceId,
+          code: file.content,
+          filePath: file.relativePath,
+          createdAt: createdAt,
+          maxLinesPerChunk: maxLinesPerChunk,
+        );
+        chunks.addAll(codeChunks);
+      } else {
+        // 其他文本文件回退到行切分
+        final lines = const LineSplitter().convert(file.content);
+        for (var start = 0; start < lines.length; start += maxLinesPerChunk) {
+          final end = math.min(start + maxLinesPerChunk, lines.length);
+          final chunkContent = lines.sublist(start, end).join('\n');
+          final chunkIndex = chunks.length;
+          final startLine = start + 1;
+          final endLine = end;
+          chunks.add(
+            SourceChunk(
+              id: '${sourceId}_chunk_$chunkIndex',
+              sourceId: sourceId,
+              chunkIndex: chunkIndex,
+              content: chunkContent,
+              locator: '${file.relativePath}:$startLine-$endLine',
+              relativePath: file.relativePath,
+              startLine: startLine,
+              endLine: endLine,
+              contentHash: sha256.convert(utf8.encode(chunkContent)).toString(),
+              createdAt: createdAt,
+            ),
+          );
+        }
       }
     }
     return chunks;
+  }
+
+  bool _isCodeFile(String ext) {
+    const codeExtensions = {
+      '.dart', '.java', '.kt', '.swift', '.js', '.ts', '.tsx', '.jsx',
+      '.py', '.rb', '.go', '.rs', '.c', '.cpp', '.h', '.hpp', '.cs',
+      '.php', '.sh', '.bash', '.sql', '.yaml', '.yml', '.json', '.xml',
+    };
+    return codeExtensions.contains(ext);
   }
 
   Future<_CollectedProjectSources> _collect(

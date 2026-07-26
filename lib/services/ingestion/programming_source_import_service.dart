@@ -4,6 +4,7 @@ import 'package:crypto/crypto.dart';
 
 import '../../data/models/source.dart';
 import '../../data/models/source_chunk.dart';
+import 'semantic_chunker.dart';
 
 class ProgrammingSourceImportDraft {
   final String title;
@@ -50,7 +51,11 @@ class ProgrammingSourceSnapshot {
 class ProgrammingSourceImportService {
   static const int maxChunkCharacters = 1800;
 
-  const ProgrammingSourceImportService();
+  final SemanticChunker _semanticChunker;
+
+  const ProgrammingSourceImportService({
+    SemanticChunker? semanticChunker,
+  }) : _semanticChunker = semanticChunker ?? const SemanticChunker();
 
   ProgrammingSourceImportValidation validate(
     ProgrammingSourceImportDraft draft,
@@ -111,7 +116,7 @@ class ProgrammingSourceImportService {
 
     return ProgrammingSourceSnapshot(
       source: source,
-      chunks: _buildChunks(
+      chunks: _buildChunksWithSemantics(
         sourceId: sourceId,
         content: normalizedContent,
         createdAt: retrievedAt,
@@ -138,6 +143,32 @@ class ProgrammingSourceImportService {
       case SourceTrustLevel.article:
       case SourceTrustLevel.unknown:
         return SourceType.text;
+    }
+  }
+
+  List<SourceChunk> _buildChunksWithSemantics({
+    required String sourceId,
+    required String content,
+    required DateTime createdAt,
+  }) {
+    // 检测内容是否为 Markdown(含标题/代码块)
+    final isMarkdown = content.contains(RegExp(r'^#{1,6}\s', multiLine: true)) ||
+        content.contains('```');
+
+    if (isMarkdown) {
+      // 使用语义切分器按标题/代码块切分
+      return _semanticChunker.chunkMarkdown(
+        sourceId: sourceId,
+        markdown: content,
+        createdAt: createdAt,
+      );
+    } else {
+      // 纯文本回退到固定字符切分(保持向后兼容)
+      return _buildChunks(
+        sourceId: sourceId,
+        content: content,
+        createdAt: createdAt,
+      );
     }
   }
 

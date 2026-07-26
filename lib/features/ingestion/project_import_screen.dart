@@ -14,6 +14,7 @@ import '../../data/models/source_chunk.dart';
 import '../../services/ingestion/project_source_import_service.dart';
 import '../../services/ingestion/source_grounded_ingestion_service.dart';
 import '../../services/privacy/product_event_recorder.dart';
+import '../../services/validation/question_validator.dart';
 import '../../shared/widgets/duo_button.dart';
 import 'knowledge_review_screen.dart';
 
@@ -225,6 +226,27 @@ class _ProjectImportScreenState extends ConsumerState<ProjectImportScreen> {
         chunks: chunks,
       );
 
+      // 新增:质量验证 - 确保 AI 生成的题目事实准确
+      _updateStatus('正在验证题目事实准确性...');
+      final validator = ref.read(questionValidatorProvider);
+      final validationResults = await validator.validateBatch(
+        questions: verifiedQuestions,
+        sourceChunks: chunks,
+      );
+
+      // 在 explanation 中标记验证问题(低置信度题目)
+      final qualityCheckedQuestions = verifiedQuestions.map((q) {
+        final validation = validationResults[q.id];
+        if (validation == null || validation.isValid) {
+          return q;
+        }
+        // 添加验证警告到解析中
+        final warningText = '\n\n⚠️ 验证发现以下问题:\n${validation.issues.map((i) => '• $i').join('\n')}\n(置信度: ${(validation.confidence * 100).toInt()}%)';
+        return q.copyWith(
+          explanation: (q.explanation ?? '') + warningText,
+        );
+      }).toList();
+
       if (!mounted) return;
       setState(() {
         _isSaving = false;
@@ -239,7 +261,7 @@ class _ProjectImportScreenState extends ConsumerState<ProjectImportScreen> {
             knowledgePoints: buildResult.knowledgePoints,
             sourceChunkIdsByKnowledgePointId:
                 buildResult.sourceChunkIdsByKnowledgePointId,
-            questions: verifiedQuestions,
+            questions: qualityCheckedQuestions,
             onSave: (knowledgePointDecisions, questionDecisions) {
               return _saveReviewedContent(
                 source: source,

@@ -65,6 +65,7 @@ import '../../services/ingestion/android_project_directory_bridge.dart';
 import '../../services/ingestion/project_learning_draft_service.dart';
 import '../../services/ingestion/project_source_import_service.dart';
 import '../../services/ingestion/programming_source_import_service.dart';
+import '../../services/ingestion/semantic_chunker.dart';
 import '../../services/ingestion/source_grounded_ingestion_service.dart';
 import '../../services/onboarding/first_run_model_readiness.dart';
 import '../../services/onboarding/first_run_progress.dart';
@@ -81,6 +82,7 @@ import '../../services/scheduling/programming_review_closure_service.dart';
 import '../../services/scheduling/concept_learning_path_service.dart';
 import '../../services/scheduling/interview_review_closure_service.dart';
 import '../../services/scheduling/review_scheduler_service.dart';
+import '../../services/validation/question_validator.dart';
 
 // ============ 基础服务 Provider ============
 
@@ -330,7 +332,19 @@ final projectLearningDraftServiceProvider =
 
 final projectSourceImportServiceProvider =
     Provider<ProjectSourceImportService>((ref) {
-  return const ProjectSourceImportService();
+  return ProjectSourceImportService(
+    semanticChunker: ref.read(semanticChunkerProvider),
+  );
+});
+
+final semanticChunkerProvider = Provider<SemanticChunker>((ref) {
+  return const SemanticChunker();
+});
+
+final questionValidatorProvider = Provider<QuestionValidator>((ref) {
+  return QuestionValidator(
+    openaiService: ref.read(openaiServiceProvider),
+  );
 });
 
 final programmingSourceImportServiceProvider =
