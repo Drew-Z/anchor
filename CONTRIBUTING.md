@@ -1,115 +1,93 @@
 # 贡献指南
 
-感谢你考虑为多多学习做出贡献! 🎉
+感谢你考虑为**多多学习**项目做出贡献! 🎉
 
-本文档将帮助你了解如何参与项目开发。
-
----
-
-## 行为准则
-
-在参与本项目时,请遵守以下原则:
-
-- ✅ 尊重所有贡献者
-- ✅ 接受建设性批评
-- ✅ 专注于对社区最有利的事情
-- ❌ 不使用性化语言或图像
-- ❌ 不进行人身攻击或挑衅
+本指南将帮助你快速上手开发流程。
 
 ---
 
-## 如何贡献?
+## 🌟 贡献方式
 
-### 🐛 报告 Bug
+你可以通过以下方式参与:
 
-发现问题? 请[创建 Issue](https://github.com/你的用户名/duoduo/issues/new?template=bug_report.md)
-
-**好的 Bug 报告包含**:
-- 清晰的标题(如 "导入 Markdown 时应用崩溃")
-- 复现步骤(1. 点击... 2. 选择... 3. 崩溃)
-- 预期行为 vs 实际行为
-- 截图或错误日志
-- 环境信息(Flutter 版本, 操作系统)
-
-### 💡 提出新功能
-
-有好点子? 请[创建 Feature Request](https://github.com/你的用户名/duoduo/issues/new?template=feature_request.md)
-
-**好的功能建议包含**:
-- 问题描述: 当前缺少什么?
-- 解决方案: 你建议如何实现?
-- 使用场景: 谁会用?怎么用?
-- 可选方案: 还有其他做法吗?
-
-### 📝 改进文档
-
-文档永远可以更好!
-
-- 修正错别字
-- 补充遗漏的步骤
-- 添加更多示例
-- 翻译成其他语言
-
-直接编辑 `docs/` 目录下的文件,提交 PR。
-
-### 💻 贡献代码
-
-参见下方的[开发流程](#开发流程)。
+- 🐛 **报告 Bug** - 发现问题请创建 Issue
+- 💡 **提出功能建议** - 分享你的想法
+- 📝 **改进文档** - 修正错误或补充说明
+- 💻 **提交代码** - 修复 Bug 或实现新功能
+- 🌍 **翻译** - 帮助项目支持更多语言
+- 🎨 **设计改进** - 优化 UI/UX
 
 ---
 
-## 开发流程
+## 🚀 快速开始
 
-### 1. Fork 并 Clone
+### 1. Fork 并克隆项目
 
 ```bash
-# Fork 本仓库(点击右上角 Fork 按钮)
-
-# Clone 你的 Fork
-git clone https://github.com/你的用户名/duoduo.git
+# Fork 项目到你的 GitHub 账户
+# 然后克隆到本地
+git clone https://github.com/your-username/duoduo.git
 cd duoduo
 
 # 添加上游仓库
-git remote add upstream https://github.com/原作者/duoduo.git
+git remote add upstream https://github.com/yourusername/duoduo.git
 ```
 
-### 2. 创建分支
-
-```bash
-# 同步最新代码
-git fetch upstream
-git checkout main
-git merge upstream/main
-
-# 创建功能分支
-git checkout -b feature/your-feature-name
-# 或修复分支
-git checkout -b fix/bug-description
-```
-
-**分支命名规范**:
-- `feature/` - 新功能
-- `fix/` - Bug 修复
-- `docs/` - 文档改进
-- `refactor/` - 重构
-- `test/` - 测试
-
-### 3. 开发
+### 2. 安装开发环境
 
 ```bash
 # 安装依赖
 flutter pub get
 
-# 运行应用
-flutter run
-
 # 运行测试
 flutter test
+
+# 启动应用
+flutter run
 ```
 
-### 4. 提交代码
+### 3. 创建分支
 
-**Commit Message 规范**:
+```bash
+# 从 main 分支创建功能分支
+git checkout -b feature/your-feature-name
+
+# 或修复分支
+git checkout -b fix/bug-description
+```
+
+### 4. 开发和测试
+
+- 编写代码
+- 添加测试(如果适用)
+- 确保所有测试通过: `flutter test`
+- 检查代码格式: `flutter analyze`
+
+### 5. 提交代码
+
+```bash
+# 暂存修改
+git add .
+
+# 提交(遵循 Commit 规范,见下文)
+git commit -m "feat: add new feature"
+
+# 推送到你的 Fork
+git push origin feature/your-feature-name
+```
+
+### 6. 创建 Pull Request
+
+1. 访问你 Fork 的仓库页面
+2. 点击 **"New Pull Request"**
+3. 填写 PR 描述(使用模板)
+4. 等待代码审查
+
+---
+
+## 📝 Commit 规范
+
+我们使用 [Conventional Commits](https://www.conventionalcommits.org/) 规范:
 
 ```
 <type>(<scope>): <subject>
@@ -119,354 +97,312 @@ flutter test
 <footer>
 ```
 
-**类型(type)**:
+### Type 类型
+
 - `feat`: 新功能
 - `fix`: Bug 修复
-- `docs`: 文档
-- `style`: 格式(不影响代码运行)
-- `refactor`: 重构
-- `test`: 测试
-- `chore`: 构建/工具
+- `docs`: 文档更新
+- `style`: 代码格式(不影响功能)
+- `refactor`: 重构(不新增功能,不修复 Bug)
+- `perf`: 性能优化
+- `test`: 测试相关
+- `chore`: 构建流程、依赖更新等
 
-**示例**:
-
-```bash
-git commit -m "feat(ingestion): add PDF import support"
-
-git commit -m "fix(quiz): fill-blank answer validation logic
-
-修复填空题在用户答案包含空格时判断错误的问题。
-
-Closes #123"
-```
-
-### 5. 推送并创建 PR
+### 示例
 
 ```bash
-# 推送到你的 Fork
-git push origin feature/your-feature-name
-```
+# 新功能
+git commit -m "feat: add PDF import support"
 
-然后访问 GitHub,点击 "Create Pull Request"。
+# Bug 修复
+git commit -m "fix: correct answer validation in fill-in questions"
 
-**PR 描述模板**:
+# 文档
+git commit -m "docs: update QUICK_START guide with screenshots"
 
-```markdown
-## 变更说明
-
-简述本 PR 做了什么。
-
-## 变更类型
-
-- [ ] Bug 修复
-- [ ] 新功能
-- [ ] 重构
-- [ ] 文档改进
-
-## 测试
-
-- [ ] 添加了单元测试
-- [ ] 手动测试通过
-- [ ] 所有现有测试通过
-
-## 截图(如适用)
-
-[粘贴截图]
-
-## 关联 Issue
-
-Closes #123
+# 重构
+git commit -m "refactor: extract AI task base class"
 ```
 
 ---
 
-## 代码规范
+## 🧪 测试要求
 
-### Dart 代码风格
+### 必须编写测试的情况
 
-遵循 [Effective Dart](https://dart.dev/guides/language/effective-dart)。
+- ✅ 新增核心业务逻辑(如 AI 任务、题目验证)
+- ✅ 修复 Bug(添加回归测试)
+- ✅ 数据模型变更
 
-**关键点**:
-- 使用 `lowerCamelCase` 命名变量和方法
-- 使用 `UpperCamelCase` 命名类和枚举
-- 使用 `lowercase_with_underscores` 命名文件
-- 公开 API 必须有文档注释
-
-**示例**:
+### 测试类型
 
 ```dart
-/// 语义切分服务,将文档切分为可引用的最小单元。
-///
-/// 支持:
-/// - Markdown: 按标题层级切分
-/// - 代码: 按固定行数切分
-class SemanticChunker {
-  /// 切分 Markdown 文档。
-  ///
-  /// [markdown] 原始 Markdown 文本
-  /// [baseLocator] 文件路径或标识符
-  /// 
-  /// 返回切分后的 [SourceChunk] 列表。
-  List<SourceChunk> chunkMarkdown({
-    required String sourceId,
-    required String markdown,
-    required DateTime createdAt,
-    required String baseLocator,
-  }) {
-    // 实现...
-  }
-}
-```
+// 单元测试 - test/unit/
+test('QuestionValidator should reject questions without source', () {
+  final validator = QuestionValidator();
+  final result = validator.validate(invalidQuestion);
+  expect(result.isValid, false);
+});
 
-### 运行 Linter
+// Widget 测试 - test/widgets/
+testWidgets('QuizScreen displays question text', (tester) async {
+  await tester.pumpWidget(QuizScreen(question: mockQuestion));
+  expect(find.text(mockQuestion.questionText), findsOneWidget);
+});
 
-```bash
-# 分析代码
-flutter analyze
-
-# 格式化
-flutter format lib/ test/
-```
-
-### 项目结构约定
-
-```
-lib/
-├── core/               # 核心基础设施
-│   ├── constants/      # 常量
-│   ├── providers/      # Riverpod Providers
-│   └── theme/          # 主题配置
-├── data/               # 数据层
-│   ├── database/       # SQLite
-│   ├── models/         # 数据模型
-│   └── repositories/   # 数据访问
-├── features/           # 功能模块
-│   ├── home/           # 主页
-│   ├── quiz/           # 答题
-│   └── ...
-├── services/           # 业务逻辑
-│   ├── ai/             # AI Tasks
-│   ├── ingestion/      # 导入服务
-│   └── ...
-└── shared/             # 共享组件
-    └── widgets/
-```
-
-**命名规范**:
-- Screen: `xxx_screen.dart`
-- Widget: `xxx_widget.dart`
-- Service: `xxx_service.dart`
-- Repository: `xxx_repository.dart`
-- Model: `xxx.dart` (如 `question.dart`)
-
----
-
-## 测试要求
-
-### 为新功能添加测试
-
-```dart
-// test/services/semantic_chunker_test.dart
-void main() {
-  group('SemanticChunker', () {
-    late SemanticChunker chunker;
-
-    setUp(() {
-      chunker = const SemanticChunker();
-    });
-
-    test('按标题切分 Markdown', () {
-      final markdown = '''
-# 标题1
-内容1
-
-## 标题2
-内容2
-''';
-
-      final chunks = chunker.chunkMarkdown(
-        sourceId: 'test',
-        markdown: markdown,
-        createdAt: DateTime.now(),
-        baseLocator: 'test.md',
-      );
-
-      expect(chunks.length, 2);
-      expect(chunks[0].locator, 'test.md:# 标题1');
-      expect(chunks[1].locator, 'test.md:## 标题2');
-    });
-  });
-}
+// 集成测试 - integration_test/
+testWidgets('Full import workflow', (tester) async {
+  // 测试完整的导入流程
+});
 ```
 
 ### 运行测试
 
 ```bash
-# 运行所有测试
+# 所有单元测试
 flutter test
 
-# 运行特定文件
-flutter test test/services/semantic_chunker_test.dart
+# 特定文件
+flutter test test/services/content_analyzer_test.dart
 
-# 测试覆盖率
+# 带覆盖率
 flutter test --coverage
 ```
 
 ---
 
-## 好的第一个 Issue
+## 📂 项目结构
 
-寻找标记为 `good first issue` 的 Issue,它们适合新贡献者:
+```
+lib/
+├── core/               # 核心配置和工具
+│   ├── constants/      # 常量定义
+│   ├── providers/      # Riverpod 提供者
+│   └── theme/          # 主题配置
+├── data/               # 数据层
+│   ├── database/       # SQLite 数据库
+│   ├── models/         # 数据模型
+│   └── repositories/   # 数据仓库
+├── features/           # 功能模块
+│   ├── home/           # 首页
+│   ├── ingestion/      # 内容导入
+│   ├── learning/       # 学习功能
+│   ├── knowledge_base/ # 知识库
+│   └── agent/          # AI Agent
+└── services/           # 业务服务
+    ├── ai/             # AI 相关
+    │   └── tasks/      # AI 任务定义
+    ├── openai_service.dart
+    └── content_analyzer.dart
 
-- 文档改进
-- 简单 Bug 修复
-- 添加单元测试
-- UI 微调
+test/
+├── unit/               # 单元测试
+├── widgets/            # Widget 测试
+└── fixtures/           # 测试数据
 
-**当前 Good First Issues**:
-- [ ] 添加 PDF 导入支持
-- [ ] 改进 Markdown 表格解析
-- [ ] 添加西班牙语翻译
-- [ ] 为 `SemanticChunker` 补充测试
+docs/
+├── guides/             # 用户指南
+├── architecture/       # 架构文档
+└── images/             # 图片资源
+```
 
 ---
 
-## PR 审核流程
+## 🎯 寻找合适的任务
 
-1. **自动检查**: CI 会运行 Linter 和测试
-2. **代码审核**: 维护者会在 1-3 天内审核
-3. **修改请求**: 根据反馈修改代码
-4. **合并**: 通过后合并到 `main` 分支
+### Good First Issues
 
-**PR 合并标准**:
-- ✅ 通过所有自动化检查
-- ✅ 代码符合规范
-- ✅ 有适当的测试覆盖
-- ✅ 文档已更新(如需要)
-- ✅ 至少一位维护者批准
+适合新手贡献者的任务标记为 `good first issue`:
+
+- [ ] 添加更多题型(如匹配题、排序题)
+- [ ] 改进 Markdown 代码块解析
+- [ ] 为核心服务补充单元测试
+- [ ] 添加多语言支持(i18n)
+
+### Help Wanted
+
+需要帮助的任务标记为 `help wanted`:
+
+- [ ] PDF 文档导入支持
+- [ ] 支持本地 LLM(Ollama, LM Studio)
+- [ ] 知识图谱可视化
+- [ ] 离线模式优化
+
+查看所有 Issue: https://github.com/yourusername/duoduo/issues
 
 ---
 
-## 本地开发技巧
+## 🎨 代码风格
 
-### 快速测试 AI 功能(不消耗 API 额度)
+### Dart 代码规范
 
-创建 Mock OpenAI Service:
+我们遵循 [Effective Dart](https://dart.dev/guides/language/effective-dart) 规范:
 
 ```dart
-// test/mocks/mock_openai_service.dart
-class MockOpenAIService extends OpenAIService {
-  @override
-  Future<String> complete({
-    required String systemPrompt,
-    required String userPrompt,
-  }) async {
-    // 返回预设响应
-    return '''
-{
-  "knowledgePoints": [
-    {
-      "title": "测试知识点",
-      "description": "这是测试数据",
-      "category": "核心概念",
-      "citedChunkIds": ["chunk_1"]
-    }
-  ]
+// ✅ 好的命名
+class QuestionGenerator {
+  Future<List<Question>> generateFromKnowledge(KnowledgePoint point) async {
+    // ...
+  }
 }
-''';
+
+// ❌ 避免
+class QGen {
+  Future<List<Question>> gen(KnowledgePoint kp) async {
+    // ...
   }
 }
 ```
 
-在 Provider 中使用:
+### 文件命名
+
+- 使用小写 + 下划线: `question_generator.dart`
+- 测试文件加 `_test` 后缀: `question_generator_test.dart`
+- 模型类使用单数: `question.dart` 而非 `questions.dart`
+
+### 注释规范
 
 ```dart
-final openaiServiceProvider = Provider<OpenAIService>((ref) {
-  if (kDebugMode) {
-    return MockOpenAIService(); // 开发模式用 Mock
-  }
-  return OpenAIService();
-});
+/// 从知识点生成练习题
+///
+/// [knowledgePoint] 必须包含有效的 sourceText
+/// 返回生成的题目列表,如果失败返回空列表
+///
+/// 示例:
+/// ```dart
+/// final questions = await generator.generate(knowledgePoint);
+/// ```
+Future<List<Question>> generate(KnowledgePoint knowledgePoint) async {
+  // 实现逻辑...
+}
 ```
 
-### 热重载技巧
+---
 
-- UI 修改: `r` 热重载即可
-- 逻辑修改: `R` 完全重启
-- Provider 修改: 需要重启应用
+## 🔍 Code Review 流程
 
-### 调试 SQLite
+### PR 会检查以下内容
+
+- ✅ 代码功能是否符合描述
+- ✅ 测试是否充分
+- ✅ 是否遵循代码规范
+- ✅ 性能是否合理
+- ✅ 文档是否更新
+
+### 如何响应审查意见
+
+1. **认真阅读**审查意见
+2. **讨论**不清楚的地方
+3. **修改**代码并推送
+4. **回复**每条评论(即使只是"已修复")
 
 ```bash
-# 导出数据库
-adb exec-out run-as com.example.dlg_q cat databases/app.db > app.db
-
-# 使用 SQLite 工具查看
-sqlite3 app.db
-sqlite> .schema
-sqlite> SELECT * FROM questions LIMIT 5;
+# 修改后推送
+git add .
+git commit -m "refactor: address review comments"
+git push origin feature/your-feature-name
 ```
 
 ---
 
-## 发布流程(维护者)
+## 📚 开发资源
 
-1. **更新版本号**
-   - `pubspec.yaml`: `version: 0.2.0+2`
-   - `CHANGELOG.md`: 添加版本记录
+### 必读文档
 
-2. **创建 Release**
-   ```bash
-   git tag v0.2.0
-   git push origin v0.2.0
+- [系统架构](docs/architecture/SYSTEM_OVERVIEW.md) - 理解核心设计
+- [数据模型](docs/architecture/DATA_MODEL.md) - 了解数据结构
+- [AI Pipeline](docs/architecture/AI_PIPELINE.md) - AI 任务流程
+
+### 技术栈文档
+
+- [Flutter](https://docs.flutter.dev/)
+- [Riverpod](https://riverpod.dev/)
+- [SQLite](https://www.sqlite.org/docs.html)
+- [OpenAI API](https://platform.openai.com/docs/api-reference)
+
+---
+
+## 🐛 报告 Bug
+
+### 创建有效的 Bug 报告
+
+使用 [Bug Report 模板](https://github.com/yourusername/duoduo/issues/new?template=bug_report.md),包含:
+
+1. **Bug 描述**: 简洁明了地说明问题
+2. **复现步骤**:
    ```
-
-3. **构建产物**
-   ```bash
-   # Android
-   flutter build apk --release
-   
-   # iOS
-   flutter build ipa
-   
-   # macOS
-   flutter build macos --release
+   1. 打开应用
+   2. 导入文档 X
+   3. 点击"开始学习"
+   4. 看到错误 Y
    ```
+3. **期望行为**: 应该发生什么
+4. **实际行为**: 实际发生了什么
+5. **环境信息**:
+   - Flutter 版本: `flutter --version`
+   - 操作系统: Windows 11 / macOS 14 / Android 13
+   - 设备型号: iPhone 15 / Pixel 8
 
-4. **发布到 GitHub Release**
-   - 附上 APK / IPA
-   - 复制 CHANGELOG 到描述
-
----
-
-## 社区资源
-
-- **GitHub Discussions**: 功能讨论、使用问题
-- **Discord** (计划): 实时交流
-- **Twitter**: [@duoduo_learning](https://twitter.com/duoduo_learning)
+6. **截图/日志**(如果适用)
 
 ---
 
-## 许可协议
+## 💡 提出新功能
 
-通过提交代码,你同意你的贡献将遵循本项目的 MIT License。
+### 使用 Feature Request 模板
+
+使用 [Feature Request 模板](https://github.com/yourusername/duoduo/issues/new?template=feature_request.md),说明:
+
+1. **问题陈述**: 你遇到了什么问题?
+2. **建议方案**: 你希望如何解决?
+3. **替代方案**: 还有其他可能的方案吗?
+4. **使用场景**: 举例说明使用场景
+
+### 讨论新功能
+
+在实现前,建议先在 [Discussions](https://github.com/yourusername/duoduo/discussions) 讨论:
+
+- 功能是否符合项目方向?
+- 实现复杂度如何?
+- 有无更简单的方案?
 
 ---
 
-## 致谢
+## 🌍 翻译贡献
 
-感谢所有贡献者! 🙏
+### 当前支持的语言
 
-<!-- ALL-CONTRIBUTORS-LIST:START -->
-<!-- 这里会自动生成贡献者列表 -->
-<!-- ALL-CONTRIBUTORS-LIST:END -->
+- 简体中文 (zh-CN) ✅
+- English (en-US) 🚧
+
+### 添加新语言
+
+1. 复制 `lib/l10n/app_zh.arb` 为 `app_<locale>.arb`
+2. 翻译所有字符串
+3. 更新 `lib/l10n.yaml`
+4. 运行 `flutter gen-l10n`
+5. 提交 PR
 
 ---
 
-## 问题?
+## 📜 许可协议
 
-- 📧 Email: your-email@example.com
-- 💬 Discussions: [GitHub Discussions](https://github.com/你的用户名/duoduo/discussions)
-- 🐛 Bug: [创建 Issue](https://github.com/你的用户名/duoduo/issues/new)
+通过贡献代码,你同意你的贡献将按照 [MIT License](LICENSE) 授权。
 
-**期待你的贡献!** ❤️
+---
+
+## 🙏 感谢
+
+每一个贡献,无论大小,都让这个项目变得更好! ❤️
+
+你的名字将出现在 [Contributors](https://github.com/yourusername/duoduo/graphs/contributors) 列表中。
+
+---
+
+## 📞 需要帮助?
+
+- 💬 在 [Discussions](https://github.com/yourusername/duoduo/discussions) 提问
+- 📧 发送邮件至 your-email@example.com
+- 🐛 对于 Bug,请创建 Issue
+
+祝你编码愉快! 🚀

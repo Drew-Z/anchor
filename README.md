@@ -81,26 +81,27 @@
 
 ```bash
 # 1. 克隆项目
-git clone https://github.com/你的用户名/duoduo.git
+git clone https://github.com/yourusername/duoduo.git
 cd duoduo
 
 # 2. 安装依赖
 flutter pub get
 
-# 3. 配置 API Key
-cp .env.example .env
-# 编辑 .env 填入 OPENAI_API_KEY
-
-# 4. 运行
+# 3. 运行应用
 flutter run
+
+# 4. 在应用内配置 API Key
+# 打开应用 → 设置 → API 配置 → 输入 OpenAI API Key
 ```
 
 ### 导入第一份学习资料
 
-1. 点击右下角 **"+"** 按钮
-2. 选择 **"导入文档"** 或 **"导入项目"**
-3. 等待 AI 分析(30-60 秒)
-4. 开始答题! 🎉
+1. 打开应用,点击底部导航栏的 **"导入"**
+2. 选择 **"选择 Markdown 文件"** 或 **"导入项目代码"**
+3. 等待 AI 分析(30-120 秒,取决于文档大小)
+4. 进入 **"练习"** 页面,开始答题! 🎉
+
+> 💡 **提示**: 项目内置了示例数据,首次运行即可体验完整功能
 
 📚 **详细指南**: [快速开始文档](docs/guides/QUICK_START.md)
 
@@ -222,8 +223,8 @@ StatefulWidget 通过 State 对象管理状态...
 
 我们欢迎所有形式的贡献!
 
-- 🐛 [报告 Bug](https://github.com/你的用户名/duoduo/issues/new?template=bug_report.md)
-- 💡 [提出新功能](https://github.com/你的用户名/duoduo/issues/new?template=feature_request.md)
+- 🐛 [报告 Bug](https://github.com/yourusername/duoduo/issues/new?template=bug_report.md)
+- 💡 [提出新功能](https://github.com/yourusername/duoduo/issues/new?template=feature_request.md)
 - 📝 改进文档
 - 💻 提交代码
 
@@ -270,10 +271,8 @@ StatefulWidget 通过 State 对象管理状态...
 
 ## 📞 联系方式
 
-- **GitHub Issues**: [创建 Issue](https://github.com/你的用户名/duoduo/issues)
-- **Discussions**: [讨论区](https://github.com/你的用户名/duoduo/discussions)
-- **Email**: your-email@example.com
-- **Twitter**: [@duoduo_learning](https://twitter.com/duoduo_learning)
+- **GitHub Issues**: [创建 Issue](https://github.com/yourusername/duoduo/issues)
+- **Discussions**: [讨论区](https://github.com/yourusername/duoduo/discussions)
 
 ---
 
