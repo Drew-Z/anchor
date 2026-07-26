@@ -1,0 +1,35 @@
+{
+  "schema_version": 2,
+  "privacy_scan": {
+    "paths": [
+      "test/fixtures/release/private_alpha_readiness_current.json"
+    ]
+  },
+  "automated_gate": {
+    "completed_at": "2026-07-17T09:00:00Z",
+    "tests_passed": 307,
+    "analyzer_errors": 0,
+    "analyzer_warnings": 0,
+    "format_passed": true,
+    "diff_check_passed": true
+  },
+  "android_build": {
+    "apk_path": "build/app/outputs/flutter-apk/app-arm64-v8a-debug.apk",
+    "bytes": 91945199,
+    "sha256": "424087275110a499d37613b09f354c53325b0b8128195f573f8a522402eb1608",
+    "arm64_only": true,
+    "v2_signed": true
+  },
+  "automated_gate_passed": true,
+  "android_build_verified": true,
+  "physical_device_passed": false,
+  "controlled_credential_available": false,
+  "data_processing_owner_assigned": false,
+  "release_day_acceptance_passed": false,
+  "cohort_completed": false
+}
+
+
+
+
+

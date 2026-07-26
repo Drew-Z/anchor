@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-09T10:00:00.000Z",
+  "event_count": 6,
+  "events": [
+    {
+      "event_id": "fixture-participant-01-event-01",
+      "event_name": "project_import_started",
+      "schema_version": 1,
+      "occurred_at": "2026-07-01T09:00:00.000Z",
+      "anonymous_install_id": "fixture-participant-01",
+      "app_version": "1.0.0+1",
+      "platform": "android",
+      "flow_id": "private_alpha",
+      "goal": "ai_interview_prep",
+      "target_id": null,
+      "session_id": null,
+      "properties": {
+        "import_type": "directory"
+      }
+    },
+    {
+      "event_id": "fixture-participant-01-event-02",
+      "event_name": "coverage_review_completed",
+      "schema_version": 1,
+      "occurred_at": "2026-07-01T09:05:00.000Z",
+      "anonymous_install_id": "fixture-participant-01",
+      "app_version": "1.0.0+1",
+      "platform": "android",
+      "flow_id": "private_alpha",
+      "goal": "ai_interview_prep",
+      "target_id": null,
+      "session_id": null,
+      "properties": {
+        "included_count": 8,
+        "excluded_count": 2,
+        "locator_coverage": "complete"
+      }
+    },
+    {
+      "event_id": "fixture-participant-01-event-03",
+      "event_name": "grounded_turn_completed",
+      "schema_version": 1,
+      "occurred_at": "2026-07-01T09:12:00.000Z",
+      "anonymous_install_id": "fixture-participant-01",
+      "app_version": "1.0.0+1",
+      "platform": "android",
+      "flow_id": "private_alpha",
+      "goal": "ai_interview_prep",
+      "target_id": "fixture-knowledge-point-01",
+      "session_id": "fixture-session-01",
+      "properties": {
+        "surface": "interview",
+        "disposition": "grounded",
+        "citation_count": 1,
+        "duration_bucket": "5_to_15s"
+      }
+    },
+    {
+      "event_id": "fixture-participant-01-event-04",
+      "event_name": "review_scheduled",
+      "schema_version": 1,
+      "occurred_at": "2026-07-01T09:13:00.000Z",
+      "anonymous_install_id": "fixture-participant-01",
+      "app_version": "1.0.0+1",
+      "platform": "android",
+      "flow_id": "private_alpha",
+      "goal": "ai_interview_prep",
+      "target_id": "fixture-knowledge-point-01",
+      "session_id": "fixture-session-01",
+      "properties": {
+        "target_type": "knowledge_point",
+        "due_bucket": "within_7d"
+      }
+    },
+    {
+      "event_id": "fixture-participant-01-event-05",
+      "event_name": "agent_workspace_viewed",
+      "schema_version": 1,
+      "occurred_at": "2026-07-09T09:30:00.000Z",
+      "anonymous_install_id": "fixture-participant-01",
+      "app_version": "1.0.0+1",
+      "platform": "android",
+      "flow_id": "private_alpha",
+      "goal": "ai_interview_prep",
+      "target_id": null,
+      "session_id": null,
+      "properties": {
+        "scope": "mixed",
+        "next_action_type": "due_review",
+        "blocker_code": "none"
+      }
+    },
+    {
+      "event_id": "fixture-participant-01-event-06",
+      "event_name": "feedback_submitted",
+      "schema_version": 1,
+      "occurred_at": "2026-07-09T09:35:00.000Z",
+      "anonymous_install_id": "fixture-participant-01",
+      "app_version": "1.0.0+1",
+      "platform": "android",
+      "flow_id": "private_alpha",
+      "goal": "ai_interview_prep",
+      "target_id": null,
+      "session_id": null,
+      "properties": {
+        "category": "feature_request",
+        "severity": "medium",
+        "diagnostic_consent": false
+      }
+    }
+  ]
+}

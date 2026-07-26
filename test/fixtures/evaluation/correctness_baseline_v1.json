@@ -1,0 +1,202 @@
+{
+  "version": 1,
+  "top_k": 1,
+  "search_corpus": {
+    "sources": [
+      {
+        "id": "source-openai-json",
+        "title": "OpenAI JSON output",
+        "type": "official_doc",
+        "trust_level": "official_doc",
+        "uri": "https://platform.openai.com/docs/guides/structured-outputs"
+      },
+      {
+        "id": "source-duoduo-client",
+        "title": "Duoduo ChatCompletion client",
+        "type": "code_file",
+        "trust_level": "source_code",
+        "uri": "https://github.com/xuanli199/duoduo"
+      },
+      {
+        "id": "source-json-note",
+        "title": "JSON schema guarantee notes",
+        "type": "user_note",
+        "trust_level": "user_note"
+      },
+      {
+        "id": "source-sqlite",
+        "title": "SQLite transaction reference",
+        "type": "official_doc",
+        "trust_level": "official_doc",
+        "uri": "https://www.sqlite.org/lang_transaction.html"
+      }
+    ],
+    "chunks": [
+      {
+        "id": "chunk-openai-json",
+        "source_id": "source-openai-json",
+        "content": "JSON mode guarantees valid JSON but does not guarantee schema conformance.",
+        "locator": "JSON mode"
+      },
+      {
+        "id": "chunk-code-client",
+        "source_id": "source-duoduo-client",
+        "content": "chatCompletion reads the response from choices and returns the message content.",
+        "locator": "lib/services/openai_service.dart"
+      },
+      {
+        "id": "chunk-json-note",
+        "source_id": "source-json-note",
+        "content": "JSON schema guarantee is automatic for every provider response.",
+        "locator": "Personal note"
+      },
+      {
+        "id": "chunk-sqlite-transaction",
+        "source_id": "source-sqlite",
+        "content": "An atomic transaction commits all changes together or rolls them back together.",
+        "locator": "Transactions"
+      }
+    ]
+  },
+  "retrieval_cases": [
+    {
+      "id": "official-json-over-personal-note",
+      "query": "JSON schema guarantee",
+      "relevant_evidence_ids": ["chunk-openai-json"],
+      "baseline_ranked_evidence_ids": [
+        "chunk-json-note",
+        "chunk-openai-json"
+      ]
+    },
+    {
+      "id": "source-code-response-path",
+      "query": "chatCompletion choices",
+      "relevant_evidence_ids": ["chunk-code-client"],
+      "baseline_ranked_evidence_ids": ["chunk-code-client"]
+    },
+    {
+      "id": "official-transaction-semantics",
+      "query": "atomic transaction",
+      "relevant_evidence_ids": ["chunk-sqlite-transaction"],
+      "baseline_ranked_evidence_ids": ["chunk-sqlite-transaction"]
+    }
+  ],
+  "generation_cases": [
+    {
+      "id": "knowledge-answer-supported",
+      "surface": "knowledge_answer",
+      "expected_refusal": false,
+      "actual_refusal": false,
+      "claims": [
+        {
+          "id": "json-validity",
+          "supported": true,
+          "supporting_evidence_ids": ["chunk-openai-json"],
+          "citation_ids": ["chunk-openai-json"]
+        },
+        {
+          "id": "client-response-path",
+          "supported": true,
+          "supporting_evidence_ids": ["chunk-code-client"],
+          "citation_ids": []
+        }
+      ]
+    },
+    {
+      "id": "knowledge-answer-should-refuse",
+      "surface": "knowledge_answer",
+      "expected_refusal": true,
+      "actual_refusal": false,
+      "claims": [
+        {
+          "id": "known-json-limit",
+          "supported": true,
+          "supporting_evidence_ids": ["chunk-openai-json"],
+          "citation_ids": ["chunk-openai-json"]
+        },
+        {
+          "id": "invented-provider-behavior",
+          "supported": false,
+          "supporting_evidence_ids": [],
+          "citation_ids": ["chunk-openai-json"]
+        }
+      ]
+    },
+    {
+      "id": "tutor-feedback-grounded",
+      "surface": "tutor_feedback",
+      "expected_refusal": false,
+      "actual_refusal": false,
+      "claims": [
+        {
+          "id": "transaction-atomicity",
+          "supported": true,
+          "supporting_evidence_ids": ["chunk-sqlite-transaction"],
+          "citation_ids": ["chunk-sqlite-transaction"]
+        },
+        {
+          "id": "rollback-effect",
+          "supported": true,
+          "supporting_evidence_ids": ["chunk-sqlite-transaction"],
+          "citation_ids": ["chunk-sqlite-transaction"]
+        }
+      ]
+    },
+    {
+      "id": "interview-evaluation-mixed",
+      "surface": "interview_evaluation",
+      "expected_refusal": false,
+      "actual_refusal": false,
+      "claims": [
+        {
+          "id": "client-parses-choices",
+          "supported": true,
+          "supporting_evidence_ids": ["chunk-code-client"],
+          "citation_ids": ["chunk-code-client"]
+        },
+        {
+          "id": "client-retries-automatically",
+          "supported": false,
+          "supporting_evidence_ids": [],
+          "citation_ids": ["chunk-code-client"]
+        }
+      ]
+    },
+    {
+      "id": "programming-evaluation-insufficient",
+      "surface": "programming_exercise_evaluation",
+      "expected_refusal": true,
+      "actual_refusal": true,
+      "claims": []
+    },
+    {
+      "id": "programming-evaluation-grounded",
+      "surface": "programming_exercise_evaluation",
+      "expected_refusal": false,
+      "actual_refusal": false,
+      "claims": [
+        {
+          "id": "commit-all",
+          "supported": true,
+          "supporting_evidence_ids": ["chunk-sqlite-transaction"],
+          "citation_ids": ["chunk-sqlite-transaction"]
+        },
+        {
+          "id": "rollback-all",
+          "supported": true,
+          "supporting_evidence_ids": ["chunk-sqlite-transaction"],
+          "citation_ids": ["chunk-sqlite-transaction"]
+        }
+      ]
+    }
+  ],
+  "expected_baseline": {
+    "retrieval_case_count": 3,
+    "generation_case_count": 6,
+    "recall_at_k": 0.6666666666666666,
+    "mean_reciprocal_rank": 0.8333333333333334,
+    "citation_coverage": 0.875,
+    "unsupported_claim_rate": 0.2,
+    "refusal_accuracy": 0.8333333333333334
+  }
+}

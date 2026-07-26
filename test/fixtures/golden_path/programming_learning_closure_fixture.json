@@ -1,0 +1,255 @@
+{
+  "clock": {
+    "retrieved_at": "2026-07-15T12:00:00Z",
+    "tutor_at": "2026-07-15T12:30:00Z",
+    "exercise_at": "2026-07-15T13:00:00Z",
+    "review_at": "2026-07-15T13:30:00Z"
+  },
+  "sources": [
+    {
+      "id": "flutter-state-doc",
+      "title": "Flutter State lifecycle reference",
+      "content": "A State object holds mutable information for a widget.\nBefore tracing a value through an operation, identify which State object owns that value.\nCalling setState notifies the framework that this object's internal state has changed.",
+      "trust_level": "official_doc",
+      "uri": "https://api.flutter.dev/flutter/widgets/State-class.html",
+      "publisher": "Flutter project",
+      "revision": "2026-07-15",
+      "license_expression": "BSD-3-Clause"
+    },
+    {
+      "id": "persisted-store-source",
+      "title": "PersistedStore source snapshot",
+      "content": "class PersistedStore {\n  String _persistedValue = 'ready';\n\n  String read() {\n    return _persistedValue;\n  }\n}",
+      "trust_level": "source_code",
+      "uri": "https://github.com/example/learning-app/blob/abc123/lib/persisted_store.dart",
+      "publisher": "example/learning-app",
+      "revision": "abc123",
+      "license_expression": "MIT"
+    }
+  ],
+  "knowledge_points": [
+    {
+      "id": "state-ownership",
+      "title": "State ownership",
+      "summary": "Identify the State object that owns a mutable value before tracing operations on it.",
+      "mastery_level": 25,
+      "difficulty": 2,
+      "source_id": "flutter-state-doc"
+    },
+    {
+      "id": "persisted-return-path",
+      "title": "Persisted return path",
+      "summary": "Trace the field returned by PersistedStore.read without inventing a temporary value.",
+      "mastery_level": 40,
+      "difficulty": 3,
+      "source_id": "persisted-store-source"
+    }
+  ],
+  "questions": [
+    {
+      "id": "question-state-ownership",
+      "knowledge_point_id": "state-ownership",
+      "content": "What should be identified before tracing a mutable value?",
+      "answer": "The State object that owns the value.",
+      "source_status": "verified",
+      "source_id": "flutter-state-doc"
+    },
+    {
+      "id": "question-return-pending",
+      "knowledge_point_id": "persisted-return-path",
+      "content": "Which value is returned by read()?",
+      "answer": "_persistedValue",
+      "source_status": "pending",
+      "source_id": "persisted-store-source"
+    }
+  ],
+  "session": {
+    "id": "tutor-persisted-return-path",
+    "user_answer": "setState directly returns a temporary value."
+  },
+  "exercise": {
+    "id": "exercise-persisted-return-path",
+    "attempt_id": "attempt-persisted-return-path",
+    "retest_id": "retest-persisted-return-path",
+    "user_answer": "read creates and returns a new temporary value."
+  },
+  "ai_responses": [
+    {
+      "task": "concept_prerequisite",
+      "body": {
+        "relations": [
+          {
+            "knowledge_point_id": "persisted-return-path",
+            "prerequisite_knowledge_point_id": "state-ownership",
+            "rationale": "The documentation says ownership should be identified before tracing a mutable value.",
+            "citation_ids": [
+              "flutter-state-doc_chunk_0",
+              "persisted-store-source_chunk_0"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "task": "tutor_explanation",
+      "body": {
+        "definition_and_intuition": "The return path is the field named by the final return statement.",
+        "mechanism": "PersistedStore owns _persistedValue, and read returns that field directly.",
+        "code_or_doc_example": "The source ends read with return _persistedValue.",
+        "boundaries": "The snapshot supports only the shown read method and State ownership statement.",
+        "misconceptions": [
+          "setState is a notification call; the cited read method returns _persistedValue."
+        ],
+        "interview_expression": "Name the owner, trace the final statement, and cite the returned field.",
+        "opening_question": "Why should ownership be identified before tracing the value returned by read()?",
+        "citation_ids": [
+          "flutter-state-doc_chunk_0",
+          "persisted-store-source_chunk_0"
+        ],
+        "unsupported_layers": [],
+        "evidence_sufficient": true
+      }
+    },
+    {
+      "task": "tutor_socratic",
+      "body": {
+        "feedback": "The answer confuses the State notification call with the return statement and omits the owning field.",
+        "reference_answer": "State ownership identifies where the value lives, and read returns _persistedValue directly.",
+        "misconception": "setState was treated as the operation that returns the stored value.",
+        "next_question": "Which exact field appears in the final return statement?",
+        "citation_ids": [
+          "flutter-state-doc_chunk_0",
+          "persisted-store-source_chunk_0"
+        ],
+        "evidence_sufficient": true,
+        "accuracy_score": 55,
+        "claims": [
+          {
+            "section": "feedback",
+            "text": "The answer confuses the State notification call with the return statement and omits the owning field.",
+            "evidence": [
+              {
+                "citation_id": "flutter-state-doc_chunk_0",
+                "quote": "Calling setState notifies the framework"
+              },
+              {
+                "citation_id": "persisted-store-source_chunk_0",
+                "quote": "return _persistedValue;"
+              }
+            ]
+          },
+          {
+            "section": "reference_answer",
+            "text": "State ownership identifies where the value lives, and read returns _persistedValue directly.",
+            "evidence": [
+              {
+                "citation_id": "flutter-state-doc_chunk_0",
+                "quote": "A State object holds mutable information for a widget."
+              },
+              {
+                "citation_id": "persisted-store-source_chunk_0",
+                "quote": "return _persistedValue;"
+              }
+            ]
+          },
+          {
+            "section": "misconception",
+            "text": "setState was treated as the operation that returns the stored value.",
+            "evidence": [
+              {
+                "citation_id": "flutter-state-doc_chunk_0",
+                "quote": "Calling setState notifies the framework"
+              },
+              {
+                "citation_id": "persisted-store-source_chunk_0",
+                "quote": "String read()"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "task": "programming_exercise_generation",
+      "body": {
+        "exercises": [
+          {
+            "kind": "code_reading",
+            "prompt": "What value does PersistedStore.read return?",
+            "reference_answer": "It returns the _persistedValue field.",
+            "concept_accuracy_criterion": "Identify _persistedValue as the returned field.",
+            "reasoning_process_criterion": "Trace the final return statement in read.",
+            "evidence_use_criterion": "Use the cited source line.",
+            "clarity_criterion": "Name the field directly.",
+            "citation_ids": ["persisted-store-source_chunk_0"]
+          }
+        ]
+      }
+    },
+    {
+      "task": "programming_exercise_evaluation",
+      "body": {
+        "feedback": "The answer invents a temporary value that is not present in the cited method.",
+        "concept_accuracy_score": 45,
+        "reasoning_process_score": 50,
+        "evidence_use_score": 35,
+        "clarity_score": 80,
+        "misconception_code": "invented_temporary_return",
+        "misconception_label": "Invented a temporary return value",
+        "repair_explanation": "Follow the final source statement: return _persistedValue.",
+        "citation_ids": ["persisted-store-source_chunk_0"],
+        "evidence_sufficient": true,
+        "claims": [
+          {
+            "section": "feedback",
+            "text": "The answer invents a temporary value that is not present in the cited method.",
+            "evidence": [
+              {
+                "citation_id": "persisted-store-source_chunk_0",
+                "quote": "String _persistedValue = 'ready';"
+              },
+              {
+                "citation_id": "persisted-store-source_chunk_0",
+                "quote": "return _persistedValue;"
+              }
+            ]
+          },
+          {
+            "section": "repair_explanation",
+            "text": "Follow the final source statement: return _persistedValue.",
+            "evidence": [
+              {
+                "citation_id": "persisted-store-source_chunk_0",
+                "quote": "return _persistedValue;"
+              }
+            ]
+          }
+        ],
+        "retest_exercise": {
+          "kind": "code_reading",
+          "prompt": "Trace read from its final statement and name the owned field that crosses the return boundary.",
+          "reference_answer": "The owned field _persistedValue crosses the return boundary.",
+          "concept_accuracy_criterion": "Identify _persistedValue.",
+          "reasoning_process_criterion": "Start from the final return statement.",
+          "evidence_use_criterion": "Use only the cited source snapshot.",
+          "clarity_criterion": "State the field and boundary directly.",
+          "citation_ids": ["persisted-store-source_chunk_0"]
+        }
+      }
+    }
+  ],
+  "expected": {
+    "path_order": ["state-ownership", "persisted-return-path"],
+    "misconception_code": "invented_temporary_return",
+    "open_review_action_count": 2,
+    "verified_review_question_id": "question-state-ownership",
+    "verified_retest_id": "retest-persisted-return-path",
+    "ai_task_order": [
+      "concept_prerequisite",
+      "tutor_explanation",
+      "tutor_socratic",
+      "programming_exercise_generation",
+      "programming_exercise_evaluation"
+    ]
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "clock": {
+    "retrieved_at": "2026-07-15T08:00:00Z",
+    "tutor_at": "2026-07-15T09:00:00Z",
+    "interview_at": "2026-07-15T10:00:00Z",
+    "practice_at": "2026-07-15T11:00:00Z",
+    "planned_at": "2026-07-15T12:00:00Z",
+    "resumed_at": "2026-07-15T12:10:00Z"
+  },
+  "sources": [
+    {
+      "id": "unified-agent-project-source",
+      "title": "Duoduo learning agent runtime source",
+      "trust_level": "source_code",
+      "uri": "https://github.com/xuanli199/duoduo",
+      "publisher": "xuanli199",
+      "revision": "leaf-20.6-fixture",
+      "license_expression": "repository license",
+      "content": "LearningAgentRuntime prepares a session from a deterministic plan.\nThe executor validates policy before navigation.\nCheckpoints persist the original plan snapshot for recovery."
+    },
+    {
+      "id": "unified-agent-programming-source",
+      "title": "JSON Schema validation notes",
+      "trust_level": "official_doc",
+      "uri": "https://json-schema.org/understanding-json-schema/reference/object",
+      "publisher": "JSON Schema",
+      "revision": "2020-12",
+      "license_expression": "site terms",
+      "content": "A JSON document can be syntactically valid while failing a JSON Schema.\nApplications must validate both parsing and schema constraints."
+    }
+  ],
+  "knowledge_points": [
+    {
+      "id": "unified-agent-project-point",
+      "title": "Deterministic agent runtime",
+      "summary": "Planner, policy, executor, checkpoint, and trace boundaries.",
+      "kind": "architecture",
+      "source_id": "unified-agent-project-source",
+      "mastery_level": 45,
+      "difficulty": 4,
+      "interview_relevance": 5
+    },
+    {
+      "id": "unified-agent-programming-point",
+      "title": "JSON syntax and schema validation",
+      "summary": "Parsing validity and schema conformance are separate guarantees.",
+      "kind": "concept",
+      "source_id": "unified-agent-programming-source",
+      "mastery_level": 35,
+      "difficulty": 3,
+      "interview_relevance": 4
+    }
+  ],
+  "expected": {
+    "project_scope": "project",
+    "programming_scope": "programming",
+    "mixed_scope": "mixed",
+    "memory_types": [
+      "tutor",
+      "interview",
+      "programming_exercise"
+    ],
+    "next_action_priority": "open_follow_up",
+    "selected_tool_id": "handle_follow_ups"
+  }
+}

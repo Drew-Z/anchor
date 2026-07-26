@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "status": "frozen_before_first_evaluation",
+  "authorship": "two independent clean-context agents; source claims verified by smart-search fetch",
+  "sources": [
+    {"id": "s-tool", "title": "OpenAI Function calling", "uri": "https://platform.openai.com/docs/guides/function-calling", "type": "official_doc", "trust_level": "official_doc"},
+    {"id": "s-injection", "title": "OWASP Prompt Injection", "uri": "https://genai.owasp.org/llmrisk/llm01-prompt-injection/", "type": "official_doc", "trust_level": "official_doc"},
+    {"id": "s-embedding", "title": "OpenAI Embeddings", "uri": "https://platform.openai.com/docs/guides/embeddings", "type": "official_doc", "trust_level": "official_doc"},
+    {"id": "s-idempotency", "title": "RFC 9110 Idempotent Methods", "uri": "https://www.rfc-editor.org/rfc/rfc9110.html#section-9.2.2", "type": "official_doc", "trust_level": "official_doc"},
+    {"id": "s-checkpoint", "title": "Apache Flink Checkpointing", "uri": "https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/state/checkpoints/", "type": "official_doc", "trust_level": "official_doc"},
+    {"id": "s-observability", "title": "OpenTelemetry Observability Primer", "uri": "https://opentelemetry.io/docs/concepts/observability-primer/", "type": "official_doc", "trust_level": "official_doc"}
+  ],
+  "chunks": [
+    {"id": "e-tool", "source_id": "s-tool", "locator": "Function calling: How it works", "content": "Tool calling is a multi-step conversation between an application and a model. The model returns a tool call, the application executes the function, and the application sends the tool output back to the model."},
+    {"id": "e-injection", "source_id": "s-injection", "locator": "LLM01 Prompt Injection", "content": "Prompt injection changes model behavior through crafted input. Indirect prompt injection can arrive through external content such as websites or files that an application processes."},
+    {"id": "e-embedding", "source_id": "s-embedding", "locator": "What are embeddings", "content": "An embedding is a vector representation of data that preserves aspects of meaning. Similar text tends to have embeddings that are closer together, which supports semantic search."},
+    {"id": "e-idempotency", "source_id": "s-idempotency", "locator": "RFC 9110 section 9.2.2", "content": "A request method is idempotent when multiple identical requests have the same intended effect as one request. Responses and incidental server records can still differ."},
+    {"id": "e-checkpoint", "source_id": "s-checkpoint", "locator": "Checkpointing", "content": "A checkpoint captures consistent application state so processing can recover after failure. Periodic checkpoints allow stateful processing to resume without starting the entire computation again."},
+    {"id": "e-observability", "source_id": "s-observability", "locator": "Observability primer", "content": "Observability uses telemetry such as traces, metrics, and logs to understand system behavior. Correlating these signals helps engineers follow requests and diagnose failures."}
+  ],
+  "cases": [
+    {"id": "tool-canonical", "variant": "canonical", "query": "model tool calling application executes functions", "relevant_evidence_ids": ["e-tool"]},
+    {"id": "tool-zh", "variant": "zh_natural", "query": "模型发起工具调用后究竟是谁负责真正执行函数", "relevant_evidence_ids": ["e-tool"]},
+    {"id": "tool-en", "variant": "en_natural", "query": "After a model requests a tool call, who actually runs the function?", "relevant_evidence_ids": ["e-tool"]},
+    {"id": "injection-canonical", "variant": "canonical", "query": "indirect prompt injection external content", "relevant_evidence_ids": ["e-injection"]},
+    {"id": "injection-zh", "variant": "zh_natural", "query": "间接提示注入为什么会通过网页或文件进入应用", "relevant_evidence_ids": ["e-injection"]},
+    {"id": "injection-en", "variant": "en_natural", "query": "How can external documents carry an indirect prompt injection?", "relevant_evidence_ids": ["e-injection"]},
+    {"id": "embedding-canonical", "variant": "canonical", "query": "embedding vector representation semantic search", "relevant_evidence_ids": ["e-embedding"]},
+    {"id": "embedding-zh", "variant": "zh_natural", "query": "embedding 为什么能够帮助应用进行语义搜索", "relevant_evidence_ids": ["e-embedding"]},
+    {"id": "embedding-en", "variant": "en_natural", "query": "Why are vector representations useful for finding text with similar meaning?", "relevant_evidence_ids": ["e-embedding"]},
+    {"id": "idempotency-canonical", "variant": "canonical", "query": "idempotent HTTP method intended effect", "relevant_evidence_ids": ["e-idempotency"]},
+    {"id": "idempotency-zh", "variant": "zh_natural", "query": "HTTP 请求怎样才算具有幂等性", "relevant_evidence_ids": ["e-idempotency"]},
+    {"id": "idempotency-en", "variant": "en_natural", "query": "What does idempotent mean for the effect of repeated HTTP requests?", "relevant_evidence_ids": ["e-idempotency"]},
+    {"id": "checkpoint-canonical", "variant": "canonical", "query": "checkpoint consistent application state failure recovery", "relevant_evidence_ids": ["e-checkpoint"]},
+    {"id": "checkpoint-zh", "variant": "zh_natural", "query": "流式任务为什么需要定期保存检查点", "relevant_evidence_ids": ["e-checkpoint"]},
+    {"id": "checkpoint-en", "variant": "en_natural", "query": "Why does a stateful streaming job periodically persist checkpoints?", "relevant_evidence_ids": ["e-checkpoint"]},
+    {"id": "observability-canonical", "variant": "canonical", "query": "observability traces metrics logs diagnose failures", "relevant_evidence_ids": ["e-observability"]},
+    {"id": "observability-zh", "variant": "zh_natural", "query": "为什么要把日志指标和链路追踪关联起来排查故障", "relevant_evidence_ids": ["e-observability"]},
+    {"id": "observability-en", "variant": "en_natural", "query": "Why correlate logs, metrics, and traces when diagnosing a failure?", "relevant_evidence_ids": ["e-observability"]}
+  ]
+}

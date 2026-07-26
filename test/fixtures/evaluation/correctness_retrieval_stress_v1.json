@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "top_k": 1,
+  "sources": [
+    {
+      "id": "source-openai-official",
+      "title": "OpenAI Structured Outputs guide",
+      "type": "official_doc",
+      "trust_level": "official_doc"
+    },
+    {
+      "id": "source-json-note",
+      "title": "JSON 模式笔记",
+      "type": "user_note",
+      "trust_level": "user_note"
+    },
+    {
+      "id": "source-sqlite-official",
+      "title": "SQLite transaction reference",
+      "type": "official_doc",
+      "trust_level": "official_doc"
+    },
+    {
+      "id": "source-client-code",
+      "title": "Duoduo retry implementation",
+      "type": "code_file",
+      "trust_level": "source_code"
+    },
+    {
+      "id": "source-retry-note",
+      "title": "Retry policy note",
+      "type": "user_note",
+      "trust_level": "user_note"
+    },
+    {
+      "id": "source-distractors",
+      "title": "Generated transaction articles",
+      "type": "article",
+      "trust_level": "article"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "chunk-openai-official",
+      "source_id": "source-openai-official",
+      "content": "JSON mode guarantees valid JSON but does not guarantee schema conformance. Structured Outputs enforce a supplied JSON Schema.",
+      "locator": "Structured Outputs guide: JSON mode"
+    },
+    {
+      "id": "chunk-json-note",
+      "source_id": "source-json-note",
+      "content": "JSON模式保证schema一致性，每次输出都会自动符合结构。",
+      "locator": "个人笔记"
+    },
+    {
+      "id": "chunk-sqlite-official",
+      "source_id": "source-sqlite-official",
+      "content": "An atomic transaction commits all changes together or rolls them back together.",
+      "locator": "SQLite transactions"
+    },
+    {
+      "id": "chunk-client-code",
+      "source_id": "source-client-code",
+      "content": "The retry policy uses bounded exponential backoff for HTTP 429 responses and stops after the configured attempt limit.",
+      "locator": "lib/services/openai_service.dart: retry policy"
+    },
+    {
+      "id": "chunk-retry-note",
+      "source_id": "source-retry-note",
+      "content": "retry policy exponential backoff retry policy exponential backoff always retries every error forever",
+      "locator": "个人重试笔记"
+    }
+  ],
+  "generated_distractors": {
+    "count": 64,
+    "source_id": "source-distractors",
+    "id_prefix": "chunk-transaction-distractor-",
+    "content_prefix": "Transaction article distractor",
+    "locator_prefix": "Generated article"
+  },
+  "retrieval_cases": [
+    {
+      "id": "mixed-language-json-boundary",
+      "query": "JSON模式是否保证schema一致性",
+      "relevant_evidence_ids": ["chunk-openai-official"],
+      "expected_first_evidence_id": "chunk-openai-official",
+      "expected_quote": "does not guarantee schema conformance"
+    },
+    {
+      "id": "large-corpus-atomic-rollback",
+      "query": "atomic transaction rollback",
+      "relevant_evidence_ids": ["chunk-sqlite-official"],
+      "expected_first_evidence_id": "chunk-sqlite-official",
+      "expected_quote": "commits all changes together or rolls them back together"
+    },
+    {
+      "id": "adversarial-retry-conflict",
+      "query": "retry policy exponential backoff",
+      "relevant_evidence_ids": ["chunk-client-code"],
+      "expected_first_evidence_id": "chunk-client-code",
+      "expected_quote": "bounded exponential backoff"
+    }
+  ]
+}

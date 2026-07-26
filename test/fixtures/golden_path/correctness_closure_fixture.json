@@ -1,0 +1,259 @@
+{
+  "query": "JSON schema guarantee",
+  "question": "What does JSON mode guarantee?",
+  "sources": [
+    {
+      "id": "source-openai-json",
+      "title": "OpenAI Structured Outputs guide",
+      "type": "official_doc",
+      "trust_level": "official_doc",
+      "uri": "https://developers.openai.com/api/docs/guides/structured-outputs"
+    },
+    {
+      "id": "source-personal-note",
+      "title": "Personal JSON notes",
+      "type": "user_note",
+      "trust_level": "user_note"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "chunk-openai-json",
+      "source_id": "source-openai-json",
+      "content": "JSON mode guarantees valid JSON but does not guarantee schema conformance. Structured Outputs enforce a supplied JSON Schema.",
+      "locator": "Structured Outputs guide: JSON mode"
+    },
+    {
+      "id": "chunk-personal-note",
+      "source_id": "source-personal-note",
+      "content": "JSON schema guarantee is automatic for every provider response.",
+      "locator": "Personal note"
+    }
+  ],
+  "knowledge_point": {
+    "id": "kp-structured-output",
+    "title": "JSON mode and schema conformance",
+    "summary": "Distinguish valid JSON from conformance to a supplied schema."
+  },
+  "exercise": {
+    "id": "exercise-json-boundary",
+    "kind": "boundary_judgment",
+    "prompt": "Does JSON mode alone guarantee schema conformance?",
+    "reference_answer": "No. JSON mode guarantees valid JSON; Structured Outputs enforce a supplied JSON Schema.",
+    "concept_accuracy_criterion": "Separate valid JSON from schema conformance.",
+    "reasoning_process_criterion": "Name the two mechanisms and their boundary.",
+    "evidence_use_criterion": "Use the cited official guide excerpt.",
+    "clarity_criterion": "Answer the boundary directly."
+  },
+  "ai_responses": [
+    {
+      "task": "knowledge_answer_grounded",
+      "prompt_marker": "严谨的知识库学习助手",
+      "body": {
+        "answer": "Ignored aggregate answer.",
+        "key_points": ["Ignored aggregate key point."],
+        "follow_up_questions": ["Which mechanism enforces a supplied schema?"],
+        "source_gaps": [],
+        "citation_ids": ["chunk-openai-json"],
+        "claims": [
+          {
+            "section": "answer",
+            "text": "JSON mode guarantees valid JSON.",
+            "evidence": [
+              {
+                "citation_id": "chunk-openai-json",
+                "quote": "JSON mode guarantees valid JSON"
+              }
+            ]
+          },
+          {
+            "section": "key_point",
+            "text": "Schema conformance is not guaranteed by JSON mode.",
+            "evidence": [
+              {
+                "citation_id": "chunk-openai-json",
+                "quote": "does not guarantee schema conformance"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "task": "knowledge_answer_partial",
+      "prompt_marker": "严谨的知识库学习助手",
+      "body": {
+        "answer": "Ignored aggregate answer.",
+        "key_points": ["Ignored aggregate key point."],
+        "follow_up_questions": [],
+        "source_gaps": [],
+        "citation_ids": ["chunk-openai-json"],
+        "claims": [
+          {
+            "section": "answer",
+            "text": "JSON mode guarantees valid JSON.",
+            "evidence": [
+              {
+                "citation_id": "chunk-openai-json",
+                "quote": "JSON mode guarantees valid JSON"
+              }
+            ]
+          },
+          {
+            "section": "key_point",
+            "text": "JSON mode guarantees every supplied schema.",
+            "evidence": [
+              {
+                "citation_id": "chunk-openai-json",
+                "quote": "guarantees every supplied schema"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "task": "knowledge_answer_refused",
+      "prompt_marker": "严谨的知识库学习助手",
+      "body": {
+        "answer": "JSON mode guarantees every schema.",
+        "key_points": [],
+        "follow_up_questions": [],
+        "source_gaps": [],
+        "citation_ids": ["chunk-openai-json"],
+        "claims": [
+          {
+            "section": "answer",
+            "text": "JSON mode guarantees every schema.",
+            "evidence": [
+              {
+                "citation_id": "chunk-openai-json",
+                "quote": "guarantees every schema"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "task": "tutor_feedback",
+      "prompt_marker": "证据约束的苏格拉底编程导师",
+      "body": {
+        "feedback": "Your answer confuses valid JSON with schema conformance.",
+        "reference_answer": "JSON mode guarantees valid JSON, not schema conformance.",
+        "misconception": "Valid JSON was treated as schema conformance.",
+        "next_question": "Which mechanism enforces a supplied JSON Schema?",
+        "citation_ids": ["chunk-openai-json"],
+        "evidence_sufficient": true,
+        "accuracy_score": 55,
+        "claims": [
+          {
+            "section": "feedback",
+            "text": "Your answer confuses valid JSON with schema conformance.",
+            "evidence": [
+              {
+                "citation_id": "chunk-openai-json",
+                "quote": "does not guarantee schema conformance"
+              }
+            ]
+          },
+          {
+            "section": "reference_answer",
+            "text": "JSON mode guarantees valid JSON, not schema conformance.",
+            "evidence": [
+              {
+                "citation_id": "chunk-openai-json",
+                "quote": "JSON mode guarantees valid JSON"
+              }
+            ]
+          },
+          {
+            "section": "misconception",
+            "text": "Valid JSON was treated as schema conformance.",
+            "evidence": [
+              {
+                "citation_id": "chunk-openai-json",
+                "quote": "does not guarantee schema conformance"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "task": "interview_evaluation",
+      "prompt_marker": "严格但建设性的 AI 应用开发面试评估官",
+      "body": {
+        "accuracy_score": 3,
+        "project_detail_score": 3,
+        "engineering_score": 4,
+        "clarity_score": 4,
+        "feedback": "You correctly named valid JSON but overstated schema conformance.",
+        "reference_answer": "JSON mode guarantees valid JSON; Structured Outputs enforce a supplied JSON Schema.",
+        "follow_up_question": "Why would the App require Structured Outputs for strict contracts?",
+        "follow_up_knowledge_point_id": "kp-structured-output",
+        "follow_up_citation_ids": ["chunk-openai-json"],
+        "weak_knowledge_point_ids": ["kp-structured-output"],
+        "citation_ids": ["chunk-openai-json"],
+        "claims": [
+          {
+            "section": "feedback",
+            "text": "You correctly named valid JSON but overstated schema conformance.",
+            "evidence": [
+              {
+                "citation_id": "chunk-openai-json",
+                "quote": "does not guarantee schema conformance"
+              }
+            ]
+          },
+          {
+            "section": "reference_answer",
+            "text": "JSON mode guarantees valid JSON; Structured Outputs enforce a supplied JSON Schema.",
+            "evidence": [
+              {
+                "citation_id": "chunk-openai-json",
+                "quote": "Structured Outputs enforce a supplied JSON Schema"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "task": "programming_exercise_evaluation",
+      "prompt_marker": "证据约束的编程练习评价器",
+      "body": {
+        "feedback": "The answer correctly separates JSON validity from schema conformance.",
+        "concept_accuracy_score": 95,
+        "reasoning_process_score": 90,
+        "evidence_use_score": 90,
+        "clarity_score": 95,
+        "misconception_code": "",
+        "misconception_label": "",
+        "repair_explanation": "",
+        "citation_ids": ["chunk-openai-json"],
+        "evidence_sufficient": true,
+        "claims": [
+          {
+            "section": "feedback",
+            "text": "The answer correctly separates JSON validity from schema conformance.",
+            "evidence": [
+              {
+                "citation_id": "chunk-openai-json",
+                "quote": "does not guarantee schema conformance"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "expected_task_order": [
+    "knowledge_answer_grounded",
+    "knowledge_answer_partial",
+    "knowledge_answer_refused",
+    "tutor_feedback",
+    "interview_evaluation",
+    "programming_exercise_evaluation"
+  ]
+}

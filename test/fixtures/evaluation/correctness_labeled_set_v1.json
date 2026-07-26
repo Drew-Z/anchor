@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "top_k": 1,
+  "annotation_policy": "human_semantic_support_v1",
+  "sources": [
+    {"id": "official-json", "title": "Structured output reference", "type": "official_doc", "trust_level": "official_doc"},
+    {"id": "official-sqlite", "title": "SQLite transaction reference", "type": "official_doc", "trust_level": "official_doc"},
+    {"id": "code-retry", "title": "Client retry policy", "type": "code_file", "trust_level": "source_code"},
+    {"id": "code-timeout", "title": "Client timeout policy", "type": "code_file", "trust_level": "source_code"},
+    {"id": "official-citation", "title": "Citation policy", "type": "official_doc", "trust_level": "official_doc"},
+    {"id": "official-evidence", "title": "Evidence policy", "type": "official_doc", "trust_level": "official_doc"},
+    {"id": "notes", "title": "Unverified personal notes", "type": "user_note", "trust_level": "user_note"}
+  ],
+  "chunks": [
+    {"id": "e-json", "source_id": "official-json", "locator": "JSON mode boundary", "content": "JSON mode guarantees valid JSON but does not guarantee schema conformance. Structured Outputs enforce the supplied schema."},
+    {"id": "e-transaction", "source_id": "official-sqlite", "locator": "Atomic transactions", "content": "An atomic transaction commits all changes together or rolls them back together when the transaction fails."},
+    {"id": "e-retry", "source_id": "code-retry", "locator": "retry policy", "content": "HTTP 429 rate limit responses use bounded retries with exponential backoff and stop at the configured attempt limit."},
+    {"id": "e-timeout", "source_id": "code-timeout", "locator": "timeout policy", "content": "Each request has a configured timeout. A timeout stops the current attempt before the client decides whether a bounded retry is allowed."},
+    {"id": "e-citation", "source_id": "official-citation", "locator": "formal claims", "content": "Every formal claim must include a citation with an inspectable source locator and an exact supporting quote."},
+    {"id": "e-evidence", "source_id": "official-evidence", "locator": "support boundary", "content": "An exact quote is evidence only for the claim it semantically supports. Quote containment alone does not prove the whole answer."},
+    {"id": "n-json", "source_id": "notes", "locator": "note 1", "content": "JSON mode always guarantees schema conformance without Structured Outputs."},
+    {"id": "n-transaction", "source_id": "notes", "locator": "note 2", "content": "An atomic transaction may commit half the changes and skip rollback."},
+    {"id": "n-retry", "source_id": "notes", "locator": "note 3", "content": "HTTP 429 retry uses exponential backoff forever with no attempt limit."},
+    {"id": "n-timeout", "source_id": "notes", "locator": "note 4", "content": "A timeout means every request retries forever and never stops an attempt."},
+    {"id": "n-citation", "source_id": "notes", "locator": "note 5", "content": "A formal claim citation never needs a source locator or exact quote."},
+    {"id": "n-evidence", "source_id": "notes", "locator": "note 6", "content": "Any exact quote proves every claim in the whole answer regardless of semantic support."}
+  ],
+  "query_groups": [
+    {"id": "json-boundary", "relevant_evidence_ids": ["e-json"], "queries": [
+      {"id": "json-canonical", "variant": "canonical", "text": "JSON mode schema conformance"},
+      {"id": "json-zh", "variant": "zh_paraphrase", "text": "JSON模式会保证输出符合schema吗"},
+      {"id": "json-conversational", "variant": "en_paraphrase", "text": "does JSON mode enforce the supplied schema"}
+    ]},
+    {"id": "transaction-boundary", "relevant_evidence_ids": ["e-transaction"], "queries": [
+      {"id": "transaction-canonical", "variant": "canonical", "text": "atomic transaction rollback"},
+      {"id": "transaction-zh", "variant": "zh_paraphrase", "text": "原子事务失败时会不会全部回滚"},
+      {"id": "transaction-conversational", "variant": "en_paraphrase", "text": "do all changes roll back together when a transaction fails"}
+    ]},
+    {"id": "retry-boundary", "relevant_evidence_ids": ["e-retry"], "queries": [
+      {"id": "retry-canonical", "variant": "canonical", "text": "HTTP 429 retry exponential backoff"},
+      {"id": "retry-zh", "variant": "zh_paraphrase", "text": "遇到HTTP 429应该怎样重试和退避"},
+      {"id": "retry-conversational", "variant": "en_paraphrase", "text": "bounded retries after a rate limit response"}
+    ]},
+    {"id": "timeout-boundary", "relevant_evidence_ids": ["e-timeout"], "queries": [
+      {"id": "timeout-canonical", "variant": "canonical", "text": "request timeout retry"},
+      {"id": "timeout-zh", "variant": "zh_paraphrase", "text": "请求超时后是否允许重试"},
+      {"id": "timeout-conversational", "variant": "en_paraphrase", "text": "what stops the current attempt before retry"}
+    ]},
+    {"id": "citation-boundary", "relevant_evidence_ids": ["e-citation"], "queries": [
+      {"id": "citation-canonical", "variant": "canonical", "text": "formal claim citation locator exact quote"},
+      {"id": "citation-zh", "variant": "zh_paraphrase", "text": "正式结论的引用是否需要定位和原文"},
+      {"id": "citation-conversational", "variant": "en_paraphrase", "text": "how can I inspect the source behind a formal claim"}
+    ]},
+    {"id": "evidence-boundary", "relevant_evidence_ids": ["e-evidence"], "queries": [
+      {"id": "evidence-canonical", "variant": "canonical", "text": "exact quote semantic evidence support"},
+      {"id": "evidence-zh", "variant": "zh_paraphrase", "text": "有原文证据是否就能证明整段回答"},
+      {"id": "evidence-conversational", "variant": "en_paraphrase", "text": "does quote containment prove the whole answer"}
+    ]}
+  ],
+  "claim_annotations": [
+    {"id": "claim-full", "claim": "JSON mode does not guarantee schema conformance.", "evidence_id": "e-json", "support": "full"},
+    {"id": "claim-partial", "claim": "Every formal claim needs a locator, exact quote, author, date, and checksum.", "evidence_id": "e-citation", "support": "partial"},
+    {"id": "claim-none", "claim": "Any exact quote proves every statement in an answer.", "evidence_id": "e-evidence", "support": "none"}
+  ]
+}
