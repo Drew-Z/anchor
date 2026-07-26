@@ -1,307 +1,286 @@
-# 多多学 Duoduo Learn
+# 多多学习 - 来源可溯源的 AI 学习代理
 
-> 本地优先的编程学习代理 — 导入你的项目代码或技术文档,构建可溯源的知识库,通过 AI 驱动的面试官、导师和练习会话深度学习,所有证据可追溯到原始来源。
+<div align="center">
 
-## 产品定位
+![多多学习 Logo](docs/images/logo.png)
 
-多多学从"多邻国风格的 AI 拆题刷题工具"演进为**来源可溯源的个人学习代理**,主打场景是程序员技术学习与面试准备:
+**把你的文档和代码变成个性化学习内容**
 
-1. **导入可信来源**:本地项目代码、官方技术文档、开源仓库,保留文件路径、行号、SHA-256 哈希等可审计元数据
-2. **构建知识库**:AI 从来源中提取知识点,每个知识点关联具体的源代码片段或文档段落
-3. **多模式学习**:
-   - **面试官模式**:针对项目或知识点提问,评估你的回答,标记薄弱维度
-   - **导师模式**:分层讲解概念,追问卡住的位置,所有解释必须引用来源
-   - **练习模式**:生成编程练习或刷题,四维评分(正确性/完整性/工程实践/代码风格)
-   - **刷题模式**(保留旧功能):多种题型的游戏化刷题
-4. **证据门禁**:AI 输出的每条主张必须附带引用,引用的文本必须逐字命中来源,否则降级或拒答;**AI 输出永远不被当作来源**
-5. **复习闭环**:面试弱维度、练习弱项、答错的题目自动进入复习队列,间隔复习算法调度
+[![Flutter](https://img.shields.io/badge/Flutter-3.0+-blue.svg)](https://flutter.dev/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-核心设计理念:**只有经过核验、有来源支撑的内容才能进入正式学习路径和掌握度计算**。
+[功能特性](#-功能特性) • [快速开始](#-快速开始) • [架构设计](#-架构设计) • [文档](#-文档) • [贡献](#-贡献)
 
-## 功能特色
+</div>
 
-### 来源管理
-- 导入本地项目目录或 ZIP 压缩包(Android 走 Storage Access Framework)
-- 手动填写官方文档 URL、出版方、版本号、license 信息
-- 每个来源片段保留定位符(文件路径 + 行号范围、页码、章节锚点)
-- SHA-256 内容哈希校验,防止来源篡改
+---
 
-### 学习代理(Agent)
-- **状态机驱动**:plan → retrieve → act → verify → reflect → complete
-- **Checkpoint 持久化**:会话可中断恢复,乐观并发控制防止状态冲突
-- **确定性规划**:根据证据覆盖、待核验内容、薄弱先修、到期复习自动规划下一步动作
-- **全程 Trace**:每个决策和工具调用都记录事件日志,可审计
+## 📖 项目简介
 
-### 知识库
-- 5 个视图:来源列表、源代码片段、知识点、题目、待核验内容
-- 知识点先修关系图,DAG 拓扑排序生成学习路径
-- 混合检索:词法打分 + 模型改写查询 + RRF 融合排序
-- 引用卡片:点击引用跳转到高亮的源代码片段
+**多多学习**是一个开源的 AI 学习助手,帮助你从个人文档、技术笔记、代码项目中自动生成**可溯源**的练习题和学习内容。
 
-### AI 任务层
-- 12 个结构化任务:知识抽取、出题、引用核验、面试出题/评分、导师讲解、编程练习生成/评估等
-- 统一 JSON schema 输出,解析失败直接报错,不静默降级
-- 多供应商支持:OpenAI、DeepSeek、千问、Kimi、智谱、Gemini 等 OpenAI 兼容接口
-- **模型验收矩阵**:5 个固定用例(结构化 JSON、中文、编程、主张引用绑定、证据不足拒答),未通过验收的模型组合拒绝调用
+### 核心亮点
 
-### 刷题与游戏化(保留旧功能)
-- 6 种题型:单选、多选、判断、填空、匹配、排序
-- 填空题 AI 语义判题:本地规则不匹配时调用大模型
-- 经验值(XP)、连续打卡(Streak)、心数系统(Hearts)
-- 21 个成就徽章、月度打卡日历
+🔗 **完整的引用链**: 每道题目都能追溯到源文档的具体位置  
+🤖 **AI Agent 辅导**: 通过面试式引导帮助你理解代码项目  
+🛡️ **防幻觉机制**: Citation Verification + Question Validator 双重验证  
+🔒 **隐私优先**: 数据本地存储,可选云同步  
+📱 **跨平台**: Android / iOS / macOS / Windows / Linux
 
-### 隐私与数据控制
-- 纯本地存储(SQLite + flutter_secure_storage),无云同步
-- 产品事件记录(schema 版本化,immutable append-only)
-- 隐私控制:数据导出(Markdown/JSON)、分类删除(来源/学习记录/全部)、脱敏诊断包
-- SQLite 快照备份,删除前自动备份,误删可恢复
+---
 
-## 技术栈
+## ✨ 功能特性
 
-| 分类 | 技术 |
-|------|------|
-| 框架 | Flutter 3.x (Dart 3.x) |
-| 状态管理 | Riverpod 2.5+ |
-| 本地存储 | SQLite (sqflite) v23 schema, 18 张表 |
-| 安全存储 | flutter_secure_storage (API keys) |
-| 网络请求 | Dio 5.7+ |
-| AI 服务 | OpenAI 兼容 API(Chat Completions + Responses) |
-| 动画 | flutter_animate 4.5+ |
-| 字体 | Google Fonts |
-| 文件选择 | file_picker + Android SAF |
-| 分享接收 | receive_sharing_intent |
+### 📚 智能导入
 
-## 项目结构
+- **Markdown 语义切分**: 按标题层级切分,保持语义完整
+- **代码项目理解**: 分析项目架构,提取关键概念
+- **精确定位**: 每个知识块都有可读的 locator(如 `README.md:## 快速开始`)
 
-```
-lib/
-├── main.dart                      # 入口,FirstRunGate 引导
-├── app.dart                       # 底部导航 5-tab
-├── core/
-│   ├── constants/                 # app_metadata, app_colors
-│   ├── providers/                 # Riverpod DI 中枢(1500行)
-│   └── theme/                     # app_theme
-├── data/
-│   ├── database/
-│   │   └── database_helper.dart   # SQLite v23, 18张表, 线性迁移
-│   ├── models/                    # 16 个模型
-│   │   ├── source*.dart           # 来源、片段
-│   │   ├── knowledge_point*.dart  # 知识点、先修关系
-│   │   ├── grounded_*.dart        # 主张、学习上下文
-│   │   ├── learning_session.dart  # 会话(6种mode)
-│   │   ├── interview_turn.dart    # 面试轮次
-│   │   ├── tutor_turn.dart        # 导师对话
-│   │   ├── programming_exercise*.dart  # 编程练习+尝试
-│   │   ├── programming_review_action.dart
-│   │   ├── product_event.dart     # 产品遥测
-│   │   └── [deck, question, study_record, user_stats].dart  # 旧体系
-│   └── repositories/              # 10 个薄封装 repo
-├── features/
-│   ├── onboarding/                # 首次启动 7 步引导
-│   ├── agent/                     # Agent 工作台(10个屏幕)
-│   │   ├── agent_home_screen.dart
-│   │   ├── agent_session_launch_screen.dart
-│   │   ├── interview_session_*.dart
-│   │   ├── tutor_session_screen.dart
-│   │   └── review_agent_screen.dart
-│   ├── knowledge_base/            # 知识库 5-tab + 检索
-│   ├── ingestion/                 # 来源导入向导 + 核验预览
-│   ├── home/                      # 学习首页(旧)
-│   ├── deck/                      # 题库列表(旧)
-│   ├── learning/                  # 刷题界面(旧)
-│   ├── profile/                   # 我的页(XP/勋章/打卡)
-│   └── settings/                  # 设置(AI配置/隐私/关于)
-├── services/
-│   ├── ai/                        # AI 任务层
-│   │   ├── tasks/                 # 12 个结构化任务
-│   │   ├── ai_api_protocol.dart   # chat_completions vs responses
-│   │   ├── ai_api_credential_store.dart
-│   │   ├── grounded_claim_gate.dart  # 证据门禁核心
-│   │   └── ai_model_acceptance.dart  # 5用例验收矩阵
-│   ├── agent/                     # Agent 运行时(33个文件)
-│   │   ├── learning_agent_state*.dart
-│   │   ├── learning_agent_checkpoint*.dart
-│   │   ├── learning_agent_resume_policy.dart
-│   │   ├── learning_agent_planner_service.dart
-│   │   ├── learning_agent_executor.dart
-│   │   ├── learning_agent_workspace.dart
-│   │   └── [memory, trace, tool_registry, runtime...]
-│   ├── ingestion/                 # 来源导入链路
-│   ├── scheduling/                # 复习调度+掌握度+闭环
-│   ├── evaluation/                # 正确性评测(离线指标)
-│   ├── onboarding/                # 首次启动进度状态机
-│   ├── privacy/                   # 产品事件+脱敏+备份+导出
-│   ├── release/                   # Private Alpha 发布证据体系
-│   ├── openai_service.dart        # 底层 transport(已收编)
-│   ├── content_analyzer.dart      # 旧 AI 拆题(保留)
-│   └── gamification_service.dart  # XP/心/连击/勋章
-├── shared/widgets/                # 公共组件
-└── [其他...]
+### 🎯 AI 驱动的内容生成
 
-test/                              # 86 个测试文件, 307 个测试
-├── golden_path_test.dart          # 旧主链路
-├── learning_agent_unified_golden_path_test.dart  # Agent 完整路径
-├── programming_learning_golden_path_test.dart
-├── correctness_golden_path_test.dart  # 正确性基线
-├── database_migration_test.dart   # v2→v23 全量迁移
-├── fixtures/                      # 评测数据集+fixture
-└── support/                       # fake 服务+CLI 测试支撑
+- **知识点提取**: 自动识别文档中的核心概念
+- **多样化题型**: 单选/多选/填空/判断/匹配题
+- **前置依赖推理**: 自动构建知识图谱
+- **质量验证**: AI 二次核验事实准确性
 
-docs/                              # 22 份设计文档
-├── execution-roadmap-v2.md        # Branch 15→21 完整路线图
-├── agent-architecture.md          # Agent 架构设计
-├── private-alpha-*.md             # Alpha 发布相关(7个)
-└── [correctness, mvp, golden-path...]
+### 🧠 学习功能
 
-tool/                              # 4 个 Dart CLI
-└── private_alpha_*.dart           # 发布就绪检查工具
+- **间隔重复**: 基于遗忘曲线的智能复习调度
+- **掌握度追踪**: 实时追踪每个知识点的掌握情况
+- **来源溯源**: 点击题目查看原文,理解上下文
+- **AI 语义判题**: 填空题支持同义答案判定
 
-schema/
-└── private-alpha-readiness-v2.schema.json
-```
+### 🤖 AI Agent 辅导
 
-## 数据库 Schema(v23)
+- **知识问答**: 基于知识库回答你的问题,附带引用链
+- **项目面试**: 引导式提问帮助你理解大型代码库
+- **苏格拉底式**: 通过反问启发思考,而非直接给答案
+- **长会话恢复**: 支持中断后继续学习
 
-18 张表,分 6 个体系:
+---
 
-**旧体系(兼容保留)**
-- `decks`, `questions`(加溯源字段), `study_records`, `user_stats`
+## 🎯 适合谁?
 
-**来源层**
-- `sources`(type, trust_level, uri, publisher, revision, license, content_hash)
-- `source_chunks`(content, locator, relative_path, start_line, end_line)
+- 📝 **正在学习新技术的开发者** - 把文档变成可练习的知识
+- 🏗️ **需要理解大型项目的工程师** - AI 引导你读懂复杂代码
+- 🎓 **准备面试的求职者** - 从项目中生成面试题
+- 🛠️ **想构建教育 AI 产品的团队** - 参考完整的实现方案
 
-**知识层**
-- `knowledge_points`(kind: concept/architecture/dataFlow/...)
-- `knowledge_point_sources`(多对多关联 + relation 类型)
-- `knowledge_point_prerequisites`(先修 DAG)
+---
 
-**会话层**
-- `learning_sessions`(mode: quiz/interview/tutor/agent_session/...)
-- `interview_turns`, `tutor_turns`(v22 加 grounded_claims_json)
+## 🚀 快速开始
 
-**Agent 运行时**
-- `learning_agent_states`(phase, checkpoint_revision, plan_snapshot)
-- `learning_agent_trace_events`(13 种事件类型)
+### 前置要求
 
-**编程练习**
-- `programming_exercises`(四维 rubric, verified 标志)
-- `programming_exercise_attempts`
-- `programming_review_actions`
+- Flutter 3.0+
+- OpenAI API Key(或兼容的本地模型)
 
-**遥测**
-- `product_events`(schema 版本化, dedupe_key 幂等)
-
-迁移测试覆盖 v2→v23 全部版本升级路径。
-
-## 快速开始
-
-### 环境要求
-- Flutter 3.5+
-- Dart 3.5+
-- Android SDK (API 21+,推荐 API 36)
-- JDK 17+
-
-### 安装运行
+### 安装步骤
 
 ```bash
-# 克隆仓库
-git clone https://github.com/xuanli199/duoduo.git
+# 1. 克隆项目
+git clone https://github.com/你的用户名/duoduo.git
 cd duoduo
 
-# 安装依赖
+# 2. 安装依赖
 flutter pub get
 
-# 运行测试
-flutter test
+# 3. 配置 API Key
+cp .env.example .env
+# 编辑 .env 填入 OPENAI_API_KEY
 
-# 代码分析
-flutter analyze
-
-# 运行 debug
+# 4. 运行
 flutter run
-
-# 构建 Release APK
-flutter build apk --release
 ```
 
-### 首次启动引导
+### 导入第一份学习资料
 
-APP 首次启动会进入 7 步引导:
+1. 点击右下角 **"+"** 按钮
+2. 选择 **"导入文档"** 或 **"导入项目"**
+3. 等待 AI 分析(30-60 秒)
+4. 开始答题! 🎉
 
-1. **选择学习目标**:AI 面试准备 / 项目理解 / 编程基础
-2. **配置 AI 模型**:填写 API 地址、Key、模型名,通过 5 用例验收
-3. **导入项目**:选择本地目录或 ZIP,标记来源类型(source_code/official_doc)
-4. **覆盖度审核**:预览提取的知识点,确认引用正确性
-5. **首次会话**:体验面试官或导师模式
-6. **结果预览**:查看学习成果和薄弱点
-7. **完成**:进入主界面
+📚 **详细指南**: [快速开始文档](docs/guides/QUICK_START.md)
 
-历史用户(已有 decks/questions 数据)直通主界面。
+---
 
-### 配置 AI 接口
+## 🏗️ 架构设计
 
-支持任意 OpenAI 兼容接口:
+### 核心流程
 
-| 供应商 | API 地址示例 | 协议 |
-|--------|------------|------|
-| OpenAI | `https://api.openai.com/v1` | chat_completions |
-| DeepSeek | `https://api.deepseek.com` | chat_completions |
-| 阿里千问 | `https://dashscope.aliyuncs.com/compatible-mode/v1` | chat_completions |
-| Moonshot | `https://api.moonshot.cn/v1` | chat_completions |
-| 智谱 | `https://open.bigmodel.cn/api/paas/v4` | chat_completions |
-| 自定义 | 你的中转地址 | 按需选择 |
+```
+用户上传文档
+    ↓
+[Semantic Chunker] 语义切分
+    ↓
+[AI Tasks] 提取知识点 → 生成题目
+    ↓
+[Citation Verification] 验证引用
+    ↓
+[Question Validator] 验证事实
+    ↓
+[人工审核] 最终确认
+    ↓
+[题库] 开始学习
+```
 
-**重要**:首次配置后会运行 5 个验收用例,全部通过才能用于正式学习:
-1. 结构化 JSON 输出
-2. 中文理解(七言绝句续写)
-3. Dart 编程能力
-4. 主张级引用绑定
-5. 证据不足时拒答
+### 防幻觉三层防线
 
-API Key 存储在 flutter_secure_storage,不会明文落盘。
+1. **Layer 1: Semantic Chunker**  
+   保持源文档的结构完整性,不切断语义边界
 
-## 工程质量
+2. **Layer 2: Citation Verification**  
+   强制 AI 引用具体 chunk ID,验证引用有效性
 
-- **307 个测试**,覆盖数据库迁移、AI 任务、Agent 状态机、检索排序、正确性评测
-- **零 analyzer error/warning**
-- **固化基线**:黄金路径集成测试 + 正确性指标(Recall@1, MRR, 引用覆盖率, 拒答准确率)
-- **文档驱动**:22 份设计文档,execution roadmap 记录到 Branch 21.6a
+3. **Layer 3: Question Validator**  
+   二次核验生成的答案是否与源文档一致
 
-## 当前状态
+### 技术栈
 
-项目处于 **Branch 21 Private Alpha** 收尾阶段:
+- **前端**: Flutter + Riverpod
+- **数据**: SQLite(本地优先)
+- **AI**: OpenAI API / 兼容的本地模型
+- **检索**: BM25 + Semantic Embedding 混合搜索
 
-- ✅ 核心功能完整(来源导入、知识库、Agent、面试/导师/练习、复习闭环)
-- ✅ 首次启动引导
-- ✅ 隐私控制与数据导出
-- ✅ 224 个测试通过
-- ⏸️ 发布 HOLD:等待至少一个模型 profile 通过 5/5 验收 + Arm64 真机 release 冒烟
-- 🚧 十人内测未启动
+📖 **深入了解**: [系统架构文档](docs/architecture/SYSTEM_OVERVIEW.md)
 
-## 开发路线图
+---
 
-已完成的 Branch(详见 `docs/execution-roadmap-v2.md`):
+## 📊 示例效果
 
-- ✅ Branch 15:工程验证与黄金路径
-- ✅ Branch 16:项目来源导入 v1
-- ✅ Branch 17:项目理解与面试循环
-- ✅ Branch 18:编程知识学习循环(先修图+导师+练习+四维评分)
-- ✅ Branch 19:正确性与评估(引用覆盖率+拒答门槛+模型验收矩阵)
-- ✅ Branch 20:统一知识库学习代理
-- 🚧 Branch 21:Private Alpha 产品化(Leaf 21.1~21.6a 完成,21.6 实际内测待启动)
+### 从 Markdown 到练习题
 
-明确延迟的特性(等实际需求触发):
-- 多端账号与云同步
-- 向量数据库(当前 FTS+词法检索够用)
-- 自动 GitHub 克隆
-- PDF/视频解析
-- 多 Agent 编排
+```markdown
+# Flutter Widget 生命周期
 
-## 许可证
+StatefulWidget 通过 State 对象管理状态...
 
-MIT
+## 关键方法
 
-## 致谢
+- `initState()`: 初始化,只调用一次
+- `build()`: 构建 UI,可能多次调用
+- `dispose()`: 清理资源
+```
 
-本项目受 Duolingo 的游戏化设计启发,Agent 架构参考了 LangGraph 的状态机模式,证据门禁理念来自 Anthropic 的 Constitutional AI 论文。
+**生成的题目**:
+
+> **题目**: 以下关于 StatefulWidget 生命周期的说法,正确的是?  
+> A. initState() 可以多次调用  
+> B. dispose() 在 Widget 销毁时调用 ✅  
+> C. build() 只调用一次  
+> D. setState() 可以在 dispose() 后调用
+>
+> **解析**: 根据文档 [README.md:## 关键方法],dispose() 方法在 State 对象被永久移除时调用,用于释放资源。
+>
+> **来源**: `README.md:## 关键方法` (可点击跳转)
+
+### Agent 辅导示例
+
+```
+👤 用户: 这个项目是怎么实现间隔重复的?
+
+🤖 AI: 我看到项目中有 ReviewSchedulerService。
+      在回答之前,你能先告诉我,你理解的"间隔重复"
+      是什么原理吗?
+
+👤 用户: 就是根据记忆曲线,越熟悉的内容复习间隔越长?
+
+🤖 AI: 非常好! 那你觉得系统需要追踪哪些数据,
+      才能实现这个算法?
+      
+      提示: 看看 Question 模型里的字段
+      [lib/data/models/question.dart:15-42]
+```
+
+---
+
+## 📚 文档
+
+### 使用指南
+
+- [快速开始](docs/guides/QUICK_START.md) - 5 分钟上手
+- [导入文档](docs/guides/IMPORT_YOUR_DOCS.md) - 最佳实践和技巧
+- [自定义 Prompt](docs/guides/CUSTOMIZE_PROMPTS.md) - 调整 AI 行为
+
+### 架构文档
+
+- [系统概览](docs/architecture/SYSTEM_OVERVIEW.md) - 核心流程和设计理念
+- [数据模型](docs/architecture/DATA_MODEL.md) - ER 图和表结构
+- [AI Pipeline](docs/architecture/AI_PIPELINE.md) - 每个 AI Task 的设计
+
+### 开发者
+
+- [贡献指南](CONTRIBUTING.md) - 如何参与开发
+- [开发路线图](ROADMAP.md) - 未来计划
+- [更新日志](CHANGELOG.md) - 版本历史
+
+---
+
+## 🤝 贡献
+
+我们欢迎所有形式的贡献!
+
+- 🐛 [报告 Bug](https://github.com/你的用户名/duoduo/issues/new?template=bug_report.md)
+- 💡 [提出新功能](https://github.com/你的用户名/duoduo/issues/new?template=feature_request.md)
+- 📝 改进文档
+- 💻 提交代码
+
+### 好的第一个 Issue
+
+寻找标记为 `good first issue` 的任务:
+
+- [ ] 添加 PDF 导入支持
+- [ ] 改进 Markdown 表格解析
+- [ ] 添加西班牙语翻译
+- [ ] 为核心服务补充单元测试
+
+📖 **阅读**: [贡献指南](CONTRIBUTING.md)
+
+---
+
+## 🌟 启发来源
+
+本项目受以下项目启发:
+
+- [aicoding-cookbook](https://github.com/lili-luo/aicoding-cookbook) - Claude Code Skills 最佳实践
+- [Anki](https://apps.ankiweb.net/) - 间隔重复算法先驱
+- [Obsidian](https://obsidian.md/) - 个人知识管理理念
+
+---
+
+## 📄 许可
+
+本项目采用 [MIT License](LICENSE) 开源。
+
+---
+
+## 🙏 致谢
+
+感谢所有贡献者和使用者! ❤️
+
+### 贡献者
+
+<!-- ALL-CONTRIBUTORS-LIST:START -->
+<!-- 这里会自动生成贡献者列表 -->
+<!-- ALL-CONTRIBUTORS-LIST:END -->
+
+---
+
+## 📞 联系方式
+
+- **GitHub Issues**: [创建 Issue](https://github.com/你的用户名/duoduo/issues)
+- **Discussions**: [讨论区](https://github.com/你的用户名/duoduo/discussions)
+- **Email**: your-email@example.com
+- **Twitter**: [@duoduo_learning](https://twitter.com/duoduo_learning)
+
+---
+
+<div align="center">
+
+**如果觉得有帮助,请给个 ⭐ Star!**
+
+Made with ❤️ by the Duoduo Learning Team
+
+</div>
