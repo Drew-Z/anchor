@@ -39,7 +39,7 @@
 位置: `assets/examples/`
 
 ### 3. GitHub 配置 🔧
-- ✅ 用户名已更新为 `xuanli199`
+- ✅ 用户名已更新为 `bill`
 - ✅ 所有链接已修正
 - ✅ Issue/PR 模板已配置
 - ✅ 29 个提交已就绪推送
@@ -215,7 +215,7 @@ git push origin main
 ### GitHub 推送报错?
 ```bash
 # 如果是新仓库,首次推送:
-git remote add origin https://github.com/xuanli199/duoduo.git
+git remote add origin https://github.com/bill/duoduo.git
 git push -u origin main
 
 # 如果远程已有内容:

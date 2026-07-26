@@ -30,7 +30,7 @@ git clone https://github.com/your-username/duoduo.git
 cd duoduo
 
 # 添加上游仓库
-git remote add upstream https://github.com/xuanli199/duoduo.git
+git remote add upstream https://github.com/bill/duoduo.git
 ```
 
 ### 2. 安装开发环境
@@ -228,7 +228,7 @@ docs/
 - [ ] 知识图谱可视化
 - [ ] 离线模式优化
 
-查看所有 Issue: https://github.com/xuanli199/duoduo/issues
+查看所有 Issue: https://github.com/bill/duoduo/issues
 
 ---
 
@@ -326,7 +326,7 @@ git push origin feature/your-feature-name
 
 ### 创建有效的 Bug 报告
 
-使用 [Bug Report 模板](https://github.com/xuanli199/duoduo/issues/new?template=bug_report.md),包含:
+使用 [Bug Report 模板](https://github.com/bill/duoduo/issues/new?template=bug_report.md),包含:
 
 1. **Bug 描述**: 简洁明了地说明问题
 2. **复现步骤**:
@@ -351,7 +351,7 @@ git push origin feature/your-feature-name
 
 ### 使用 Feature Request 模板
 
-使用 [Feature Request 模板](https://github.com/xuanli199/duoduo/issues/new?template=feature_request.md),说明:
+使用 [Feature Request 模板](https://github.com/bill/duoduo/issues/new?template=feature_request.md),说明:
 
 1. **问题陈述**: 你遇到了什么问题?
 2. **建议方案**: 你希望如何解决?
@@ -360,7 +360,7 @@ git push origin feature/your-feature-name
 
 ### 讨论新功能
 
-在实现前,建议先在 [Discussions](https://github.com/xuanli199/duoduo/discussions) 讨论:
+在实现前,建议先在 [Discussions](https://github.com/bill/duoduo/discussions) 讨论:
 
 - 功能是否符合项目方向?
 - 实现复杂度如何?
@@ -395,13 +395,13 @@ git push origin feature/your-feature-name
 
 每一个贡献,无论大小,都让这个项目变得更好! ❤️
 
-你的名字将出现在 [Contributors](https://github.com/xuanli199/duoduo/graphs/contributors) 列表中。
+你的名字将出现在 [Contributors](https://github.com/bill/duoduo/graphs/contributors) 列表中。
 
 ---
 
 ## 📞 需要帮助?
 
-- 💬 在 [Discussions](https://github.com/xuanli199/duoduo/discussions) 提问
+- 💬 在 [Discussions](https://github.com/bill/duoduo/discussions) 提问
 - 📧 发送邮件至 your-email@example.com
 - 🐛 对于 Bug,请创建 Issue
 

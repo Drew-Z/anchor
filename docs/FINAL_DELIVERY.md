@@ -111,7 +111,7 @@
 - ✅ 技术博客草稿
 
 ### 待完成 (用户端)
-- ⏳ 确认 GitHub 账号 (xuanli199 或 ciallo-bill)
+- ⏳ 确认 GitHub 账号 (bill 或 ciallo-bill)
 - ⏳ 推送代码到 GitHub
 - ⏳ 录制 Demo 视频
 - ⏳ 制作应用截图
@@ -125,14 +125,14 @@
 
 **当前问题**: 
 ```
-remote: Permission to xuanli199/duoduo.git denied to ciallo-bill
+remote: Permission to bill/duoduo.git denied to ciallo-bill
 ```
 
 **解决方案** (二选一):
 
-#### 方案 A: 使用 xuanli199 账号
+#### 方案 A: 使用 bill 账号
 ```bash
-# 1. 在 GitHub 创建 xuanli199/duoduo 仓库
+# 1. 在 GitHub 创建 bill/duoduo 仓库
 # 2. 生成 Personal Access Token
 # 3. 推送代码
 git push -u origin main
@@ -144,7 +144,7 @@ git push -u origin main
 git remote set-url origin https://github.com/ciallo-bill/duoduo.git
 
 # 2. 批量替换文档中的用户名
-find docs README.md CONTRIBUTING.md -type f -exec sed -i 's/xuanli199/ciallo-bill/g' {} +
+find docs README.md CONTRIBUTING.md -type f -exec sed -i 's/bill/ciallo-bill/g' {} +
 
 # 3. 提交修改
 git add -A
@@ -267,7 +267,7 @@ git push -u origin main
 ## 💬 现在需要你做什么?
 
 ### 最紧急 (现在就做)
-1. **确认 GitHub 账号**: xuanli199 还是 ciallo-bill?
+1. **确认 GitHub 账号**: bill 还是 ciallo-bill?
 2. **推送代码**: 31 个提交等待上传
 3. **创建 GitHub 仓库**: 设置为 Public
 

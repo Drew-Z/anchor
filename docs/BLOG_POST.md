@@ -295,7 +295,7 @@ if (cache.has(cacheKey)) {
 
 ## 开源代码
 
-完整实现已开源: [github.com/xuanli199/duoduo](https://github.com/xuanli199/duoduo)
+完整实现已开源: [github.com/bill/duoduo](https://github.com/bill/duoduo)
 
 核心文件:
 - `lib/services/content_analyzer.dart` - Semantic Chunker
@@ -323,4 +323,4 @@ if (cache.has(cacheKey)) {
 
 **作者**: bill (多多学习项目维护者)  
 **发布时间**: 2026-07-26  
-**项目主页**: https://github.com/xuanli199/duoduo
+**项目主页**: https://github.com/bill/duoduo

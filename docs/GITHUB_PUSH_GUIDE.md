@@ -4,20 +4,20 @@
 
 推送代码时遇到权限错误:
 ```
-remote: Permission to xuanli199/duoduo.git denied to ciallo-bill.
-fatal: unable to access 'https://github.com/xuanli199/duoduo.git/': The requested URL returned error: 403
+remote: Permission to bill/duoduo.git denied to ciallo-bill.
+fatal: unable to access 'https://github.com/bill/duoduo.git/': The requested URL returned error: 403
 ```
 
-**原因**: 本地 git 凭据是 `ciallo-bill`,但远程仓库属于 `xuanli199`
+**原因**: 本地 git 凭据是 `ciallo-bill`,但远程仓库属于 `bill`
 
 ---
 
 ## 解决方案
 
-### 选项 1: 使用 xuanli199 账号 (推荐)
+### 选项 1: 使用 bill 账号 (推荐)
 
 #### 步骤 1: 创建 GitHub 仓库
-1. 访问 https://github.com/xuanli199
+1. 访问 https://github.com/bill
 2. 点击 "New repository"
 3. 仓库名: `duoduo`
 4. 描述: "来源可溯源的 AI 学习助手"
@@ -31,7 +31,7 @@ fatal: unable to access 'https://github.com/xuanli199/duoduo.git/': The requeste
 cd D:/workspace4Cursor/learn/duoduo
 git push -u origin main
 
-# 如果需要输入凭据,使用 xuanli199 的 GitHub Personal Access Token
+# 如果需要输入凭据,使用 bill 的 GitHub Personal Access Token
 ```
 
 #### 步骤 3: 生成 Personal Access Token (如果需要)
@@ -61,7 +61,7 @@ git remote set-url origin https://github.com/ciallo-bill/duoduo.git
 
 ### 选项 3: 添加 ciallo-bill 为协作者
 
-如果 `xuanli199` 是组织/团队账号,可以将 `ciallo-bill` 添加为协作者:
+如果 `bill` 是组织/团队账号,可以将 `ciallo-bill` 添加为协作者:
 
 1. 在 GitHub 仓库页面
 2. Settings → Collaborators
@@ -71,8 +71,8 @@ git remote set-url origin https://github.com/ciallo-bill/duoduo.git
 
 ## 推荐做法
 
-**如果 xuanli199 是你的主 GitHub 账号**:
-1. 在 GitHub 上创建 `xuanli199/duoduo` 仓库
+**如果 bill 是你的主 GitHub 账号**:
+1. 在 GitHub 上创建 `bill/duoduo` 仓库
 2. 生成 Personal Access Token
 3. 推送时使用 token
 
@@ -86,7 +86,7 @@ git remote set-url origin https://github.com/ciallo-bill/duoduo.git
 ## 你需要做什么
 
 告诉我:
-1. **xuanli199** 和 **ciallo-bill** 哪个是你想用于开源项目的主账号?
+1. **bill** 和 **ciallo-bill** 哪个是你想用于开源项目的主账号?
 2. 你是否已经在 GitHub 上创建了 `duoduo` 仓库?
 
 然后我会帮你完成推送和后续配置。

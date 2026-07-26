@@ -173,7 +173,7 @@
 
 ## 🗳️ 社区投票
 
-你最希望优先实现哪个功能? 在 [GitHub Discussions](https://github.com/xuanli199/duoduo/discussions) 投票!
+你最希望优先实现哪个功能? 在 [GitHub Discussions](https://github.com/bill/duoduo/discussions) 投票!
 
 当前热门需求:
 1. 🔥 PDF 文档支持 (128 票)
@@ -188,7 +188,7 @@
 
 我们欢迎社区贡献! 你可以:
 
-- 💻 **认领任务**: 查看 [Good First Issues](https://github.com/xuanli199/duoduo/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+- 💻 **认领任务**: 查看 [Good First Issues](https://github.com/bill/duoduo/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
 - 💡 **提出建议**: 在 Discussions 分享你的想法
 - 🐛 **报告 Bug**: 帮助我们改进质量
 - 📝 **改进文档**: 让项目更易上手
@@ -213,8 +213,8 @@
 
 ## 💬 反馈渠道
 
-- **功能请求**: [Feature Requests](https://github.com/xuanli199/duoduo/issues/new?template=feature_request.md)
-- **讨论**: [GitHub Discussions](https://github.com/xuanli199/duoduo/discussions)
+- **功能请求**: [Feature Requests](https://github.com/bill/duoduo/issues/new?template=feature_request.md)
+- **讨论**: [GitHub Discussions](https://github.com/bill/duoduo/discussions)
 - **邮件**: your-email@example.com
 
 ---

@@ -15,7 +15,7 @@
 ### 1. 克隆项目
 
 ```bash
-git clone https://github.com/xuanli199/duoduo.git
+git clone https://github.com/bill/duoduo.git
 cd duoduo
 ```
 
@@ -142,4 +142,4 @@ final questionsPerPoint = 3; // 每个知识点生成的题目数
 
 ---
 
-**遇到问题?** 在 [GitHub Issues](https://github.com/xuanli199/duoduo/issues) 提出,或查看 [常见问题文档](FAQ.md)
+**遇到问题?** 在 [GitHub Issues](https://github.com/bill/duoduo/issues) 提出,或查看 [常见问题文档](FAQ.md)

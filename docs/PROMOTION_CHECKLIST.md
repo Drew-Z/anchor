@@ -16,7 +16,7 @@
 - [x] READING_GUIDE.md - 阅读路径 ✨ 新增
 - [x] DRIFT_LOG.md - 文档-代码漂移清单 ✨ 新增
 - [x] BLOG_POST.md - 技术博客草稿 ✨ 新增
-- [x] GitHub 用户名已更新 (xuanli199)
+- [x] GitHub 用户名已更新 (bill)
 - [x] 所有文档已提交到 git
 
 ---
