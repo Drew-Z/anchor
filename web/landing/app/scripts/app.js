@@ -1,4 +1,4 @@
-import { getLocale, initializeLocale, setLocale, translate } from '../../scripts/i18n.js';
+import { getLocale, initializeLocale, setLocale, translate } from '../../scripts/i18n.js?v=20260727-2';
 import { DATA_VERSION, DATASETS, getDataset, textFor, validateDatasets } from './data.js';
 
 export const PROGRESS_STORAGE_KEY = 'anchor.demo.progress.v1';
