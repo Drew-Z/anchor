@@ -57,7 +57,8 @@ class UserStats {
       hearts: (map['hearts'] as int?) ?? 5,
       maxHearts: (map['max_hearts'] as int?) ?? 5,
       lastStudyDate: DateTime.fromMillisecondsSinceEpoch(
-        (map['last_study_date'] as int?) ?? DateTime.now().millisecondsSinceEpoch,
+        (map['last_study_date'] as int?) ??
+            DateTime.now().millisecondsSinceEpoch,
       ),
       dailyGoal: (map['daily_goal'] as int?) ?? 50,
       todayXp: (map['today_xp'] as int?) ?? 0,

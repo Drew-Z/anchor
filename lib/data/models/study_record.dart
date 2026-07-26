@@ -33,7 +33,8 @@ class StudyRecord {
       correctCount: (map['correct_count'] as int?) ?? 0,
       totalCount: (map['total_count'] as int?) ?? 0,
       lastStudiedAt: DateTime.fromMillisecondsSinceEpoch(
-        (map['last_studied_at'] as int?) ?? DateTime.now().millisecondsSinceEpoch,
+        (map['last_studied_at'] as int?) ??
+            DateTime.now().millisecondsSinceEpoch,
       ),
     );
   }
