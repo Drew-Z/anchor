@@ -16,6 +16,28 @@ import '../../shared/widgets/source_citation_block.dart';
 import '../knowledge_base/knowledge_library_error_state.dart';
 import 'programming_exercise_screen.dart';
 
+/// 知识点问答(Tutor)会话屏幕
+///
+/// **功能**: 用户选择知识点提问,AI 基于知识库中的原文和前置知识点进行讲解
+///
+/// **工作流程**:
+/// 1. 用户选择知识点或提出问题
+/// 2. 系统加载该知识点的:
+///    - 来源片段(SourceChunk): 支撑该知识点的原文
+///    - 前置知识点(Prerequisite): 需要先理解的基础概念
+/// 3. AI 基于这些上下文生成讲解(TutorExplanationTask)
+/// 4. 用户可以继续追问,形成多轮对话
+/// 5. 所有对话轮次保存到 TutorTurn 供后续回顾
+///
+/// **与 InterviewSession 的区别**:
+/// - InterviewSession: AI 主动提问,评估用户答案(面试模式)
+/// - TutorSession: 用户主动提问,AI 讲解(答疑模式)
+///
+/// **技术特点**:
+/// - 使用 GroundedLearningContext 确保讲解有原文依据
+/// - 自动加载前置知识点,帮助用户理解概念依赖
+/// - 支持从指定知识点开始(initialPoint)或直接追问(initialFollowUpQuestion)
+/// - 引用溯源:每次讲解都标注引用的原文片段(SourceCitationBlock)
 class TutorSessionScreen extends ConsumerStatefulWidget {
   final KnowledgePoint? initialPoint;
   final String? initialFollowUpQuestion;

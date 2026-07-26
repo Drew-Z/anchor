@@ -17,6 +17,28 @@ import '../../shared/widgets/duo_button.dart';
 import '../../shared/widgets/source_citation_block.dart';
 import 'review_agent_screen.dart';
 
+/// 对话式面试会话屏幕
+///
+/// **功能**: AI 作为面试官,逐个询问知识点,用户作答后 AI 评估并追问
+///
+/// **面试流程**:
+/// 1. 从知识库中筛选有来源依据的知识点
+/// 2. AI 生成面试问题(基于知识点和原文片段)
+/// 3. 用户作答
+/// 4. AI 评估答案(正确性/完整度/理解深度)
+/// 5. 根据评估结果:
+///    - 答得好 → 进入下一个知识点
+///    - 有遗漏 → AI 追问(follow-up question)
+/// 6. 完成后生成面试报告
+///
+/// **技术特点**:
+/// - 使用 GroundedLearningContext 确保问题基于真实原文
+/// - 追踪已问过的基础问题(_askedBasePointIds)和追问(_followedUpPointIds)
+/// - 支持从指定知识点开始(initialPoint)或直接追问(initialFollowUpQuestion)
+/// - 所有对话轮次保存到 InterviewTurn 供后续回顾
+///
+/// **数据流向**:
+/// KnowledgePoint + SourceChunk → InterviewQuestionTask → 用户作答 → AnswerEvaluationTask → 下一题/追问
 class InterviewSessionScreen extends ConsumerStatefulWidget {
   final KnowledgePoint? initialPoint;
   final String? initialFollowUpQuestion;

@@ -31,6 +31,22 @@ import 'agent_session_launch_screen.dart';
 import 'interview_session_detail_screen.dart';
 import 'project_interview_outcome_screen.dart';
 
+/// Agent 工作台主屏幕
+///
+/// **核心功能**:
+/// - 学习目标选择器(面试准备/项目学习/自由探索)
+/// - 项目面试结果入口(代码库分析结果)
+/// - 多种 Agent 会话类型入口:
+///   - 对话式面试(Interview Session): AI 逐个询问知识点
+///   - 知识点问答(Tutor Session): 用户提问,AI 基于知识库回答
+///   - 编程练习(Programming Exercise): 代码题实践
+/// - Agent 记忆索引(跨会话上下文)
+/// - 活跃检查点管理(学习进度追踪)
+///
+/// **技术特点**:
+/// - 使用 Riverpod 管理多种异步数据流
+/// - Alpha 功能反馈入口(diagnosticLines 传递诊断信息)
+/// - 根据选定学习目标动态加载工作区配置
 class AgentHomeScreen extends ConsumerWidget {
   final bool returnAfterSessionCompletion;
 
