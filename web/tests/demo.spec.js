@@ -20,6 +20,32 @@ test('landing and demo share a persistent bilingual locale', async ({ page }) =>
   await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
 });
 
+test('landing separates the Android Private Alpha from the static browser demo', async ({ page }) => {
+  const offOriginRequests = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).origin !== expectedOrigin) offOriginRequests.push(request.url());
+  });
+
+  await page.goto('/');
+  await expect(page.locator('.product-status')).toContainText('Android Private Alpha');
+  await expect(page.locator('.product-status')).toContainText('Local-first SQLite');
+  await expect(page.locator('.native-step')).toHaveCount(3);
+  await expect(page.locator('.native-disclosure')).toContainText('No public APK');
+  await expect(page.locator('.hero-note')).toContainText('static product sample');
+
+  const nativeImages = page.locator('.device-frame img');
+  await expect(nativeImages).toHaveCount(3);
+  for (let index = 0; index < 3; index += 1) {
+    await expect(nativeImages.nth(index)).toBeVisible();
+    await expect.poll(() => nativeImages.nth(index).evaluate((image) => image.naturalWidth)).toBeGreaterThan(0);
+  }
+
+  await page.locator('[data-locale="zh"]').click();
+  await expect(page.locator('.native-heading')).toContainText('Android 上的来源约束学习流程');
+  await expect(page.locator('.native-disclosure')).toContainText('不提供公开 APK');
+  expect(offOriginRequests).toEqual([]);
+});
+
 test('a learner can answer, inspect evidence, use tutor hints, and continue', async ({ page }) => {
   const offOriginRequests = [];
   page.on('request', (request) => {
@@ -154,9 +180,29 @@ test('captures the landing page with real demo media', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');
   await expect(page.locator('.hero-media')).toHaveCSS('background-image', /anchor-demo-preview\.webp/);
+  await expect(page.locator('#native-app')).toBeVisible();
+  const nativeSectionTop = await page.locator('#native-app').evaluate((element) => element.getBoundingClientRect().top);
+  expect(nativeSectionTop).toBeLessThan(900);
   const screenshot = await page.screenshot({ fullPage: true, path: 'test-results/evidence/anchor-landing-desktop.png' });
   expect(screenshot.byteLength).toBeGreaterThan(50_000);
 });
+
+for (const viewport of [
+  { name: 'tablet', width: 768, height: 1024 },
+  { name: 'mobile', width: 390, height: 844 },
+]) {
+  test(`landing keeps the product and next section visible on ${viewport.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await page.goto('/');
+    await expect(page.locator('h1')).toHaveText('Anchor Learning');
+    const nativeSectionTop = await page.locator('#native-app').evaluate((element) => element.getBoundingClientRect().top);
+    expect(nativeSectionTop).toBeLessThan(viewport.height);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
+    const screenshot = await page.screenshot({ fullPage: true, path: `test-results/evidence/anchor-landing-${viewport.name}.png` });
+    expect(screenshot.byteLength).toBeGreaterThan(30_000);
+  });
+}
 
 for (const viewport of [
   { name: 'desktop', width: 1440, height: 900 },

@@ -31,6 +31,7 @@
       </a>
 
       <nav id="primary-navigation" class="primary-nav" aria-label="Primary navigation" data-i18n-aria-label="a11y.primaryNav">
+        <a href="#native-app" data-i18n="nav.product">Android app</a>
         <a href="#workflow" data-i18n="nav.workflow">Workflow</a>
         <a href="#architecture" data-i18n="nav.architecture">Architecture</a>
         <a href="#demo" data-i18n="nav.demo">Demo</a>
@@ -54,9 +55,15 @@
       <div class="hero-media" aria-hidden="true"></div>
       <div class="hero-shade" aria-hidden="true"></div>
       <div class="shell hero-content">
-        <p class="eyebrow" data-i18n="hero.eyebrow">Traceable learning workspace</p>
+        <p class="eyebrow" data-i18n="hero.eyebrow">Android Private Alpha</p>
         <h1>Anchor Learning</h1>
-        <p class="hero-lead" data-i18n="hero.lead">Turn documentation and code into source-grounded practice. Every explanation stays connected to the exact passage that supports it.</p>
+        <p class="hero-lead" data-i18n="hero.lead">Turn technical documentation and code into source-grounded practice, Agent tutoring, and interview preparation. Every explanation stays connected to the evidence that supports it.</p>
+        <ul class="product-status" aria-label="Current product status" data-i18n-aria-label="a11y.productStatus">
+          <li><span aria-hidden="true"></span><strong data-i18n="status.alpha">Android Private Alpha</strong></li>
+          <li><span aria-hidden="true"></span><strong data-i18n="status.local">Local-first SQLite</strong></li>
+          <li><span aria-hidden="true"></span><strong data-i18n="status.grounded">Source-grounded</strong></li>
+          <li><span aria-hidden="true"></span><strong data-i18n="status.open">Open source</strong></li>
+        </ul>
         <div class="hero-actions">
           <a class="button button-primary" href="app/">
             <span data-i18n="actions.tryDemo">Try the demo</span>
@@ -64,7 +71,54 @@
           </a>
           <a class="button button-secondary" href="https://github.com/Drew-Z/anchor" target="_blank" rel="noreferrer" data-i18n="actions.viewSource">View source</a>
         </div>
-        <p class="hero-note" data-i18n="hero.note">The web demo uses bundled sample data and makes no AI requests.</p>
+        <p class="hero-note" data-i18n="hero.note">The browser demo is a static product sample. It uses bundled data and makes no AI requests.</p>
+      </div>
+    </section>
+
+    <section id="native-app" class="band band-native">
+      <div class="shell">
+        <div class="section-heading native-heading">
+          <p class="eyebrow" data-i18n="native.eyebrow">The native product</p>
+          <h2 data-i18n="native.title">A source-bound workflow on Android</h2>
+          <p data-i18n="native.intro">The Private Alpha connects imported technical sources to a local learning Agent, evidence-aware interview practice, and on-device data controls.</p>
+        </div>
+
+        <div class="native-gallery">
+          <article class="native-step">
+            <div class="native-step-copy">
+              <span class="native-number">01</span>
+              <h3 data-i18n="native.sourceTitle">Start from inspectable evidence</h3>
+              <p data-i18n="native.sourceBody">The Agent sets a learning target from imported documentation or code and previews the exact source chunk before the session begins.</p>
+            </div>
+            <figure class="device-frame">
+              <img src="assets/android-source-workflow.png" width="1080" height="2412" loading="lazy" alt="Anchor Learning Android Agent session showing a learning target and source evidence preview" data-i18n-alt="native.sourceAlt">
+            </figure>
+          </article>
+
+          <article class="native-step">
+            <div class="native-step-copy">
+              <span class="native-number">02</span>
+              <h3 data-i18n="native.interviewTitle">Practice in interview mode</h3>
+              <p data-i18n="native.interviewBody">Interview questions stay tied to project evidence and a defined learning target, with room to explain tradeoffs in your own words.</p>
+            </div>
+            <figure class="device-frame">
+              <img src="assets/android-interview-mode.png" width="1080" height="2412" loading="lazy" alt="Anchor Learning Android interview mode showing a source-bound technical question" data-i18n-alt="native.interviewAlt">
+            </figure>
+          </article>
+
+          <article class="native-step">
+            <div class="native-step-copy">
+              <span class="native-number">03</span>
+              <h3 data-i18n="native.privacyTitle">Keep data under local control</h3>
+              <p data-i18n="native.privacyBody">Learning data and product events stay on device. Backups can be exported and restored, while credentials and model configuration remain excluded.</p>
+            </div>
+            <figure class="device-frame device-frame-cropped">
+              <img src="assets/android-local-privacy.png" width="1080" height="1600" loading="lazy" alt="Anchor Learning Android local data and privacy controls with backup and restore actions" data-i18n-alt="native.privacyAlt">
+            </figure>
+          </article>
+        </div>
+
+        <p class="native-disclosure" data-i18n="native.disclosure">Captured on a physical Android device from the current Private Alpha. No public APK is being offered on this page.</p>
       </div>
     </section>
 
@@ -168,7 +222,6 @@
       <div class="footer-links">
         <a href="https://github.com/Drew-Z/anchor" target="_blank" rel="noreferrer">GitHub</a>
         <a href="https://github.com/Drew-Z/anchor/blob/main/docs/architecture/SYSTEM_OVERVIEW.md" target="_blank" rel="noreferrer" data-i18n="footer.architecture">Architecture</a>
-        <a href="https://biau.playlab.eu.cc" target="_blank" rel="noreferrer">BIAU Port</a>
       </div>
     </div>
   </footer>
