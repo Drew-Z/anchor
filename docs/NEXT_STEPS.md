@@ -1,6 +1,11 @@
 # 下一步行动计划
 
-本文档是 [OPEN_SOURCE_PLAN.md](OPEN_SOURCE_PLAN.md) 的执行版,列出了本周可以立即开始的任务。
+本文档保留早期开源准备阶段的执行草案。当前发布状态以
+[OPEN_SOURCE_CHECKLIST.md](OPEN_SOURCE_CHECKLIST.md) 和
+[OPEN_SOURCE_READY.md](OPEN_SOURCE_READY.md) 为准。
+
+> 更新于 2026-08-24：仓库质量门禁已完成；Private Alpha 仍因真实外部证据不足保持 `HOLD`。
+> `.env.example` 只说明配置边界，应用凭据必须在“设置 → AI 配置”中保存。
 
 ---
 
@@ -29,7 +34,7 @@
 - [x] 项目根文件
   - [x] README.md - 完整改写
   - [x] LICENSE - MIT 许可
-  - [x] .env.example - 配置模板
+  - [x] .env.example - 配置边界说明（不是应用配置入口）
 
 ### 代码改进(4 小时)
 - [x] 实现 SemanticChunker 服务
@@ -38,7 +43,10 @@
 
 ---
 
-## 📋 待办事项(优先级排序)
+## 📋 历史待办事项(不代表当前阻塞)
+
+以下清单来自早期开源准备阶段。Git 提交整理、Demo 录制、截图和推广素材均不构成
+Private Alpha 的技术放行条件；当前真正的阻塞项请查看发布清单。
 
 ### 高优先级 - 本周完成
 
@@ -74,7 +82,7 @@ git commit -m "docs: prepare for open source release
 - Add CONTRIBUTING guide
 - Add ROADMAP and CHANGELOG
 - MIT License
-- .env.example template"
+- .env.example configuration boundary, not a runtime credential entry point"
 
 # 第四批: 集成改进
 git add lib/features/ingestion/project_import_screen.dart
