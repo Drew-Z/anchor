@@ -5,7 +5,7 @@ isolated named candidate profiles are implemented as of 2026-07-16.
 
 ## Purpose
 
-Duoduo does not treat a successful ping, a model-list response, or a familiar
+Anchor Learning does not treat a successful ping, a model-list response, or a familiar
 model name as proof that a provider is suitable for formal learning tasks. A
 provider/model/protocol combination becomes an approved learning profile only
 after the same fixed task set passes inside the App's normal HTTP stack.
@@ -39,20 +39,24 @@ Blocking provider failures stop later cases to avoid wasting quota. Examples
 include missing or invalid credentials, client restriction, unsupported model,
 unsupported protocol, rate limiting, network failure, and upstream outage.
 
-Each case has a 60-second runner timeout and the complete matrix has a four-minute
-budget. A timeout is persisted as an actionable failed case and later cases are
-skipped. Provider and unknown failures retain the actual elapsed request time so
-the UI does not report a misleading zero-second failure.
+Each ordinary case has a 60-second runner timeout. The Dart coding case has a
+120-second budget because reasoning-capable models can take longer to return a
+complete function and both fixed examples. The complete matrix still has a
+four-minute budget. A timeout is persisted as an actionable failed case and later
+cases are skipped. Provider and unknown failures retain the actual elapsed request
+time so the UI does not report a misleading zero-second failure.
+
+A provider dashboard can still show a completed request after the App reports a
+timeout. The runner deadline applies to when the App receives a usable complete
+response, while a gateway may continue upstream generation after the local Future
+has timed out. Such a late completion can still be billed by the provider, but it
+does not satisfy the latency contract and is not counted as a passed case.
 
 ## Security Boundary
 
 - API keys are provider-scoped and stored through `flutter_secure_storage`.
 - Base URL, requested model, and protocol are stored under a provider-scoped
   `ai_profile.<provider>.*` namespace; they are not shared between profiles.
-- Legacy plaintext `ai_api_key` and `openai_api_key` preferences migrate once
-  and are deleted.
-- Legacy global model, base URL, and protocol values migrate only to the active
-  provider, so migration cannot silently populate every named profile.
 - Settings never read a saved key back into the text field.
 - Acceptance reports contain no credential field.
 - Saved endpoints remove user info, query parameters, and fragments before
@@ -64,7 +68,7 @@ the UI does not report a misleading zero-second failure.
 
 ## Named Candidate Profiles
 
-Duoduo exposes two durable operator-facing candidate slots:
+Anchor Learning exposes two durable operator-facing candidate slots:
 
 - `custom_grok_primary`: `Grok 4.5 通道（主）`
 - `custom_mimo_fallback`: `Mimo 通道（备）`
@@ -76,7 +80,7 @@ remains available for unrelated development configurations.
 
 Both named slots start with Responses selected and with no endpoint, model, or
 credential embedded in the App. The primary/fallback labels express an operator
-preference only: Duoduo does not automatically retry, route, or fail over from
+preference only: Anchor Learning does not automatically retry, route, or fail over from
 one profile to the other. A profile name, model name, or another profile's
 `5/5` report never grants approval.
 
@@ -136,11 +140,34 @@ Real poem and small JSON tasks sometimes succeeded externally for `gpt-5.5` or
   diagnostic does not satisfy the normal Dart/Dio client gate, and no endpoint,
   credential, configuration, or response was persisted.
 
-All six remain unapproved. Duoduo now has durable Grok-primary and Mimo-fallback
-candidate slots, but neither slot contains or implies an approved default or
-backup relay. Each populated slot must pass all five tasks in the normal
+The exact `1.0.0+2005` Grok-primary profile has now passed the five-task matrix
+on the signed release APK. Anchor Learning still has durable Grok-primary and
+Mimo-fallback candidate slots, but the Mimo fallback remains unapproved and no
+slot implies an approved default for formal cohort use. Each populated slot must pass all five tasks in the normal
 Dart/Dio client without identity spoofing. Approval belongs only to its exact
 provider, sanitized endpoint, requested model, and protocol identity.
+
+## Current Device Result
+
+The signed formal-ID candidate `1.0.0+2005` completed the release-day technical
+matrix on the physical OnePlus PGP110 after network connectivity was restored.
+The App showed `5/5`, `117.3 seconds`, `8,325` tokens, and gateway model
+`grok-4.6`. The sanitized artifact-bound record is
+`docs/TECHNICAL_MODEL_ACCEPTANCE_2026-08-26_2005.md`. This run used a
+participant-owned credential and does not satisfy controlled-credential governance.
+
+On 2026-08-26, the previous Arm64 debug candidate (`1.0.0+2002`, APK SHA-256
+`ceb89e37a22df7bb400e5795bbfda694f576a5cd5455f09ce3d3c48d838face4`) completed
+the fixed matrix on a physical OnePlus PGP110 (Android 15 / API 35). The App's
+normal Chat Completions path used gateway model `grok-4.6` and reported `5/5`
+passed in 131.2 seconds with 8,271 total tokens. The five cases were structured
+JSON, a Chinese regulated verse, Dart code with two examples, claim/citation
+binding, and evidence-insufficient refusal.
+
+This is historical technical-candidate evidence, not evidence for the current
+`1.0.0+2005` build or release-day approval: the readiness
+gate still requires a controlled credential scope, an assigned data-processing
+owner, and the formal evidence record bound to the exact release artifact.
 
 ## Official Evidence
 
@@ -188,7 +215,7 @@ seconds. The resulting `app-debug.apk` is 165,967,277 bytes with SHA-256
 APK inspection found 556 ZIP entries, `classes.dex`, and Flutter native
 libraries for `arm64-v8a`, `armeabi-v7a`, and `x86_64`. Android build-tools 37
 verified the debug certificate with APK Signature Scheme v2. Package metadata
-is `com.example.dlg_q`, version `1.0.0` (1), min SDK 24, target SDK 36, and
+is `cc.eu.playlab.anchor`, version `1.0.0` (1), min SDK 24, target SDK 36, and
 compile SDK 37. AGP built-in Kotlin migration, compile-SDK support-range, and
 SDK XML warnings remain non-blocking production-toolchain debt.
 

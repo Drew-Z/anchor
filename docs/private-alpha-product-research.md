@@ -1,18 +1,18 @@
-# Duoduo Private Alpha Product Research
+# Anchor Learning Private Alpha Product Research
 
 Date: 2026-07-16
 
 ## Research Question
 
-How should Duoduo turn its existing source-grounded local learning Agent into a
+How should Anchor Learning turn its existing source-grounded local learning Agent into a
 private-alpha product for developers who need to understand and explain their
 own AI application projects while learning the related programming knowledge?
 
 This research distinguishes three evidence classes:
 
-- `Observed`: behavior verified in the current Duoduo codebase and test suite.
+- `Observed`: behavior verified in the current Anchor Learning codebase and test suite.
 - `Sourced`: behavior stated in a fetched first-party product or research page.
-- `Hypothesis`: a Duoduo product choice that must be tested with alpha users.
+- `Hypothesis`: a Anchor Learning product choice that must be tested with alpha users.
 
 Alpha targets in this document are hypotheses. They are not presented as
 industry benchmarks.
@@ -28,10 +28,10 @@ only from the fetched text. Native web search was not used.
 Evidence was saved under:
 
 ```text
-C:\tmp\smart-search-evidence\20260716-duoduo-private-alpha
+C:\tmp\smart-search-evidence\20260716-anchor-learning-private-alpha
 ```
 
-## Current Duoduo Baseline
+## Current Anchor Learning Baseline
 
 The product is not starting from a chat prototype. The current implementation
 already has these observed capabilities:
@@ -46,8 +46,8 @@ already has these observed capabilities:
   contracts.
 - Claim-level citation gates, partial/refused outcomes, deterministic retrieval
   evaluation, and a fixed source-grounded golden path.
-- Provider-scoped API keys stored through `flutter_secure_storage`, migration of
-  legacy plaintext keys, Responses and Chat Completions routing, usage capture,
+- Provider-scoped API keys stored through `flutter_secure_storage`, Responses and
+  Chat Completions routing, usage capture,
   diagnostics, and a fixed five-task model acceptance gate.
 
 The current product gaps are primarily product-facing:
@@ -64,25 +64,25 @@ The current product gaps are primarily product-facing:
 
 ## Adjacent Product Findings
 
-| Product | First-party evidence | Mechanism worth borrowing | Boundary for Duoduo |
+| Product | First-party evidence | Mechanism worth borrowing | Boundary for Anchor Learning |
 | --- | --- | --- | --- |
-| NotebookLM | Google states that flashcards and quizzes are generated from user documents, are grounded entirely in sources, and can explain answers with citations to original material. Its Learning Guide uses probing questions and step-by-step explanations. | Make each generated learning action visibly source-derived; allow explanation and deeper questioning from the same evidence. | Duoduo should specialize in code/project understanding, interview performance, durable weak-point memory, and next review rather than reproduce a general notebook studio. |
-| ChatGPT Study Mode | OpenAI describes Socratic questions, hints, self-reflection, scaffolded responses, personalization, and knowledge checks; it also says the initial behavior was released through instructions to learn from real feedback despite possible inconsistency. | Calibrate from the learner's goal and current ability; prefer active participation over immediate answer delivery; use alpha feedback to improve behavior. | Duoduo's formal learning surfaces must remain constrained by stored sources and deterministic policy instead of relying only on conversational instructions. |
-| Anki | The Anki manual identifies active recall and spaced repetition as its core mechanisms: attempting recall strengthens memory, failed recall reveals relearning needs, and review intervals expand with ease. | Measure retrieval attempts and schedule the next review rather than count passive reading. | Duoduo should schedule concepts, interview answers, and programming boundaries with evidence context, not become a general flashcard editor in Alpha. |
+| NotebookLM | Google states that flashcards and quizzes are generated from user documents, are grounded entirely in sources, and can explain answers with citations to original material. Its Learning Guide uses probing questions and step-by-step explanations. | Make each generated learning action visibly source-derived; allow explanation and deeper questioning from the same evidence. | Anchor Learning should specialize in code/project understanding, interview performance, durable weak-point memory, and next review rather than reproduce a general notebook studio. |
+| ChatGPT Study Mode | OpenAI describes Socratic questions, hints, self-reflection, scaffolded responses, personalization, and knowledge checks; it also says the initial behavior was released through instructions to learn from real feedback despite possible inconsistency. | Calibrate from the learner's goal and current ability; prefer active participation over immediate answer delivery; use alpha feedback to improve behavior. | Anchor Learning's formal learning surfaces must remain constrained by stored sources and deterministic policy instead of relying only on conversational instructions. |
+| Anki | The Anki manual identifies active recall and spaced repetition as its core mechanisms: attempting recall strengthens memory, failed recall reveals relearning needs, and review intervals expand with ease. | Measure retrieval attempts and schedule the next review rather than count passive reading. | Anchor Learning should schedule concepts, interview answers, and programming boundaries with evidence context, not become a general flashcard editor in Alpha. |
 | RemNote | RemNote advertises one-click card creation from files or links followed by spaced-repetition practice across devices. | Keep source-to-practice setup short and make the next review immediately actionable. | Broad file/media ingestion and cross-device parity are later expansion paths; Alpha first proves the local project interview loop. |
-| DeepWiki | Devin documents automatic repository wikis with architecture diagrams, source links, summaries, contextual questions, and explicit repo notes/pages to steer coverage; it warns AI responses may contain mistakes. | Let users direct which repository areas matter, expose file/line evidence, and produce a navigable project model. | A wiki is an intermediate representation. Duoduo's outcome is that the project owner can retrieve, explain, defend, and revisit the implementation. |
-| Sourcegraph Cody | Sourcegraph describes retrieval of context from local and remote codebases, files, symbols, APIs, and usage patterns for code understanding and editing. | Context selection must understand repository structure and let users focus or exclude areas. | Duoduo is not an IDE coding assistant in Alpha; it converts selected project evidence into an assessed learning and interview loop. |
+| DeepWiki | Devin documents automatic repository wikis with architecture diagrams, source links, summaries, contextual questions, and explicit repo notes/pages to steer coverage; it warns AI responses may contain mistakes. | Let users direct which repository areas matter, expose file/line evidence, and produce a navigable project model. | A wiki is an intermediate representation. Anchor Learning's outcome is that the project owner can retrieve, explain, defend, and revisit the implementation. |
+| Sourcegraph Cody | Sourcegraph describes retrieval of context from local and remote codebases, files, symbols, APIs, and usage patterns for code understanding and editing. | Context selection must understand repository structure and let users focus or exclude areas. | Anchor Learning is not an IDE coding assistant in Alpha; it converts selected project evidence into an assessed learning and interview loop. |
 
 ## Measurement And Trust Findings
 
 - The Google HEART paper provides a reusable process for mapping product goals
-  to user-centered metrics. Duoduo uses the categories as an organizing frame,
+  to user-centered metrics. Anchor Learning uses the categories as an organizing frame,
   not as preset thresholds.
 - NIST describes AI risk management as lifecycle work across design,
   development, use, and evaluation. Product release controls therefore need
   traceability, testing, user-visible limitations, monitoring, and recovery;
   model output quality cannot be treated as a one-time prompt decision.
-- The existing Duoduo correctness work already applies stronger source controls
+- The existing Anchor Learning correctness work already applies stronger source controls
   than most adjacent learning products: AI output is not a source, formal claims
   require stored evidence, and insufficient evidence becomes partial or refused
   output. Productization should make these controls understandable rather than
