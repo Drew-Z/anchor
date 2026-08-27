@@ -1,24 +1,23 @@
-# 项目重命名完成总结
+# Anchor Learning 品牌说明
 
-## ✅ 重命名内容
+## ✅ 当前命名状态
 
-### 项目名称变更
-- **旧名称**: duoduo / 多多学习 / Duoduo Learning
-- **新名称**: Anchor Learning (锚学)
+### 项目名称
+- **正式名称**: Anchor Learning (锚学)
 - **英文简称**: Anchor
 - **Tagline**: Anchor your knowledge, trace every insight (锚定知识,溯源每一个洞见)
 
-### 品牌关联
-- **主站**: [BIAU PORT (泊岸)](https://biau.playlab.eu.cc)
-- **品牌系列**: 泊岸系列实验项目
-- **意象呼应**: 泊岸需要抛锚 → 知识需要锚定
+### 产品入口
+- **项目主页**: [anchor.playlab.eu.cc](https://anchor.playlab.eu.cc)
+- **源码仓库**: [github.com/Drew-Z/anchor](https://github.com/Drew-Z/anchor)
+- **应用标识**: `cc.eu.playlab.anchor`
 
 ---
 
 ## 📝 已更新文件 (23 个)
 
 ### 核心文档
-- ✅ README.md - 全新 Hero Section + BIAU PORT 品牌关联
+- ✅ README.md - 当前产品定位、Web Demo 边界和原生应用说明
 - ✅ CONTRIBUTING.md - 更新项目名称引用
 - ✅ ROADMAP.md - 更新所有项目名称
 - ✅ CHANGELOG.md - 更新历史记录
@@ -53,7 +52,7 @@
 - **仓库名**: `anchor`
 - **完整地址**: https://github.com/Drew-Z/anchor
 - **简短描述**: ⚓ Anchor your knowledge with full source traceability | Turn docs into AI quizzes that trace back to source
-- **主站链接**: https://biau.playlab.eu.cc
+- **主站链接**: https://anchor.playlab.eu.cc
 
 ### 标签 (Topics)
 ```
@@ -67,30 +66,26 @@ personal-learning, knowledge-management, study-assistant
 
 ## 🎯 下一步操作
 
-### 1. 创建 GitHub 仓库 (5 分钟)
+### 1. 核对 GitHub 仓库 (5 分钟)
 ```bash
 # 在 GitHub 网页操作:
-1. 访问 https://github.com/new
-2. Repository name: anchor
-3. Description: (复制上面的简短描述)
-4. Public
-5. 不要初始化 README (我们已经有了)
-6. Create repository
+1. 访问 https://github.com/Drew-Z/anchor
+2. 核对仓库描述、主页链接和 Topics
+3. 确认默认分支和当前产品文档一致
 ```
 
-### 2. 推送代码 (1 分钟)
+### 2. 推送代码（仅在明确授权时）
 ```bash
 # 在本地执行:
 cd D:/workspace4Cursor/learn/anchor
-git remote set-url origin https://github.com/Drew-Z/anchor.git
-git push -u origin main
+git push origin <reviewed-branch>
 ```
 
 ### 3. 配置仓库设置 (3 分钟)
 参考 `GITHUB_SETUP.md` 完成:
-- [ ] 添加 Topics 标签
-- [ ] 设置网站链接为 https://biau.playlab.eu.cc
-- [ ] 创建第一个 Release (v0.1.0)
+- [ ] 核对 Topics 标签
+- [ ] 设置网站链接为 https://anchor.playlab.eu.cc
+- [ ] 在 Private Alpha cohort 完成后再创建正式 Release
 
 ### 4. 社区推广 (本周完成)
 - [ ] 录制 Demo 视频 (3-5 分钟)
@@ -102,7 +97,7 @@ git push -u origin main
 ## 📊 推广素材准备度
 
 ### 已完成 ✅
-- ✅ 项目重命名和品牌定位
+- ✅ 产品命名和品牌定位
 - ✅ 完整文档体系 (18 篇)
 - ✅ GitHub 配置指南
 - ✅ 中英双语社区文案
@@ -121,22 +116,17 @@ git push -u origin main
 
 ### 为什么选择 Anchor?
 
-1. **与主站呼应** 🌊
-   - BIAU PORT (泊岸) - 技术港湾
-   - Anchor (锚) - 船只停靠的关键
-   - 形成统一的品牌意象
-
-2. **符合产品特性** ⚓
+1. **符合产品特性** ⚓
    - **锚定来源** - Citation Verification
    - **固定记忆** - Spaced Repetition
    - **可追溯** - 每个知识点都有"锚点"
 
-3. **国际化友好** 🌍
+2. **国际化友好** 🌍
    - 简短(6 字母)
    - 发音简单
    - 寓意明确
 
-4. **情感共鸣** ❤️
+3. **情感共鸣** ❤️
    - 知识漂浮不定 → 需要锚定
    - 学习缺乏方向 → 锚提供稳定
    - 遗忘难以避免 → 锚固定记忆
@@ -158,7 +148,7 @@ git push -u origin main
 
 **重命名完成时间**: 2026-07-26  
 **维护者**: bill  
-**主站**: [BIAU PORT (泊岸)](https://biau.playlab.eu.cc)  
+**主站**: [Anchor Learning](https://anchor.playlab.eu.cc)
 **项目地址**: https://github.com/Drew-Z/anchor
 
-🎉 **准备就绪,可以推送到 GitHub 了!**
+当前仓库和主页已建立；正式发布仍以 Private Alpha readiness 和 cohort 证据为准。

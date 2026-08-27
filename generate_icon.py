@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Generate app icon for 多邻学 - a graduation cap on green rounded square."""
+"""Generate Anchor Learning app icons for Android and the Web."""
 from PIL import Image, ImageDraw, ImageFilter
 import math
-import os
+from pathlib import Path
 
 # Colors
 GREEN = (88, 204, 2)       # #58CC02 - Duolingo green
@@ -138,7 +138,8 @@ def create_icon(size):
     return img
 
 def main():
-    base_dir = '/Users/xuanli/Downloads/dlg-q/android/app/src/main/res'
+    repo_root = Path(__file__).resolve().parent
+    android_res_dir = repo_root / 'android' / 'app' / 'src' / 'main' / 'res'
     
     sizes = {
         'mipmap-mdpi': 48,
@@ -150,7 +151,8 @@ def main():
     
     for folder, size in sizes.items():
         img = create_icon(size)
-        path = os.path.join(base_dir, folder, 'ic_launcher.png')
+        path = android_res_dir / folder / 'ic_launcher.png'
+        path.parent.mkdir(parents=True, exist_ok=True)
         img.save(path, 'PNG')
         print(f'Saved {path} ({size}x{size})')
     
@@ -164,28 +166,29 @@ def main():
         # Apply mask
         result = Image.new('RGBA', (size, size), (0, 0, 0, 0))
         result.paste(img, (0, 0), mask)
-        path = os.path.join(base_dir, folder, 'ic_launcher_round.png')
+        path = android_res_dir / folder / 'ic_launcher_round.png'
         result.save(path, 'PNG')
         print(f'Saved {path} ({size}x{size})')
     
     # Also save a high-res version for web/favicon
-    web_dir = '/Users/xuanli/Downloads/dlg-q/web'
+    web_dir = repo_root / 'web'
+    (web_dir / 'icons').mkdir(parents=True, exist_ok=True)
     for web_size in [192, 512]:
         img = create_icon(web_size)
-        path = os.path.join(web_dir, 'icons', f'Icon-{web_size}.png')
+        path = web_dir / 'icons' / f'Icon-{web_size}.png'
         img.save(path, 'PNG')
         print(f'Saved {path} ({web_size}x{web_size})')
     
     # Maskable versions
     for web_size in [192, 512]:
         img = create_icon(web_size)
-        path = os.path.join(web_dir, 'icons', f'Icon-maskable-{web_size}.png')
+        path = web_dir / 'icons' / f'Icon-maskable-{web_size}.png'
         img.save(path, 'PNG')
         print(f'Saved {path} ({web_size}x{web_size})')
     
     # Favicon
     img = create_icon(32)
-    path = os.path.join(web_dir, 'favicon.png')
+    path = web_dir / 'favicon.png'
     img.save(path, 'PNG')
     print(f'Saved {path} (32x32)')
     

@@ -30,7 +30,7 @@ ai-tutor, personal-learning, knowledge-management, study-assistant
 2. Click **⚙️ Settings** (top right of About box)
 3. Fill in:
    - **Description**: ⚓ Anchor your knowledge with full source traceability | Turn docs into AI quizzes that trace back to source
-   - **Website**: https://biau.playlab.eu.cc
+   - **Website**: https://anchor.playlab.eu.cc
    - **Topics**: (add the tags above one by one)
    - ✅ Check "Use GitHub Pages" if you want to host docs
 
@@ -49,7 +49,6 @@ If you want a custom preview image when sharing on social media:
 ⚓ Anchor Learning
 Turn Docs → AI Quizzes → Traceable Answers
 Built with Flutter • MIT License
-From BIAU PORT
 ```
 
 ---
@@ -104,9 +103,6 @@ Use this when posting to Chinese communities:
 - Question Validator: 二次核验答案准确性  
 - Semantic Chunking: 保持语义完整性
 
-**项目名的由来**:
-Anchor (锚) 来自我的主站 [BIAU PORT (泊岸)](https://biau.playlab.eu.cc) —— 船需要抛锚才能稳定停靠,知识也需要"锚定"才能记得牢固。
-
 **开源地址**: https://github.com/Drew-Z/anchor  
 **技术栈**: Flutter + SQLite + OpenAI API  
 **许可**: MIT
@@ -145,9 +141,6 @@ Existing learning apps either have fixed content or AI-generated questions that 
 - Question Validator: Cross-checks answers for accuracy
 - Semantic Chunking: Preserves context integrity
 
-**The Name**:
-"Anchor" comes from my main site [BIAU PORT](https://biau.playlab.eu.cc)—ships need anchors to dock securely, and knowledge needs to be "anchored" to stick.
-
 **Repo**: https://github.com/Drew-Z/anchor  
 **Stack**: Flutter + SQLite + OpenAI API  
 **License**: MIT
@@ -174,4 +167,4 @@ Feedback welcome! 🚀
 
 **Created**: 2026-07-26  
 **Project**: Anchor Learning  
-**From**: BIAU PORT (泊岸)
+**Website**: https://anchor.playlab.eu.cc
