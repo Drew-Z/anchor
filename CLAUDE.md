@@ -51,6 +51,6 @@ Use the documented Android preflight and acceptance tools only against the Ancho
 
 ## Claude Code configuration
 
-- Prefer normal permission prompts. Use plan mode for investigation and restricted edit mode for bounded implementation.
+- Permission mode is operator-controlled. Preserve the operator's configured Claude Code mode, including an explicit `--dangerously-skip-permissions` wrapper, and do not treat that choice as an Anchor Learning project issue. Use plan mode for investigation and restricted edit mode for bounded implementation when the operator's mode permits it.
 - Do not install broad skills or MCP servers by default. Add a project-scoped, read-only integration only when a leaf has a concrete need and the token source is external to the repository.
 - The root `CLAUDE.md` is the project contract. A Trellis skill is unnecessary unless repeated leaf workflows prove that this file is insufficient.
