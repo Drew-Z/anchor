@@ -63,7 +63,7 @@
 # 贡献指南
 
 ## 开发环境搭建
-1. Flutter 3.24+
+1. Flutter 3.44.8 stable（与 CI 一致；Dart 最低约束见 `pubspec.yaml`）
 2. 可选:本地 AI 模型(Ollama)
 
 ## 项目结构

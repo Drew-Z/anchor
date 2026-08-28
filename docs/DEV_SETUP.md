@@ -8,7 +8,8 @@
 
 ### 1. Flutter SDK
 
-- **版本**: Flutter 3.24.0 或更高
+- **推荐版本**: Flutter 3.44.8 stable，与 CI 保持一致
+- **已有 release 候选**: `1.0.0+2005` 由 Flutter 3.44.6 构建；这是产物追溯信息，不是当前开发环境推荐版本
 - **安装**: [Flutter 官方安装指南](https://flutter.dev/docs/get-started/install)
 - **验证安装**:
   ```bash
@@ -17,7 +18,8 @@
 
 ### 2. Dart SDK
 
-- Flutter 3.24.0 已包含 Dart 3.5.0+
+- Flutter 3.44.8 已包含匹配的 Dart SDK
+- `pubspec.yaml` 的最低 Dart SDK 约束为 `^3.5.0`；它表示依赖解析下限，不代表推荐的 Flutter 工具链版本
 - 无需单独安装
 
 ### 3. IDE / 编辑器

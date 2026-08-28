@@ -82,7 +82,9 @@ The browser demo uses bundled sample data and scripted tutor hints. It does not 
 
 ### 前置要求
 
-- Flutter 3.24+
+- Flutter 3.44.8 stable（本地开发与 CI 推荐版本）
+- Dart SDK 无需单独安装；项目最低约束为 Dart `^3.5.0`
+- 已归档的 `1.0.0+2005` release 候选实际由 Flutter 3.44.6 / Dart 3.12.2 构建，复核该产物时应保持原工具链记录
 - 兼容 OpenAI 协议的模型 profile（凭据在应用内保存）
 
 ### 安装步骤
