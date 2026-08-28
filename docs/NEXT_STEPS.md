@@ -1,11 +1,25 @@
 # 下一步行动计划
 
-本文档保留早期开源准备阶段的执行草案。当前发布状态以
+本文档保留早期开源准备阶段的执行草案。早期清单仅作历史参考，当前发布状态以
 [OPEN_SOURCE_CHECKLIST.md](OPEN_SOURCE_CHECKLIST.md) 和
 [OPEN_SOURCE_READY.md](OPEN_SOURCE_READY.md) 为准。
 
-> 更新于 2026-08-24：仓库质量门禁已完成；Private Alpha 仍因真实外部证据不足保持 `HOLD`。
+> 更新于 2026-08-28：仓库质量门禁已完成；Private Alpha 仍因真实外部证据不足保持 `HOLD`。
 > `.env.example` 只说明配置边界，应用凭据必须在“设置 → AI 配置”中保存。
+
+## 当前有效队列
+
+以下事项取代本文档后面的早期时间估算和草案任务：
+
+1. 在获得明确授权后推送 `codex/anchor-web-demo`，同步 PR #1 的验证数量和最新 CI 记录。
+2. 在获得明确授权后合并 PR，并将 `web/landing` 部署到
+   `https://anchor.playlab.eu.cc/`，随后执行官网和 `/app/` smoke check。
+3. 临近发布窗口，用同一 `1.0.0+2005` 签名候选重新完成真机与模型五项验收。
+4. 执行 A01-A10 正式 cohort 及 D0/D7/D14 观察，形成匿名外部证据并运行 readiness evaluator。
+5. 只有 evaluator 返回 `GO` 后，才进入 Private Alpha 分发；Claude Code 通道在恢复
+   Anthropic-compatible 网关前不作为已完成的协作开发证据。
+
+后文的“历史待办事项”不再是当前执行队列。
 
 ---
 

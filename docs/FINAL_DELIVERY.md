@@ -1,6 +1,6 @@
 # Anchor Learning 当前交付状态
 
-> 更新于 2026-08-26
+> 更新于 2026-08-28
 
 ## 已具备
 
@@ -12,6 +12,7 @@
 - 每道 Demo 题包含答案解释、稳定 locator、来源摘录和明确标注的预置导师提示。
 - Cloudflare Pages 发布目录统一为 `web/landing`，官网与 `/app/` 随同一次静态部署发布。
 - 当前工作区 Flutter 全量测试为 `386/386`；静态分析已通过（0 errors、0 warnings，保留既有 info lints）。
+- Web Demo 当前为 `20/20` 通过（5 个 Node 单元测试、15 个 Chromium Playwright 用例）。
 
 ## 交付边界
 
@@ -44,6 +45,7 @@ manifest `versionCode=4005`，Anchor Learning release 证书 v2 签名，已完�
 ## 后续工作
 
 - 按 `docs/PRODUCTIZATION_RELEASE_PLAN.md` 准备正式签名、分发、法律和人工验收材料。
+- 当前 PR #1 尚未推送本地新增提交、合并或部署；这些外部动作需要明确授权。
 - 当前发布支持范围仍限于通过验收的 Android Arm64 Private Alpha；Web 仅为独立静态 Demo。
 - 在具备真实跨平台兼容证据后，再扩大 iOS、Windows、macOS 或 Linux 的支持声明。
 - Private Alpha 从当前正式标识开始分发；数据迁移仅指当前 schema 升级和用户主动执行的 SQLite 备份/恢复，不承诺旧产品安装兼容。

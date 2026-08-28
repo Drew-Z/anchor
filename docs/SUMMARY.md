@@ -4,8 +4,13 @@
 [OPEN_SOURCE_CHECKLIST.md](OPEN_SOURCE_CHECKLIST.md) 与
 [OPEN_SOURCE_READY.md](OPEN_SOURCE_READY.md) 为准。
 
-截至 2026-08-24，自动化质量门禁已通过，但 Private Alpha 仍保持 `HOLD`，等待真实
-设备、受控凭据、数据处理负责人、发布日模型验收和 cohort 证据。
+截至 2026-08-28，自动化质量门禁已通过，但 Private Alpha 仍保持 `HOLD`，等待
+A01-A10 cohort、观察窗口，以及发布窗口内重新生成的真机和模型证据。受控凭据和
+数据处理负责人记录已经建立。
+
+当前有效动作只有：获得授权后推送并合并 PR、部署官网、临近发布窗口重跑真机和模型
+验收、完成 A01-A10 D0/D7/D14 记录，再运行 readiness evaluator。本文档后面的早期
+“下一步优先级”属于历史快照，不应作为当前待办执行。
 
 ## ✅ 已完成内容
 
