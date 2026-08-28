@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
@@ -207,13 +208,16 @@ class PrivateAlphaOperatorPackVerifier {
       }
       try {
         final content = await file.readAsString();
+        final lines = const LineSplitter().convert(content);
         for (final heading in template.requiredHeadings) {
-          if (!content.split('\n').contains(heading)) {
+          if (!lines.contains(heading)) {
             blockers.add('operator_pack_section_missing:${template.id}');
             break;
           }
         }
-        final actualHash = await sha256.bind(file.openRead()).first;
+        final actualHash = sha256.convert(
+          utf8.encode(_normalizeLineEndings(content)),
+        );
         if (actualHash.toString() != template.approvedSha256) {
           blockers.add('operator_pack_template_drift:${template.id}');
         }
@@ -225,6 +229,13 @@ class PrivateAlphaOperatorPackVerifier {
       List.unmodifiable(blockers.toSet()),
     );
   }
+}
+
+/// Approved template hashes are pinned against LF content, so a CRLF checkout
+/// must hash the same bytes as an LF one. Only the operator pack templates are
+/// normalized this way; binary artifacts such as the APK stay byte-exact.
+String _normalizeLineEndings(String content) {
+  return content.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
 }
 
 String _requiredString(Map<String, dynamic> json, String key) {

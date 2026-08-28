@@ -21,6 +21,7 @@ store publication still requires the external readiness gates below.
 | A | Android API 36, x86_64 emulator, 1080x2400 / 420 dpi | Release exercise target | Build, install, migration, cold start, backup-delete-restore, export, screenshot, and log scan on every alpha build |
 | B | Android API 24-35, Arm64 physical device | Cohort candidate | Run the short device smoke before enrolling that device; record API, ABI, viewport, install result, backup/restore result, and known OEM issue |
 | Unsupported | Android API 23 and earlier | Do not install | Current Flutter 3.44 support starts at API 24 |
+| Unsupported | Android API 36 and later, physical device | Not cohort-eligible | Flutter 3.44 supports API 36, but no physical API 36 acceptance has been completed. The Tier A API 36 emulator target does not extend the Tier B physical range. Raising this ceiling is a release-owned decision that requires physical acceptance evidence first |
 | Not release-supported | iOS, Windows, macOS, Linux, web | Deferred | Framework support does not imply Anchor Learning release support; no end-to-end acceptance has been completed |
 
 The fixed Tier A device for Leaf 21.5 is `emulator-5554`, Android API 36,
@@ -106,8 +107,12 @@ The CLI recomputes the repository-relative APK byte length and SHA-256 before
 evaluating readiness. Missing APKs, paths outside the repository, identity
 drift, zero tests, analyzer errors/warnings, failed formatting or diff checks,
 non-arm64 declarations, and missing v2-signing declarations add explicit
-blockers even when the legacy summary booleans are true. The structured evidence
-must never contain credentials or credential-bearing URLs.
+blockers even when the legacy summary booleans are true. automated_gate
+completed_at follows the same 24-hour freshness policy as model-acceptance and
+physical-device evidence: evidence older than 24 hours or dated in the future
+adds automated_gate_evidence_stale, so the local gate must be re-run inside the
+final release window. The structured evidence must never contain credentials or
+credential-bearing URLs.
 Schema v2 privacy_scan.paths explicitly lists each release evidence, feedback,
 support, or event artifact that must be inspected. Every path must remain inside
 the repository root. Findings are deduplicated and expose only a fixed category
@@ -362,6 +367,8 @@ five-task acceptance matrix.
 
 - Flutter supported platforms, including Android API 24-36 for Flutter 3.44:
   https://docs.flutter.dev/reference/supported-platforms
+  This is framework capability only. The Tier B physical ceiling is API 35 by
+  release policy; do not widen the gate to API 36 from this citation.
 - Android Storage Access Framework and system document picker:
   https://developer.android.com/guide/topics/providers/document-provider
 - SQLite `VACUUM INTO` consistent snapshot and interruption caveat:

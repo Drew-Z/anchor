@@ -22,6 +22,7 @@ class PrivateAlphaReadinessEvaluator {
         await const PrivateAlphaReleaseEvidenceVerifier().verify(
       evidence: releaseEvidence,
       repositoryRoot: repositoryRoot,
+      evaluatedAt: evaluatedAt,
     );
     final privacyEvidence = PrivateAlphaPrivacyScanEvidence.fromJson(json);
     final privacyScan = await const PrivateAlphaPrivacyScanner().scan(

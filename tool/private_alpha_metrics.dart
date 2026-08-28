@@ -7,10 +7,20 @@ Future<void> main(List<String> arguments) async {
   try {
     final options = _Options.parse(arguments);
     final exports = <Map<String, Object?>>[];
-    for (final path in options.paths) {
-      final decoded = jsonDecode(await File(path).readAsString());
+    for (var index = 0; index < options.paths.length; index++) {
+      // Participant exports live under a participant-code directory outside
+      // the repository, so failures are reported by input position only.
+      final reference = 'event export ${index + 1}';
+      final Object? decoded;
+      try {
+        decoded = jsonDecode(await File(options.paths[index]).readAsString());
+      } on FileSystemException {
+        throw FormatException('Cannot read $reference.');
+      } on FormatException {
+        throw FormatException('$reference is not valid JSON.');
+      }
       if (decoded is! Map) {
-        throw FormatException('$path does not contain a JSON object.');
+        throw FormatException('$reference does not contain a JSON object.');
       }
       exports.add(Map<String, Object?>.from(decoded));
     }
@@ -24,15 +34,25 @@ Future<void> main(List<String> arguments) async {
     } else {
       stdout.writeln(report.toMarkdown());
     }
+  } on FormatException catch (error) {
+    _fail(error.message);
+  } on FileSystemException catch (error) {
+    // `message` omits the `path` field that `toString()` would include.
+    _fail(error.message);
   } on Object catch (error) {
-    stderr.writeln('Private Alpha metrics failed: $error');
-    stderr.writeln(
-      'Usage: dart run tool/private_alpha_metrics.dart --invited 10 '
-      '[--format markdown|json] <event-export.json>...',
-    );
-    exitCode = 64;
+    // Never interpolate an unexpected error: it may carry an export path.
+    _fail('Unexpected ${error.runtimeType} while aggregating event exports.');
   }
 }
+
+void _fail(String message) {
+  stderr.writeln('Private Alpha metrics failed: $message');
+  stderr.writeln(_usage);
+  exitCode = 64;
+}
+
+const _usage = 'Usage: dart run tool/private_alpha_metrics.dart --invited 10 '
+    '[--format markdown|json] <event-export.json>...';
 
 class _Options {
   final int invitedUsers;

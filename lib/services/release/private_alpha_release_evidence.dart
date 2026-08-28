@@ -128,17 +128,27 @@ class PrivateAlphaReleaseEvidenceVerification {
 }
 
 class PrivateAlphaReleaseEvidenceVerifier {
-  const PrivateAlphaReleaseEvidenceVerifier();
+  final Duration maximumAge;
+
+  const PrivateAlphaReleaseEvidenceVerifier({
+    this.maximumAge = const Duration(hours: 24),
+  });
 
   Future<PrivateAlphaReleaseEvidenceVerification> verify({
     required PrivateAlphaReleaseEvidence evidence,
     required String repositoryRoot,
+    required DateTime evaluatedAt,
   }) async {
     final blockers = <String>[
       if (!evidence.automatedGate.isPassing) 'automated_gate_evidence_invalid',
       if (!evidence.androidBuild.isDeclaredPassing)
         'android_build_evidence_invalid',
     ];
+    final gateAge =
+        evaluatedAt.toUtc().difference(evidence.automatedGate.completedAt);
+    if (gateAge.isNegative || gateAge > maximumAge) {
+      blockers.add('automated_gate_evidence_stale');
+    }
     final root = p.normalize(p.absolute(repositoryRoot));
     final apkPath =
         p.normalize(p.absolute(root, evidence.androidBuild.apkPath));
