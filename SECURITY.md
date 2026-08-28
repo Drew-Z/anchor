@@ -66,10 +66,10 @@
 1. **保护 API Keys**:
    - 不要将 `.env` 文件提交到版本控制
    - 不要在公共场所截图暴露 API Key
-   - 定期轮换 OpenAI API Key
+   - 定期轮换所选模型服务商的 API Key
 
 2. **数据备份**:
-   - 定期备份本地数据库 (`app_database.db`)
+   - 定期备份本地数据库 (`anchor_learning.db`)
    - 导出重要的学习记录
 
 3. **更新应用**:
@@ -96,10 +96,10 @@
 
 ### 1. API Key 安全
 
-**风险**: 用户的 OpenAI API Key 存储在本地。
+**风险**: 用户配置的模型服务商 API Key 存储在本地。
 
 **缓解措施**:
-- 使用 SharedPreferences (Android) 和 Keychain (iOS) 存储
+- 使用 `flutter_secure_storage` 通过 Android Keystore、iOS Keychain 等系统安全存储保存
 - 建议用户设置 API Key 使用限额
 - 计划支持用户自建后端代理
 
@@ -164,4 +164,4 @@
 
 ---
 
-**最后更新**: 2024-01-XX
+**最后更新**: 2026-08-28

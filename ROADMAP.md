@@ -214,7 +214,7 @@
 
 ## 💬 反馈渠道
 
-- **功能请求**: [Feature Requests](https://github.com/Drew-Z/anchor/issues/new?template=feature_request.md)
+- **功能请求**: [Feature Requests](https://github.com/Drew-Z/anchor/issues/new?template=feature_request.yml)
 - **讨论**: [GitHub Discussions](https://github.com/Drew-Z/anchor/discussions)
 - **反馈**: [GitHub Issues](https://github.com/Drew-Z/anchor/issues)
 

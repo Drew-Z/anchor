@@ -318,7 +318,7 @@ git push origin feature/your-feature-name
 - [Flutter](https://docs.flutter.dev/)
 - [Riverpod](https://riverpod.dev/)
 - [SQLite](https://www.sqlite.org/docs.html)
-- [OpenAI API](https://platform.openai.com/docs/api-reference)
+- [OpenAI-compatible API 约定](https://platform.openai.com/docs/api-reference)
 
 ---
 
@@ -326,7 +326,7 @@ git push origin feature/your-feature-name
 
 ### 创建有效的 Bug 报告
 
-使用 [Bug Report 模板](https://github.com/Drew-Z/anchor/issues/new?template=bug_report.md),包含:
+使用 [Bug Report 模板](https://github.com/Drew-Z/anchor/issues/new?template=bug_report.yml),包含:
 
 1. **Bug 描述**: 简洁明了地说明问题
 2. **复现步骤**:
@@ -351,7 +351,7 @@ git push origin feature/your-feature-name
 
 ### 使用 Feature Request 模板
 
-使用 [Feature Request 模板](https://github.com/Drew-Z/anchor/issues/new?template=feature_request.md),说明:
+使用 [Feature Request 模板](https://github.com/Drew-Z/anchor/issues/new?template=feature_request.yml),说明:
 
 1. **问题陈述**: 你遇到了什么问题?
 2. **建议方案**: 你希望如何解决?

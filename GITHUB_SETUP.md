@@ -108,8 +108,8 @@ Use this when posting to Chinese communities:
 - Question Validator: 二次核验答案准确性  
 - Semantic Chunking: 保持语义完整性
 
-**开源地址**: https://github.com/Drew-Z/anchor  
-**技术栈**: Flutter + SQLite + OpenAI API  
+**开源地址**: https://github.com/Drew-Z/anchor
+**技术栈**: Flutter + SQLite + OpenAI-compatible API
 **许可**: MIT
 
 欢迎试用和贡献! 🎉
@@ -146,8 +146,8 @@ Existing learning apps either have fixed content or AI-generated questions that 
 - Question Validator: Cross-checks answers for accuracy
 - Semantic Chunking: Preserves context integrity
 
-**Repo**: https://github.com/Drew-Z/anchor  
-**Stack**: Flutter + SQLite + OpenAI API  
+**Repo**: https://github.com/Drew-Z/anchor
+**Stack**: Flutter + SQLite + OpenAI-compatible API
 **License**: MIT
 
 Feedback welcome! 🚀

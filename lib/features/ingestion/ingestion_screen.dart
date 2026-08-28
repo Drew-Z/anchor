@@ -88,7 +88,7 @@ class _IngestionScreenState extends ConsumerState<IngestionScreen> {
     final openai = ref.read(openaiServiceProvider);
     final hasKey = await openai.hasApiKey();
     if (!hasKey) {
-      setState(() => _errorMessage = '请先在设置中配置 OpenAI API Key');
+      setState(() => _errorMessage = '请先在设置中配置模型凭据');
       return;
     }
 

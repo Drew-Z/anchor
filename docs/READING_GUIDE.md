@@ -60,7 +60,7 @@
 → 阅读 `lib/services/review_scheduler_service.dart` + [数据模型](architecture/DATA_MODEL.md) 中的 `Question` 表字段说明
 
 ### 我想知道如何集成本地 LLM
-→ 查看 [开发路线图](../ROADMAP.md) 中的"本地 LLM 支持"计划,当前仅支持 OpenAI API
+→ 查看 [开发路线图](../ROADMAP.md) 中的"本地 LLM 支持"计划；当前支持用户配置的 OpenAI-compatible 端点，本地或自托管模型需提供兼容接口并通过应用内验收
 
 ### 我想修改题目生成风格
 → [自定义 Prompts](guides/CUSTOMIZE_PROMPTS.md)

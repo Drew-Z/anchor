@@ -236,8 +236,8 @@ StatefulWidget 通过 State 对象管理状态...
 
 我们欢迎所有形式的贡献!
 
-- 🐛 [报告 Bug](https://github.com/Drew-Z/anchor/issues/new?template=bug_report.md)
-- 💡 [提出新功能](https://github.com/Drew-Z/anchor/issues/new?template=feature_request.md)
+- 🐛 [报告 Bug](https://github.com/Drew-Z/anchor/issues/new?template=bug_report.yml)
+- 💡 [提出新功能](https://github.com/Drew-Z/anchor/issues/new?template=feature_request.yml)
 - 📝 改进文档
 - 💻 提交代码
 

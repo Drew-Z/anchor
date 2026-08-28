@@ -45,8 +45,8 @@ A: 可能原因是文档太短或格式不规范。参见[导入文档指南](gu
 **Q: 如何备份我的数据?**
 A: 设置 → 隐私与数据 → 导出数据,生成 JSON 备份文件。
 
-**Q: 可以不用 OpenAI API 吗?**
-A: 可以,参见[快速开始 - 使用本地模型](guides/QUICK_START.md#使用本地模型)。
+**Q: 可以不用官方 OpenAI 服务吗?**
+A: 可以。应用支持符合 OpenAI-compatible 协议的自定义、本地或自托管端点；请在设置中填写 Base URL、模型名和凭据,并先通过应用内验收。
 
 ### 开发问题
 
@@ -63,7 +63,7 @@ A: 参见[自定义 Prompt - 添加自定义题型](guides/CUSTOMIZE_PROMPTS.md#
 - [Flutter 官方文档](https://flutter.dev/docs)
 - [Dart 语言指南](https://dart.dev/guides)
 - [Riverpod 状态管理](https://riverpod.dev/)
-- [OpenAI API 文档](https://platform.openai.com/docs)
+- [OpenAI-compatible API 参考](https://platform.openai.com/docs)
 
 ---
 

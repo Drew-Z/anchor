@@ -709,16 +709,14 @@ Future<TaskResult<T>> run(Input input) async {
   } on TimeoutException {
     return TaskResult.failure('AI request timeout');
   } on OpenAIException catch (e) {
-    return TaskResult.failure('OpenAI error: ${e.message}');
+    return TaskResult.failure('模型服务请求错误: ${e.message}');
   }
 }
 ```
 
 ### 3. 成本优化
 
-- **模型选择**:
-  - GPT-4: 复杂推理(ConceptPrerequisite, ProjectUnderstanding)
-  - GPT-3.5-turbo: 简单任务(QuestionGeneration, CitationVerification)
+- **模型选择**: 由用户在 AI 配置中选择并验收模型。当前产品不会按任务自动切换模型或在主、备 profile 之间自动故障转移；复杂任务和简单任务均使用当前已验收的 profile。
   
 - **批量处理**: 一次生成10道题,而不是调用10次
 

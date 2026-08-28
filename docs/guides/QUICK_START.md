@@ -97,13 +97,13 @@ flutter devices
 **A**: 可能原因:
 - 文档内容太短(建议 > 1000 字)
 - 没有明确的知识点(尝试添加章节标题)
-- API Key 配额不足(检查 OpenAI 账户余额)
+- 模型服务商配额不足(检查所选服务商账户余额和用量限制)
 
 ### Q: 如何删除导入的内容?
 **A**: 在"知识库"页面长按条目 → 选择删除
 
 ### Q: 数据存储在哪里?
-**A**: 所有数据存储在本地 SQLite 数据库,不会上传到云端
+**A**: 学习内容默认存储在本地 SQLite 数据库。只有主动运行 AI 任务时,所需片段才会发送给你配置的模型服务商。
 
 ### Q: 如何导出学习记录?
 **A**: 设置 → 隐私与数据 → 导出学习数据(JSON 格式)
@@ -114,11 +114,7 @@ flutter devices
 
 ### 自定义 AI 模型
 
-编辑 `lib/services/openai_service.dart`:
-
-```dart
-static const String defaultModel = 'gpt-4o-mini'; // 改为 gpt-4 等
-```
+在应用中打开“设置 → AI 配置”,填写 OpenAI-compatible Base URL、模型名称和凭据。不同 profile 的配置彼此独立；保存后需通过应用内五任务验收,才能用于 AI 生成流程。
 
 ### 调整题目生成数量
 

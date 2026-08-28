@@ -259,12 +259,12 @@ double calculateInterval(Question q, bool isCorrect) {
 - **SQLite**: 本地数据库
 
 ### AI 层
-- **OpenAI API**: GPT-4 / GPT-3.5-turbo
+- **OpenAI-compatible API**: 通过用户配置的 Base URL、模型和协议调用模型服务商
 - **Prompt Engineering**: 结构化输出 + Few-shot examples
 - **Function Calling**: 用于 Citation Verification
 
 ### 后端(可选)
-- **当前版本**: 100% 本地存储
+- **当前版本**: 学习内容与产品事件默认本地存储；主动 AI 任务会向用户选择的模型服务商发送所需片段
 - **未来扩展**: Supabase / Firebase 同步
 
 ---
@@ -272,7 +272,7 @@ double calculateInterval(Question q, bool isCorrect) {
 ## 核心设计决策
 
 ### 为什么选择本地优先?
-- ✅ 隐私保护: 用户数据不上传
+- ✅ 隐私保护: 学习内容默认保存在本地，AI 发送边界由用户主动配置和触发
 - ✅ 离线可用: 除 AI 调用外都可离线
 - ✅ 快速响应: 无网络延迟
 - ⚠️ 代价: 需要用户自行备份
