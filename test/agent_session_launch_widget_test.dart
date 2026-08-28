@@ -115,6 +115,33 @@ void main() {
     expect(find.text('完成并返回 Agent'), findsOneWidget);
   });
 
+  testWidgets('keeps a canceled execution neutral without showing completion',
+      (tester) async {
+    final store = _TestCheckpointStore();
+    final plan = _plan();
+    final executor = _RecordingExecutor(
+      results: [
+        LearningAgentExecutionResult.canceled(
+          step: plan.sessionSummary.nextStep,
+          message: '用户取消了本轮执行',
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      _app(plan: plan, store: store, executor: executor),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    await _tapStart(tester);
+    await tester.pumpAndSettle();
+
+    expect(executor.executeCount, 1);
+    expect(find.text('用户取消了本轮执行'), findsOneWidget);
+    expect(find.text('启动失败'), findsNothing);
+    expect(find.text('本轮学习已返回'), findsNothing);
+    expect(find.text('完成并返回 Agent'), findsNothing);
+  });
+
   testWidgets('shows completion review after a successful execution',
       (tester) async {
     final store = _TestCheckpointStore();
