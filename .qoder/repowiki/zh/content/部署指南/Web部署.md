@@ -26,7 +26,7 @@
 10. [附录](#附录)
 
 ## 简介
-本指南面向Dlg-Q项目的Web平台部署，聚焦于Flutter Web的构建与发布流程，涵盖以下主题：
+本指南面向Anchor Learning项目的Web平台部署，聚焦于Flutter Web的构建与发布流程，涵盖以下主题：
 - Flutter Web构建配置与PWA（渐进式Web应用）设置
 - web目录下的HTML模板与manifest.json的作用与配置要点
 - 静态资源优化策略（图标生成、缓存与性能）
@@ -36,7 +36,7 @@
 本指南同时提供与实际源码对应的图示与来源标注，帮助读者快速定位配置位置并完成部署。
 
 ## 项目结构
-Dlg-Q为Flutter多端项目，Web相关的关键文件集中在根目录的web目录与pubspec.yaml中；应用入口位于lib目录，Android侧配置位于android子目录。下图展示与Web部署直接相关的文件与职责：
+Anchor Learning为Flutter多端项目，Web相关的关键文件集中在根目录的web目录与pubspec.yaml中；应用入口位于lib目录，Android侧配置位于android子目录。下图展示与Web部署直接相关的文件与职责：
 
 ```mermaid
 graph TB
@@ -243,7 +243,7 @@ C["android/app/src/main/AndroidManifest.xml<br/>INTERNET 权限与分享意图"]
 - [android/app/src/main/AndroidManifest.xml:28-45](file://android/app/src/main/AndroidManifest.xml#L28-L45)
 
 ## 结论
-Dlg-Q的Web部署以Flutter Web为核心，结合web目录下的HTML模板与PWA清单，能够快速实现跨平台上线。通过合理配置基础路径、图标与清单、静态资源优化与缓存策略，可在多种托管平台上稳定运行。建议在生产环境中启用HTTPS、Service Worker与长期缓存策略，进一步提升用户体验与SEO表现。
+Anchor Learning的Web部署以Flutter Web为核心，结合web目录下的HTML模板与PWA清单，能够快速实现跨平台上线。通过合理配置基础路径、图标与清单、静态资源优化与缓存策略，可在多种托管平台上稳定运行。建议在生产环境中启用HTTPS、Service Worker与长期缓存策略，进一步提升用户体验与SEO表现。
 
 ## 附录
 

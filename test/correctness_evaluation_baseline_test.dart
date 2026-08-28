@@ -3,12 +3,12 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:dlg_q/data/models/grounded_claim.dart';
-import 'package:dlg_q/data/models/source.dart';
-import 'package:dlg_q/data/models/source_chunk.dart';
-import 'package:dlg_q/services/agent/knowledge_search_service.dart';
-import 'package:dlg_q/services/ai/grounded_claim_gate.dart';
-import 'package:dlg_q/services/evaluation/correctness_evaluation_service.dart';
+import 'package:anchor_learning/data/models/grounded_claim.dart';
+import 'package:anchor_learning/data/models/source.dart';
+import 'package:anchor_learning/data/models/source_chunk.dart';
+import 'package:anchor_learning/services/agent/knowledge_search_service.dart';
+import 'package:anchor_learning/services/ai/grounded_claim_gate.dart';
+import 'package:anchor_learning/services/evaluation/correctness_evaluation_service.dart';
 
 void main() {
   test('fixed correctness corpus records the current Branch 19 baseline', () {

@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:dlg_q/services/ai/ai_api_protocol.dart';
-import 'package:dlg_q/services/ai/ai_api_credential_store.dart';
-import 'package:dlg_q/services/ai/ai_completion_result.dart';
-import 'package:dlg_q/services/ai/ai_model_acceptance.dart';
-import 'package:dlg_q/services/ai/ai_provider_diagnostics.dart';
-import 'package:dlg_q/services/openai_service.dart';
+import 'package:anchor_learning/services/ai/ai_api_protocol.dart';
+import 'package:anchor_learning/services/ai/ai_api_credential_store.dart';
+import 'package:anchor_learning/services/ai/ai_completion_result.dart';
+import 'package:anchor_learning/services/ai/ai_model_acceptance.dart';
+import 'package:anchor_learning/services/ai/ai_provider_diagnostics.dart';
+import 'package:anchor_learning/services/openai_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -76,6 +76,29 @@ void main() {
     expect(client.calls, 5);
   });
 
+  test('gives the Dart case its extended reasoning budget', () async {
+    final store = _MemoryAcceptanceStore();
+    final client = _DelayedCompletionClient();
+    final configuration = AiModelConfiguration(
+      providerId: 'custom',
+      baseUrl: 'https://provider.example/v1',
+      model: 'reasoning-model',
+      protocol: AiApiProtocol.responses,
+    );
+
+    final report = await AiModelAcceptanceRunner(
+      client: client,
+      store: store,
+      caseTimeout: const Duration(milliseconds: 10),
+      dartCodingCaseTimeout: const Duration(milliseconds: 30),
+      runTimeout: const Duration(milliseconds: 200),
+    ).run(configuration);
+
+    expect(report.passed, isTrue);
+    expect(report.passedCount, 5);
+    expect(client.calls, 5);
+  });
+
   test('client restriction stops later tasks and remains actionable', () async {
     final store = _MemoryAcceptanceStore();
     final configuration = AiModelConfiguration(
@@ -111,9 +134,10 @@ void main() {
       () async {
     SharedPreferences.setMockInitialValues({
       'ai_provider_id': 'custom',
-      'ai_model': 'candidate-model',
-      'ai_base_url': 'https://provider.example/v1',
-      'ai_api_protocol': 'responses',
+      OpenAIService.profilePreferenceKey('custom', 'model'): 'candidate-model',
+      OpenAIService.profilePreferenceKey('custom', 'base_url'):
+          'https://provider.example/v1',
+      OpenAIService.profilePreferenceKey('custom', 'protocol'): 'responses',
     });
     final credentials = _MemoryCredentialStore()..values['custom'] = 'test-key';
     final transport = _RecordingTransport();
@@ -154,6 +178,7 @@ void main() {
     expect(report.blockingFailure, AiProviderFailureKind.timeout);
     expect(report.cases.first.status, AiAcceptanceCaseStatus.failed);
     expect(report.cases.first.detail, contains('请求超时'));
+    expect(report.cases.first.detail, contains('迟到响应不计为通过'));
     expect(report.cases.first.latencyMs, greaterThanOrEqualTo(1));
     expect(
       report.cases.skip(1).every(
@@ -194,6 +219,63 @@ class _QueuedCompletionClient implements AiCompletionClient {
         outputTokens: 50,
         totalTokens: 150,
       ),
+    );
+  }
+}
+
+class _DelayedCompletionClient implements AiCompletionClient {
+  int calls = 0;
+
+  @override
+  Future<AiCompletionResult> generateCompletion({
+    required String systemPrompt,
+    required String userContent,
+    String? imageBase64,
+    double? temperature,
+    bool bypassAcceptanceGate = false,
+  }) async {
+    final call = calls++;
+    if (call == 2) {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+    final outputs = <String>[
+      '{"topic":"binary_search","requires_sorted_input":true,'
+          '"complexity":"O(log n)"}',
+      '{"title":"山窗读雨","lines":["雨洗青山书气新",'
+          '"松风翻页入窗频","石径归来寻字句","云开一卷见精神"]}',
+      jsonEncode({
+        'language': 'dart',
+        'code': 'int sumEven(List<int> values) => values'
+            '.where((value) => value.isEven).fold(0, (sum, value) => sum + value);',
+        'examples': [
+          {
+            'input': [1, 2, 3, 4],
+            'output': 6
+          },
+          {
+            'input': [-2, 3, 10],
+            'output': 8
+          },
+        ],
+      }),
+      jsonEncode({
+        'status': 'answered',
+        'claims': [
+          {
+            'text': '输入必须有序',
+            'citation_id': 'S1',
+            'quote': '二分查找要求输入序列已经按比较规则有序。',
+          },
+        ],
+      }),
+      '{"status":"refused","claims":[]}',
+    ];
+    return AiCompletionResult(
+      text: outputs[call],
+      requestedModel: 'reasoning-model',
+      resolvedModel: 'reasoning-model',
+      protocol: AiApiProtocol.responses,
+      latency: const Duration(milliseconds: 1),
     );
   }
 }

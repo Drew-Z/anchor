@@ -1,19 +1,19 @@
 import 'dart:math';
 
-import 'package:dlg_q/data/database/database_helper.dart';
-import 'package:dlg_q/data/models/deck.dart';
-import 'package:dlg_q/data/models/product_event.dart';
-import 'package:dlg_q/data/models/source.dart';
-import 'package:dlg_q/data/repositories/product_event_repository.dart';
-import 'package:dlg_q/services/ai/ai_api_protocol.dart';
-import 'package:dlg_q/services/ai/ai_model_acceptance.dart';
-import 'package:dlg_q/services/onboarding/first_run_progress.dart';
-import 'package:dlg_q/services/openai_service.dart';
-import 'package:dlg_q/services/privacy/local_data_deletion_service.dart';
-import 'package:dlg_q/services/privacy/privacy_preferences.dart';
-import 'package:dlg_q/services/privacy/privacy_redactor.dart';
-import 'package:dlg_q/services/privacy/product_event_recorder.dart';
-import 'package:dlg_q/services/privacy/support_bundle_service.dart';
+import 'package:anchor_learning/data/database/database_helper.dart';
+import 'package:anchor_learning/data/models/deck.dart';
+import 'package:anchor_learning/data/models/product_event.dart';
+import 'package:anchor_learning/data/models/source.dart';
+import 'package:anchor_learning/data/repositories/product_event_repository.dart';
+import 'package:anchor_learning/services/ai/ai_api_protocol.dart';
+import 'package:anchor_learning/services/ai/ai_model_acceptance.dart';
+import 'package:anchor_learning/services/onboarding/first_run_progress.dart';
+import 'package:anchor_learning/services/openai_service.dart';
+import 'package:anchor_learning/services/privacy/local_data_deletion_service.dart';
+import 'package:anchor_learning/services/privacy/privacy_preferences.dart';
+import 'package:anchor_learning/services/privacy/privacy_redactor.dart';
+import 'package:anchor_learning/services/privacy/product_event_recorder.dart';
+import 'package:anchor_learning/services/privacy/support_bundle_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -28,12 +28,12 @@ void main() {
   test('redactor removes credentials, private paths and URL queries', () {
     const redactor = PrivacyRedactor();
     final redacted = redactor.redact(
-      'Authorization: Bearer sk-secret123456 '
+      'Authorization: test-token-123456 '
       r'C:\Users\zhang\project\main.dart '
       'https://relay.example/v1?api_key=secret',
     );
 
-    expect(redacted, isNot(contains('sk-secret123456')));
+    expect(redacted, isNot(contains('test-token-123456')));
     expect(redacted, isNot(contains(r'C:\Users\zhang')));
     expect(redacted, isNot(contains('api_key=secret')));
     expect(redacted, contains('[redacted_secret]'));

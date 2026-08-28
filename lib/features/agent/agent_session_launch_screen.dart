@@ -480,7 +480,7 @@ class _AgentSessionLaunchScreenState
         return;
       }
 
-      if (!mounted) return;
+      if (!mounted || !context.mounted) return;
       final executor = ref.read(learningAgentExecutorProvider);
       final result = await executor.execute(
         LearningAgentExecutionContext(
@@ -2047,49 +2047,58 @@ class _RuntimeCompactSection extends StatelessWidget {
         splashColor: Colors.transparent,
         highlightColor: Colors.transparent,
       ),
-      child: ExpansionTile(
-        initiallyExpanded: initiallyExpanded,
-        maintainState: true,
-        tilePadding: EdgeInsets.zero,
-        childrenPadding: const EdgeInsets.only(bottom: 2),
-        iconColor: AppColors.purple,
-        collapsedIconColor: AppColors.textLight,
-        leading: Icon(icon, size: 17, color: AppColors.purpleDark),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            _RuntimeSectionMetaPill(label: meta),
-          ],
-        ),
-        subtitle: summaryText == null || summaryText.isEmpty
-            ? null
-            : Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text(
-                  summaryText,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    height: 1.25,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textLight,
+      child: Material(
+        color: Colors.transparent,
+        child: Material(
+          type: MaterialType.transparency,
+          child: Material(
+            color: Colors.transparent,
+            child: ExpansionTile(
+              initiallyExpanded: initiallyExpanded,
+              maintainState: true,
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: const EdgeInsets.only(bottom: 2),
+              iconColor: AppColors.purple,
+              collapsedIconColor: AppColors.textLight,
+              leading: Icon(icon, size: 17, color: AppColors.purpleDark),
+              title: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  _RuntimeSectionMetaPill(label: meta),
+                ],
               ),
-        children: children,
+              subtitle: summaryText == null || summaryText.isEmpty
+                  ? null
+                  : Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        summaryText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          height: 1.25,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textLight,
+                        ),
+                      ),
+                    ),
+              children: children,
+            ),
+          ),
+        ),
       ),
     );
   }

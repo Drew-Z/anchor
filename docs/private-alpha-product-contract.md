@@ -1,4 +1,4 @@
-# Duoduo Private Alpha Product Contract
+# Anchor Learning Private Alpha Product Contract
 
 Status: Leaves 21.1-21.5 completed; Leaf 21.6a readiness implemented; cohort pending
 
@@ -6,7 +6,7 @@ Date: 2026-07-16
 
 ## Product Promise
 
-Duoduo helps a developer turn their own project code and authoritative
+Anchor Learning helps a developer turn their own project code and authoritative
 programming sources into a verifiable learning loop, so they can understand,
 practice, and explain the project in an AI application interview.
 
@@ -164,7 +164,7 @@ used for product measurement are reduced to extension/category/count data.
 ## Alpha Metrics
 
 The metric groups borrow the HEART goal-to-signal-to-metric method. The numeric
-targets below are Duoduo hypotheses to validate with the first cohort.
+targets below are Anchor Learning hypotheses to validate with the first cohort.
 
 ### North Star
 
@@ -205,7 +205,7 @@ This measures a learning closure rather than content generation or chat volume.
   does not claim causal learning improvement from a small uncontrolled sample.
 - Product success requires at least 6 of 10 interviewed alpha users to report
   that they can explain one project decision more concretely and point to its
-  implementation after using Duoduo.
+  implementation after using Anchor Learning.
 
 ### Reliability And Trust
 

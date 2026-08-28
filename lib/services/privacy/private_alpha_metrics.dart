@@ -140,7 +140,7 @@ class PrivateAlphaMetricsReport {
         value == null ? 'n/a' : value.toStringAsFixed(1);
 
     return [
-      '# Duoduo Private Alpha Metrics',
+      '# Anchor Learning Private Alpha Metrics',
       '',
       '- Invited users: $invitedUsers',
       '- Observed event-export users: $observedUsers',

@@ -88,9 +88,9 @@ class PrivateAlphaOperatorPackVerifier {
       id: 'recruitment_register',
       relativePath: 'docs/private-alpha-recruitment-register.md',
       approvedSha256:
-          'a69c34c73622bc6aca3618f474340d48b2f61f5a4a8a793f0a5fe49b8b4c8eb9',
+          '009e7e3c5b3c71482bb2e3692984096093f9946276bd62622c714821dfd5ba8a',
       requiredHeadings: [
-        '# Duoduo Private Alpha Recruitment Register',
+        '# Anchor Learning Private Alpha Recruitment Register',
         '## Storage Rule',
         '## Enrollment Gate',
         '## Screener Register',
@@ -101,9 +101,9 @@ class PrivateAlphaOperatorPackVerifier {
       id: 'participant_guide',
       relativePath: 'docs/private-alpha-participant-guide.md',
       approvedSha256:
-          '26f5b6275318a1269e44e4634271f99dd7a7bfddff10bc4336178bd8e0281966',
+          '497c1cfe7a6a62acf0215191a99bb8c0659e901007fda0c32b11be9f0dd039ec',
       requiredHeadings: [
-        '# Duoduo Private Alpha Participant Guide',
+        '# Anchor Learning Private Alpha Participant Guide',
         '## Before You Start',
         '## Sending Feedback',
         '## Your Data',
@@ -113,9 +113,9 @@ class PrivateAlphaOperatorPackVerifier {
       id: 'session_worksheet',
       relativePath: 'docs/private-alpha-session-worksheet.md',
       approvedSha256:
-          '66242c9c722472ef71350d68ff91fe912a5a702e2b98c6e9ad2601a95916aae5',
+          '7e5d5d9489541236c218b43c447cfe7815ea08c9033f094b35106686ee8fbcbb',
       requiredHeadings: [
-        '# Duoduo Private Alpha Session Worksheet',
+        '# Anchor Learning Private Alpha Session Worksheet',
         '## Session Identity',
         '## Entry Checks',
         '## Closeout',
@@ -125,9 +125,9 @@ class PrivateAlphaOperatorPackVerifier {
       id: 'issue_log',
       relativePath: 'docs/private-alpha-issue-log.md',
       approvedSha256:
-          '37042b195d6cf042b0f381b990f6b3f07b7537d748f69cb7a553b2698bbbb3f7',
+          'b3f2eb27e36409ea39a74d8f8a1934ea1f76f617e189c304575636fb50984d15',
       requiredHeadings: [
-        '# Duoduo Private Alpha Issue Log',
+        '# Anchor Learning Private Alpha Issue Log',
         '## Issue Record',
         '## Severity And Required Action',
         '## Stop Decision',
@@ -137,9 +137,9 @@ class PrivateAlphaOperatorPackVerifier {
       id: 'decision_log',
       relativePath: 'docs/private-alpha-decision-log.md',
       approvedSha256:
-          'b79aaa35df5d3cd7501cf756274f8553cca3904da525f4f31c5d5505a5984f2a',
+          '6de68985efefbc48933752f24ec0c8f349f9c2699c3d9baa83ce02da9d8403cf',
       requiredHeadings: [
-        '# Duoduo Private Alpha Decision Log',
+        '# Anchor Learning Private Alpha Decision Log',
         '## Decision Record',
         '## Go / No-Go Record',
       ],
@@ -148,9 +148,9 @@ class PrivateAlphaOperatorPackVerifier {
       id: 'report_template',
       relativePath: 'docs/private-alpha-report-template.md',
       approvedSha256:
-          'e856d77c873356a9c7e18b51be5f5be37265f3d09ff192741ec7bab0502a7a1e',
+          '8fe85b55e740a575b4709f8a922b5f48192aa3337426a7431e499b9f05f660fa',
       requiredHeadings: [
-        '# Duoduo Private Alpha Report',
+        '# Anchor Learning Private Alpha Report',
         '## Release And Model Evidence',
         '## Reliability And Privacy Incidents',
         '## Evidence Index',

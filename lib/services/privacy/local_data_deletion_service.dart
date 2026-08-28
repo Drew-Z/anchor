@@ -33,14 +33,8 @@ class LocalDataDeletionResult {
 
 class LocalDataDeletionService {
   static const Set<String> _modelPreferenceKeys = {
-    'ai_model',
-    'ai_base_url',
     'ai_provider_id',
-    'ai_api_protocol',
     'ai_model_acceptance_reports_v1',
-    'ai_api_key',
-    'openai_api_key',
-    'openai_model',
   };
 
   final DatabaseHelper _databaseHelper;

@@ -2,7 +2,7 @@
 
 ## 目标定位
 
-把当前的 Duoduo 从“AI 拆题 + 游戏化刷题”升级成“有来源依据的个人知识库学习 agent”。
+把当前的 Anchor Learning 从“AI 拆题 + 游戏化刷题”升级成“有来源依据的个人知识库学习 agent”。
 
 第一优先级不是做一个泛学习工具，而是服务两个强场景：
 
@@ -27,7 +27,7 @@
 - Google Blog, "6 ways to use NotebookLM to master any subject": https://blog.google/innovation-and-ai/models-and-research/google-labs/notebooklm-student-features/
 - NotebookLM Help, "Generate Flashcards or Quizzes in NotebookLM": https://support.google.com/notebooklm/answer/16958963?hl=en
 
-对 Duoduo 的启发：
+对 Anchor Learning 的启发：
 
 - 当前 `ContentAnalyzer` 只输出题包标题和题目。应该扩展为“来源 -> 片段 -> 知识点 -> 题目 -> 引用”的链路。
 - 题目解析页必须显示“依据来自哪里”，而不是只显示 AI 解析。
@@ -44,7 +44,7 @@
 
 - OpenAI, "Introducing study mode": https://openai.com/index/chatgpt-study-mode/
 
-对 Duoduo 的启发：
+对 Anchor Learning 的启发：
 
 - 学习 agent 不应该只有“检查答案”。应该在用户答错时追问：“你是怎么判断的？”
 - 面试准备模式应该像面试官一样一问一答，而不是一次性给用户完整讲稿。
@@ -62,7 +62,7 @@
 - Anki Manual, "Background": https://docs.ankiweb.net/background.html
 - RemNote, "AI Flashcards": https://www.remnote.com/any_source_to_cards
 
-对 Duoduo 的启发：
+对 Anchor Learning 的启发：
 
 - 当前项目只有 deck mastery，不够细。应该记录到 knowledge point/question 级别。
 - 复习算法可以先做简单版本：错题当天复习，困难题次日复习，熟练题延后复习。
@@ -79,7 +79,7 @@
 - Devin Docs, "DeepWiki": https://docs.devin.ai/work-with-devin/deepwiki
 - Sourcegraph Docs, "Cody": https://docs.sourcegraph.com/cody
 
-对 Duoduo 的启发：
+对 Anchor Learning 的启发：
 
 - 对“vibe coding 项目复盘”来说，repo 本身就是最高价值来源。
 - app 应该能从 GitHub URL 或本地代码生成：
@@ -93,7 +93,7 @@
 
 ### 一级导航
 
-建议保留当前 Duoduo 的轻量结构，但扩展成四个主区：
+建议保留当前 Anchor Learning 的轻量结构，但扩展成四个主区：
 
 1. 学习
    - 今日复习
@@ -353,13 +353,13 @@ MVP 不做大而全。
 5. agent 根据来源给反馈。
 6. 答错的知识点进入今日复习。
 
-这个版本既保留 Duoduo 的学习方法，又能证明“个人知识库学习 agent”的方向是成立的。
+这个版本既保留 Anchor Learning 的学习方法，又能证明“个人知识库学习 agent”的方向是成立的。
 
 ## Smart Search Evidence
 
 调研命令和证据文件保存在：
 
-`C:\tmp\smart-search-evidence\20260707-duoduo-learning-agent`
+`C:\tmp\smart-search-evidence\20260707-anchor-learning-learning-agent`
 
 关键命令：
 

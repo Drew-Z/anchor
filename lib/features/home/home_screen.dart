@@ -37,6 +37,7 @@ class HomeScreen extends ConsumerWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'home-add-content',
         onPressed: () {
           Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => const IngestionScreen()),
@@ -185,7 +186,7 @@ class HomeScreen extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          // 模式切换器（左上角，类似多邻国换语言）
+          // 模式切换器（左上角）。
           GestureDetector(
             onTap: () => _showModeSelector(context, ref),
             child: Container(

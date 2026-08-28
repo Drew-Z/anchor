@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 
+import 'repository_relative_path.dart';
+
 class PrivateAlphaAutomatedGateEvidence {
   final DateTime completedAt;
   final int testsPassed;
@@ -66,7 +68,7 @@ class PrivateAlphaAndroidBuildEvidence {
     Map<String, dynamic> json,
   ) {
     final apkPath = _readString(json, 'apk_path').trim();
-    if (apkPath.isEmpty || p.isAbsolute(apkPath)) {
+    if (apkPath.isEmpty || isAbsolutePathOnAnyPlatform(apkPath)) {
       throw const FormatException(
         'android_build.apk_path must be a non-empty repository-relative path.',
       );

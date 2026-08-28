@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:dlg_q/services/release/private_alpha_readiness.dart';
-import 'package:dlg_q/services/release/private_alpha_readiness_evaluator.dart';
-import 'package:dlg_q/services/release/private_alpha_readiness_initializer.dart';
+import 'package:anchor_learning/services/release/private_alpha_readiness.dart';
+import 'package:anchor_learning/services/release/private_alpha_readiness_evaluator.dart';
+import 'package:anchor_learning/services/release/private_alpha_readiness_initializer.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/dart_cli_test_support.dart';
@@ -11,7 +11,7 @@ import 'support/dart_cli_test_support.dart';
 void main() {
   test('builds a real-APK draft that evaluates to the five external blockers',
       () async {
-    final root = await Directory.systemTemp.createTemp('duoduo-init-');
+    final root = await Directory.systemTemp.createTemp('anchor-learning-init-');
     addTearDown(() => root.delete(recursive: true));
     final apk = File('${root.path}${Platform.pathSeparator}build'
         '${Platform.pathSeparator}app.apk');
@@ -57,7 +57,8 @@ void main() {
 
   test('rejects paths outside the repository or ignored build output',
       () async {
-    final root = await Directory.systemTemp.createTemp('duoduo-init-path-');
+    final root =
+        await Directory.systemTemp.createTemp('anchor-learning-init-path-');
     addTearDown(() => root.delete(recursive: true));
     final apk = File('${root.path}${Platform.pathSeparator}app.apk');
     await apk.writeAsBytes([1]);
@@ -79,13 +80,39 @@ void main() {
 
     expect(() => build('readiness.json'), throwsA(isA<FormatException>()));
     expect(() => build('../readiness.json'), throwsA(isA<FormatException>()));
+
+    for (final path in const [
+      'C:/private/app.apk',
+      r'C:\private\app.apk',
+      '/tmp/app.apk',
+      'file:///tmp/app.apk',
+    ]) {
+      await expectLater(
+        initializer.build(
+          repositoryRoot: root.path,
+          apkPath: path,
+          outputPath: 'build/readiness.json',
+          completedAt: DateTime.utc(2026),
+          testsPassed: 1,
+          analyzerErrors: 0,
+          analyzerWarnings: 0,
+          formatPassed: false,
+          diffCheckPassed: false,
+          arm64Only: false,
+          v2Signed: false,
+        ),
+        throwsA(isA<FormatException>()),
+        reason: path,
+      );
+    }
   });
 
   test(
     'initializer CLI writes a safe draft consumed by readiness CLI',
     () async {
       final dart = await findDartCliExecutable();
-      final root = await Directory.systemTemp.createTemp('duoduo-init-cli-');
+      final root =
+          await Directory.systemTemp.createTemp('anchor-learning-init-cli-');
       addTearDown(() => root.delete(recursive: true));
       final apk = File('${root.path}${Platform.pathSeparator}build'
           '${Platform.pathSeparator}app.apk');

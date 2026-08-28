@@ -25,7 +25,7 @@ class AboutScreen extends StatelessWidget {
               Icons.school_outlined,
               size: 52,
               color: AppColors.green,
-              semanticLabel: '多多学应用图标',
+              semanticLabel: 'Anchor Learning 应用图标',
             ),
             const SizedBox(height: 12),
             const Text(

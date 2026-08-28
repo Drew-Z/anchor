@@ -2,7 +2,7 @@
 
 ### 1. 核心配置体系
 *   **依赖注入与服务定位**：使用 `flutter_riverpod` 作为核心框架。在 `lib/core/providers/providers.dart` 中定义了全局单例服务（如 `DatabaseHelper`, `OpenAIService`）以及派生状态（如 `deckListProvider`）。这种模式确保了配置逻辑的集中化与可测试性。
-*   **视觉与主题配置**：采用硬编码常量类管理 UI 配置。`lib/core/constants/app_colors.dart` 定义了多邻国风格的颜色系统；`lib/core/theme/app_theme.dart` 基于 `google_fonts` 和 Material Design 规范构建了统一的 `ThemeData`，并在 `main.dart` 入口处注入。
+*   **视觉与主题配置**：采用硬编码常量类管理 UI 配置。`lib/core/constants/app_colors.dart` 定义了 Anchor Learning 游戏化风格的颜色系统；`lib/core/theme/app_theme.dart` 基于 `google_fonts` 和 Material Design 规范构建了统一的 `ThemeData`，并在 `main.dart` 入口处注入。
 *   **运行时用户配置**：针对敏感或可变配置（如 OpenAI API Key、模型选择），利用 `shared_preferences` 实现本地持久化存储。`OpenAIService` 封装了读取与写入逻辑，实现了配置与业务逻辑的解耦。
 
 ### 2. 关键文件分布

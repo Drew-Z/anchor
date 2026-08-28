@@ -23,8 +23,8 @@
 
 3. **移动端 AI 产品工程实践**
    - Flutter 架构(Riverpod + Repository)
-   - 隐私优先设计(本地优先 + 可选云同步)
-   - OpenAI API 集成模式
+   - 隐私优先设计(本地优先；云同步不属于当前 Private Alpha 范围)
+   - OpenAI-compatible provider 集成模式，凭据由应用内 secure storage 管理
 
 ### 为学习者提供
 - 一个可自托管的、隐私友好的学习工具
@@ -84,12 +84,11 @@
 - [ ] `QUICK_START.md`: 5 分钟跑起来
   ```bash
   # 1. Clone & Install
-  git clone https://github.com/yourname/duoduo
-  cd duoduo && flutter pub get
+  git clone https://github.com/Drew-Z/anchor
+  cd anchor && flutter pub get
   
-  # 2. 配置 API Key
-  cp .env.example .env
-  # 编辑 .env 填入 OPENAI_API_KEY
+  # 2. 启动应用
+  # 在应用内“设置 → AI 配置”保存 provider、Base URL、模型名和 API Key
   
   # 3. 运行
   flutter run
@@ -150,7 +149,7 @@
   - 📚 从 Markdown/代码生成可溯源练习题
   - 🤖 AI Agent 辅导项目理解
   - 🔒 隐私优先(数据本地存储)
-  - 📱 跨平台(Android/iOS/macOS)
+  - 📱 当前 Private Alpha 仅验收 Android；其他平台仍属后续适配
   
   ## 🎯 适合谁
   - 正在学习编程的开发者
@@ -195,11 +194,11 @@
   ```
 
 - [ ] **GitHub Release**
-  - v0.1.0-alpha: "First public preview"
+  - 当前候选：`v1.0.0` Private Alpha（仅在 readiness 从 `HOLD` 变为 `GO` 后发布）
   - 附带:
-    - APK 下载(Android 用户直接试用)
-    - CHANGELOG.md
-    - 已知限制说明
+    - 经过批准的签名 APK
+    - `CHANGELOG.md`
+    - 已知限制说明和回滚责任人
 
 - [ ] **GitHub Actions CI**
   ```yaml

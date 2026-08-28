@@ -21,7 +21,7 @@ Root Goal
 
 ## Root Goal
 
-把 Duoduo 从“AI 拆题 + 游戏化刷题 app”重建为：
+把 Anchor Learning 从“AI 拆题 + 游戏化刷题 app”重建为：
 
 ```text
 个人本地优先的 source-grounded learning agent
@@ -11172,7 +11172,7 @@ docs/trellis-execution-map.md
 输出：
 
 - 验证新数据库 schema v12。
-- 验证至少一条旧版本升级路径。
+- 验证当前 schema 升级和备份恢复路径。
 - 运行 checkpoint、operation、attempt 和 input snapshot 相关测试。
 
 验收：
@@ -11182,7 +11182,7 @@ docs/trellis-execution-map.md
 
 完成记录（2026-07-14）：
 
-- schema v12、旧版本升级路径以及 checkpoint/operation/attempt/input snapshot 测试均已纳入并通过完整测试套件。
+- schema v12、备份恢复路径以及 checkpoint/operation/attempt/input snapshot 测试均已纳入并通过完整测试套件。
 
 ### Leaf 15.4：Define the golden-path acceptance scenario
 
@@ -11205,8 +11205,8 @@ import project material
 
 完成记录（2026-07-14）：
 
-- 新增 `test/fixtures/golden_path/duoduo_checkpoint_fixture.json`、`test/golden_path_test.dart` 和 `docs/golden-path-acceptance.md`。
-- fixture 逐行校验 Duoduo 仓库源码证据，固定 fake 模型队列，并通过真实生产服务链完成来源核验、保存、面试、评估、薄弱点与复习调度。
+- 新增 `test/fixtures/golden_path/anchor-learning_checkpoint_fixture.json`、`test/golden_path_test.dart` 和 `docs/golden-path-acceptance.md`。
+- fixture 逐行校验 Anchor Learning 仓库源码证据，固定 fake 模型队列，并通过真实生产服务链完成来源核验、保存、面试、评估、薄弱点与复习调度。
 
 ### Leaf 15.5：Run and stabilize the golden path
 
@@ -11225,7 +11225,7 @@ import project material
 
 - 黄金路径测试通过，覆盖 `KnowledgeExtractionTask -> QuestionGenerationTask -> CitationVerificationTask -> SourceGroundedIngestionService -> InterviewerService -> AnswerEvaluationTask -> MasteryService -> ReviewSchedulerService`。
 - 使用本机 Gradle 9.4.1 和仓库外临时镜像 init script 完成 `assembleDebug`；`app-debug.apk` 为 158,709,824 bytes，Gradle 记录 `BUILD SUCCESSFUL in 5m 53s`。
-- APK 已安装到 Android 16 / API 36 模拟器 `emulator-5554`，`com.example.dlg_q/.MainActivity` 冷启动成功，学习首页完整渲染，进程保持存活。
+- APK 已安装到 Android 16 / API 36 模拟器 `emulator-5554`，`cc.eu.playlab.anchor/.MainActivity` 冷启动成功，学习首页完整渲染，进程保持存活。
 - 启动日志无 `FATAL EXCEPTION`、`AndroidRuntime`、`E/flutter` 或 ANR；仅有 Android ashmem 弃用提示。
 - 非阻断构建债务：AGP 9.0 built-in Kotlin 迁移提示、compile SDK 37 支持范围提示与 SDK XML 版本提示，留待生产升级分支处理。
 
@@ -11267,7 +11267,7 @@ Branch 15 状态：已关闭。
 完成记录（2026-07-14）：
 
 - `file_picker 10.3.10` 保持与当前 AGP 9/Kotlin 兼容设置可构建；ZIP DocumentsUI 实测通过。
-- 新增 `com.example.dlg_q/project_directory` 原生桥，Android 目录不再被错误转换成普通 filesystem path。
+- 新增 `cc.eu.playlab.anchor/project_directory` 原生桥，Android 目录不再被错误转换成普通 filesystem path。
 - 官方依据：[Android Storage Access Framework](https://developer.android.com/training/data-storage/shared/documents-files) 要求通过 tree/document URI 与 `ContentResolver` 访问用户授权树；Smart Search evidence fetched on 2026-07-14。
 
 ### Leaf 16.3：Apply one source safety policy
@@ -11309,9 +11309,9 @@ Branch 15 状态：已关闭。
 - `flutter test`：51 tests passed。
 - `flutter analyze --no-fatal-infos`：0 errors、0 warnings，只有 37 条既有 info lint。
 - Gradle 9.4.1 `assembleDebug`：`BUILD SUCCESSFUL in 2m 11s`；APK 安装和冷启动成功。
-- API 36 DocumentsUI 真实授权 `Download/duoduo-directory-fixture` 后显示 `2/2`、`README.md`、`lib/main.dart`、4.9 KB 和 snapshot SHA-256。
+- API 36 DocumentsUI 真实授权 `Download/anchor-learning-directory-fixture` 后显示 `2/2`、`README.md`、`lib/main.dart`、4.9 KB 和 snapshot SHA-256。
 - app 进程日志无 Flutter、PlatformChannel 或 AndroidRuntime 崩溃；只有既有 ashmem 弃用提示。
-- 验收截图：`build/validation/duoduo-directory-imported-saf.png`。
+- 验收截图：`build/validation/anchor-learning-directory-imported-saf.png`。
 
 Branch 16 状态：已关闭。下一步进入 Branch 17：Project Understanding and Interview Loop。
 
@@ -11421,7 +11421,7 @@ Branch 16 状态：已关闭。下一步进入 Branch 17：Project Understanding
 - SQLite schema 升级到 v16；`interview_turns` 持久化 `weak_dimensions`、`review_question_ids`、`review_due_at` 和 `next_interview_question`，旧 v15 回合迁移为空复习动作。
 - `InterviewReviewClosureService` 只选择带 citation 的 verified 题目，并在同一个 SQLite transaction 中保存面试回合和复习调度；回合写入失败时题目调度同步回滚。
 - 面试完成页与历史复盘展示具体薄弱维度、AI 反馈、源码依据、“开始复习”和“再次面试”入口；再次面试携带当前知识点与修复问题。
-- 黄金路径改为真实扫描 Duoduo 项目目录并选择两份源码，覆盖 `ProjectSourceImportService -> ProjectUnderstandingTask -> 核验 -> 面试 -> 弱点 -> 复习调度`。
+- 黄金路径改为真实扫描 Anchor Learning 项目目录并选择两份源码，覆盖 `ProjectSourceImportService -> ProjectUnderstandingTask -> 核验 -> 面试 -> 弱点 -> 复习调度`。
 - `flutter test`：72 tests passed；`flutter analyze --no-fatal-infos`：0 errors、0 warnings，只有 34 条既有 info lint。
 - Gradle 9.4.1 `assembleDebug` 成功；Android 覆盖安装后真实数据库为 `user_version=16` 且包含四个复习动作列，`LaunchState: COLD` 冷启动成功，app 日志无 Flutter 或 AndroidRuntime 崩溃。
 
@@ -11464,7 +11464,7 @@ Branch 17 状态：已关闭。Leaf 17.1 至 17.5 均完成，下一步进入 Br
 - 外部设计依据来自 W3C PROV、RFC 9309、MDN licensing、Git objects、SPDX、Python versioned docs 和 1EdTech CASE；可复现命令与抓取结果记录于 `docs/programming-learning-research.md`。
 - `flutter test`：78 tests passed；`flutter analyze --no-fatal-infos`：0 errors、0 warnings，只有 34 条既有 info lint。
 - Gradle 9.4.1 `assembleDebug` 成功；APK 覆盖安装到 `emulator-5554`，`LaunchState: COLD` 冷启动约 3.7 秒。真实数据库为 `user_version=17` 并包含四个新列，运行日志无 Flutter、AndroidRuntime 或 ANR 崩溃。
-- 移动端验收截图：`build/validation/duoduo-leaf18-ingestion-collapsed.png` 与 `build/validation/duoduo-leaf18-official-expanded-stable.png`。
+- 移动端验收截图：`build/validation/anchor-learning-leaf18-ingestion-collapsed.png` 与 `build/validation/anchor-learning-leaf18-official-expanded-stable.png`。
 
 ### Leaf 18.2：Concept prerequisites and learning path
 
@@ -11487,7 +11487,7 @@ Branch 17 状态：已关闭。Leaf 17.1 至 17.5 均完成，下一步进入 Br
 - 每个路径节点可直达知识点证据详情、导师模式和该概念的已核验练习；无已核验题时练习入口明确禁用。
 - 定向验证 14 tests passed；`flutter test`：84 tests passed；`flutter analyze --no-fatal-infos`：0 errors、0 warnings，只有 34 条既有 info lint。
 - Gradle 9.4.1 `assembleDebug` 成功，APK 覆盖安装到 `emulator-5554`；真实数据库迁移到 `user_version=18`，表结构、约束和外键均已核验。
-- Android 临时写入两个带来源概念、一条先修边和一条 verified question，实测证据详情、导师和已核验练习三个入口后已清理；截图为 `build/validation/duoduo-leaf18-2-learning-path.png` 与 `build/validation/duoduo-leaf18-2-verified-practice.png`。
+- Android 临时写入两个带来源概念、一条先修边和一条 verified question，实测证据详情、导师和已核验练习三个入口后已清理；截图为 `build/validation/anchor-learning-leaf18-2-learning-path.png` 与 `build/validation/anchor-learning-leaf18-2-verified-practice.png`。
 
 ### Leaf 18.3：Layered tutor and Socratic loop
 
@@ -11508,10 +11508,10 @@ Branch 17 状态：已关闭。Leaf 17.1 至 17.5 均完成，下一步进入 Br
 - `TutorExplanationTask` 改为定义/直觉、工作机制、代码或文档例子、边界、常见误区和面试表达分层契约；首问只能有一个，核心证据不足时清空首问并停止扩展。
 - 新增 `TutorSocraticTask`；输入范围只包含当前 concept、已确认且有来源的先修 concepts、最近导师轮次和这些概念的 source chunks。伪造 citation、未确认先修片段和越界分数会被服务层过滤或规范化。
 - 导师页实现“分层讲解 -> 当前问题 -> 用户回答 -> 引用反馈/误区 -> 唯一下一问”的连续回路；每轮单独持久化并更新导师 session 摘要，来源不足时显示停止卡片而不继续追问。
-- 教学设计依据补充 IES `Organizing Instruction and Study to Improve Student Learning`：深层问题、主动回答和交互式构建解释作为教学原则；“一次一问”明确记录为 Duoduo 的逐轮审计约束，研究命令与证据写入 `docs/programming-learning-research.md`。
+- 教学设计依据补充 IES `Organizing Instruction and Study to Improve Student Learning`：深层问题、主动回答和交互式构建解释作为教学原则；“一次一问”明确记录为 Anchor Learning 的逐轮审计约束，研究命令与证据写入 `docs/programming-learning-research.md`。
 - 定向验证 16 tests passed；`flutter test`：91 tests passed；`flutter analyze --no-fatal-infos`：0 errors、0 warnings，只有 34 条既有 info lint。
 - Gradle 9.4.1 `assembleDebug` 成功，APK 覆盖安装到 `emulator-5554`；真实数据库为 `user_version=19`，`tutor_turns` 表、session-created 索引及两条外键均已核验。
-- Android 使用两个临时 source-backed concepts 和一条确认先修边验收导师入口与无 Key 诊断后已清理；截图为 `build/validation/duoduo-leaf18-3-tutor-entry.png`。完整连续轮次使用确定性 OpenAI 兼容响应通过组件测试。
+- Android 使用两个临时 source-backed concepts 和一条确认先修边验收导师入口与无 Key 诊断后已清理；截图为 `build/validation/anchor-learning-leaf18-3-tutor-entry.png`。完整连续轮次使用确定性 OpenAI 兼容响应通过组件测试。
 
 ### Leaf 18.4：Evidence-grounded exercises and misconception repair
 
@@ -11537,7 +11537,7 @@ Branch 17 状态：已关闭。Leaf 17.1 至 17.5 均完成，下一步进入 Br
 - `MasteryService` 只接受已核验且有 citation 的练习，以及 evidence sufficient、citation 非空且 citation 属于该练习证据集合的评价；pending、no-source、越界引用、证据不足或已应用 attempt 均返回拒绝，不更新正式掌握度。
 - 新增 v19 -> v20 迁移、生成任务、评价任务、掌握度门禁和完整 widget 闭环测试；`flutter test`：99 tests passed；`flutter analyze --no-fatal-infos`：0 errors、0 warnings，只有 34 条既有 info lint。
 - Gradle 9.4.1 在跨盘符环境使用 `-Pkotlin.incremental=false` 后 `assembleDebug` 成功，APK 覆盖安装到 `emulator-5554`；真实数据库迁移到 `user_version=20`，两张新表、两个索引存在，新表 `foreign_key_check` 为空。全库仍有此前遗留的来源/知识点孤儿关系，本 Leaf 未擅自清理历史数据。
-- Android 临时写入一个官方文档来源、一个 concept 和两道练习，验收导师无 Key 时的离线练习入口、待核验/已核验列表与证据核验弹窗后已全部清理；截图为 `build/validation/duoduo-leaf18-4-tutor-selected-2.png`、`build/validation/duoduo-leaf18-4-exercises.png` 与 `build/validation/duoduo-leaf18-4-verification-dialog.png`。
+- Android 临时写入一个官方文档来源、一个 concept 和两道练习，验收导师无 Key 时的离线练习入口、待核验/已核验列表与证据核验弹窗后已全部清理；截图为 `build/validation/anchor-learning-leaf18-4-tutor-selected-2.png`、`build/validation/anchor-learning-leaf18-4-exercises.png` 与 `build/validation/anchor-learning-leaf18-4-verification-dialog.png`。
 
 ### Leaf 18.5：Programming weak-point and review closure
 
@@ -11562,7 +11562,7 @@ Branch 17 状态：已关闭。Leaf 17.1 至 17.5 均完成，下一步进入 Br
 - 新增固定官方文档 + 源码 fixture，使用确定性 AI 响应覆盖来源导入、先修路径、分层导师、55 分苏格拉底轮次、开放练习、稳定误区、pending 复测拒绝、人工核验和最终编程复习队列。
 - 新增 v20 -> v21 迁移、动作持久化/唯一触发器/开放索引、闭环服务、复习 UI 和 Branch 18 golden path 测试；`flutter test`：107 tests passed；`flutter analyze --no-fatal-infos`：0 errors、0 warnings，只有 34 条既有 info lint。
 - Gradle 9.4.1 `assembleDebug` 成功；APK 覆盖安装到 `emulator-5554` 后真实数据库从 `user_version=20` 升级到 21，新表 12 列、开放动作索引和唯一触发器索引存在，新表 `foreign_key_check` 为空，约 4.0 秒冷启动无 Flutter 或 AndroidRuntime 崩溃。全库此前遗留的来源/知识点孤儿关系未擅自清理。
-- Android 使用 `leaf18-5-validation-*` 临时来源、知识点、先修边、已核验复测和复习动作，实测“薄弱维度 -> 缺失先修 -> 来源依据 -> 开始复测”后已全部清理；截图为 `build/validation/duoduo-leaf18-5-review.png` 与 `build/validation/duoduo-leaf18-5-review-citations.png`。
+- Android 使用 `leaf18-5-validation-*` 临时来源、知识点、先修边、已核验复测和复习动作，实测“薄弱维度 -> 缺失先修 -> 来源依据 -> 开始复测”后已全部清理；截图为 `build/validation/anchor-learning-leaf18-5-review.png` 与 `build/validation/anchor-learning-leaf18-5-review-citations.png`。
 
 Branch 18 状态：已关闭。Leaf 18.1 至 18.5 均已完成，下一步进入 Branch 19：Correctness and Evaluation。
 
@@ -11666,7 +11666,7 @@ Branch 18 状态：已关闭。Leaf 18.1 至 18.5 均已完成，下一步进入
 - 新增固定五项真实任务验收：严格 JSON、中文七言绝句、Dart 编程、S1 主张逐字引文绑定和无关证据拒答。五项必须全部通过；供应商级阻断错误只调用一次，后续任务标记 skipped，避免重复消耗额度。
 - 验收身份固定为 provider id、去 user-info/query/fragment 的 base URL、requested model 和 protocol。报告保存 resolved model、逐项通过状态、延迟、Token、可核验费用和结构化失败类别，不保存 Key；自定义中转不套用 OpenAI 官方价格。
 - 正式学习调用启用 acceptance gate；未通过同一配置验收时返回 `model_not_accepted`，验收 runner 只能用显式 bypass 执行固定测试，不能让普通任务绕过。
-- API Key 改为 provider-scoped `flutter_secure_storage`；历史 `ai_api_key` / `openai_api_key` 明文值一次迁移后删除。设置页不回填 Key，留空保留，显式按钮删除。
+- API Key 使用 provider-scoped `flutter_secure_storage`；设置页不回填 Key，留空保留，显式按钮删除。
 - 设置页增加 Chat/Responses 协议切换、五项固定验收按钮、通过数、延迟、Token、费用/无单价状态、resolved model 和可行动错误提示。`client_restricted` 明确要求服务商开放 Dart/Dio，不伪装 Codex 客户端。
 - OpenAI 预设依据 2026-07-15 官方 latest-model 页面更新为 GPT-5.6 `terra`、`sol`、`luna` 和 GPT-5.5，默认新配置使用 Responses；官方直连短上下文价格只用于这些可核验模型。
 - 公用开发凭据可继续使用到失效，但未写入仓库、文档、测试或普通偏好。外部古诗任务验证 `gpt-5.5` 与 `gpt-5.6-sol` 可生成有效七言绝句；由于普通客户端通道仍出现 `channel:client_restricted`，该中转尚未获得 App approval。
@@ -11692,7 +11692,7 @@ Branch 18 状态：已关闭。Leaf 18.1 至 18.5 均已完成，下一步进入
 - 新增 `correctness_closure_fixture.json`、服务黄金路径和 Widget 黄金路径，固定覆盖官方文档与冲突个人笔记的检索排序、单片段上下文选择、grounded/partial/refused 知识库回答、导师反馈、面试评价和编程练习评价；六个确定性任务响应全部按预期顺序消费。
 - 正确性报告覆盖一个检索真值 case 和四个用户学习 surface；Recall@1=`1.0`、MRR=`1.0`、citation coverage=`1.0`、门禁后的 unsupported claim rate=`0.0`、refusal accuracy=`1.0`。指标用于固定回归，不把单一 fixture 冒充真实生产质量估计。
 - 知识库 UI 将 `证据合格`、`部分主张未支持`、`证据不足已拒答` 分别显示，不再把 partial/refused 合并成通用“需核查”；检索结果展示紧凑的 `排序依据`，citation 抽为可独立测试并可跳转的卡片。
-- Android 在 `emulator-5554` 使用 `leaf19-validation-*` 临时数据验收：完整查询 `JSON schema guarantee` 下官方 OpenAI 片段排在个人笔记之前并显示排序理由；grounded citation 可进入来源详情且高亮 `当前引用片段`；三态历史、排序和引用截图分别保存为 `build/validation/duoduo-leaf19-5-history-states.png`、`duoduo-leaf19-5-search-ranking.png`、`duoduo-leaf19-5-citation-navigation.png`。
+- Android 在 `emulator-5554` 使用 `leaf19-validation-*` 临时数据验收：完整查询 `JSON schema guarantee` 下官方 OpenAI 片段排在个人笔记之前并显示排序理由；grounded citation 可进入来源详情且高亮 `当前引用片段`；三态历史、排序和引用截图分别保存为 `build/validation/anchor-learning-leaf19-5-history-states.png`、`anchor-learning-leaf19-5-search-ranking.png`、`anchor-learning-leaf19-5-citation-navigation.png`。
 - 验收后精确删除 2 个临时来源、2 个临时片段和 3 条临时学习 session，未删除其他用户数据；SQLite `integrity_check` 为 `ok`。清理后重新启动并进入知识库，日志无 `FATAL EXCEPTION`、`E/flutter` 或 App ANR。
 - `flutter test --no-pub`：137 tests passed；`flutter analyze --no-pub --no-fatal-infos`：0 errors、0 warnings，仅 34 条既有 info lint。更新后的 Android APK 再次完成 203 个 Gradle 任务并成功安装冷启动；最终 hash 与签名终检记录在 `docs/correctness-golden-path.md` 和验收命令输出中。
 - 当前本地词法 + 来源可信度排序已通过固定真值集且理由可解释，未出现语义召回、语料规模或延迟阻断，因此不引入向量检索。后续仅在同义/语义查询持续漏召回、Recall@K/MRR 回归、语料增长或延迟恶化时重新评估 hybrid/vector，并继续保留来源、locator、逐字 quote 和排序解释契约。
@@ -11733,7 +11733,7 @@ Branch 19 状态：已关闭。Leaf 19.1 至 19.5 均已完成；下一步进入
 - 新增 `LearningAgentKnowledgeScope` 的 `project`、`programming`、`mixed` 正式契约，由三个 `LearningAgentGoal` 确定默认范围；planner 在 readiness、focus point、待核验题、已核验题和下一动作路由前统一过滤知识点、题目与练习输入。
 - 无 scoped `knowledgePointId` 的题目不再虚增 readiness；`LearningAgentPlan` 与 session summary 暴露计算后的知识范围，Agent 路线卡显示 `项目知识`、`编程知识` 或 `项目与编程知识`。
 - 新增 4 个统一范围回归；checkpoint/恢复兼容集合 39 个测试通过。全量 `flutter test --no-pub` 为 141 tests passed；`flutter analyze --no-pub --no-fatal-infos` 为 0 errors、0 warnings，仅 34 条既有 info lint。
-- Android `emulator-5554` 分别验收三种目标，UI hierarchy 与截图保存为 `build/validation/duoduo-leaf20-1-agent-default.*`、`duoduo-leaf20-1-agent-project.*`、`duoduo-leaf20-1-agent-mixed.*`；层级中知识范围唯一且与目标一致，截图无重叠或溢出。
+- Android `emulator-5554` 分别验收三种目标，UI hierarchy 与截图保存为 `build/validation/anchor-learning-leaf20-1-agent-default.*`、`anchor-learning-leaf20-1-agent-project.*`、`anchor-learning-leaf20-1-agent-mixed.*`；层级中知识范围唯一且与目标一致，截图无重叠或溢出。
 - 更新后的 Android APK 完成 203 个 Gradle 任务；`app-debug.apk` 为 190,490,327 bytes，SHA-256 为 `9d9771a35ad00ce5155a1454ed96e16bb18daf2a02e5ebf29d18c48c02c3d329`，build-tools 37 验证 v2 debug 签名通过。最终 logcat 未发现 `FATAL EXCEPTION`、`AndroidRuntime: FATAL`、`E/flutter` 或 App ANR。
 - `git diff --check` 通过；通用凭据扫描未发现长格式 API key。Leaf 20.1 未新增数据库表、迁移或 checkpoint 编码字段，既有 plan snapshot 可继续解码和恢复。Leaf 20.1 已完成。
 
@@ -11758,7 +11758,7 @@ Branch 19 状态：已关闭。Leaf 19.1 至 19.5 均已完成；下一步进入
 - executor 在 tool-start checkpoint 前重新从 repository 读取计划 target，并比较 type、id、知识点、核验状态和 citation；目标被删除、改绑、降级为待核验或丢失引用时由 policy 明确阻断。通过后，普通题只打开精确的 `QuizScreen` 题目，编程练习打开精确 `ProgrammingExerciseScreen.initialExerciseId`。
 - 新增 8 个固定回归，覆盖只有普通题、只有编程练习、两者并存的稳定选择、无引用/未核验过滤、version 1 additive codec 兼容、两种页面路由和运行时降级阻断。checkpoint/恢复集合与范围回归一并通过；全量 `flutter test --no-pub` 为 149 tests passed。
 - `flutter analyze --no-pub --no-fatal-infos` 为 0 errors、0 warnings，仅 34 条既有 info lint。Android APK 完成 203 个 Gradle 任务并成功安装；`app-debug.apk` 为 190,505,602 bytes，SHA-256 为 `e1d0579e4b9a19b1a968d2ef4ca1add50cc183bdf15a1ccb91b67635135f0d20`，build-tools 37 验证 v2 debug 签名通过。
-- Android `emulator-5554` 使用一条临时官方来源、片段、编程知识点和已核验编程练习验收：Agent 首页显示 `已核验练习 1`、`下一步：完成已核验练习` 和 typed target；准备页显示 `本轮编程练习` 与 1 条引用；开始后打开指定 exercise。证据保存为 `build/validation/duoduo-leaf20-2-agent-programming.*`、`duoduo-leaf20-2-session.*` 和 `duoduo-leaf20-2-exercise.*`。
+- Android `emulator-5554` 使用一条临时官方来源、片段、编程知识点和已核验编程练习验收：Agent 首页显示 `已核验练习 1`、`下一步：完成已核验练习` 和 typed target；准备页显示 `本轮编程练习` 与 1 条引用；开始后打开指定 exercise。证据保存为 `build/validation/anchor-learning-leaf20-2-agent-programming.*`、`anchor-learning-leaf20-2-session.*` 和 `anchor-learning-leaf20-2-exercise.*`。
 - 验收后精确删除临时 source、chunk、knowledge point、exercise、1 个未完成 state 和 4 条 trace；对应计数均为 0，SQLite `integrity_check` 为 `ok`。清理后冷启动日志未发现 `FATAL EXCEPTION`、`AndroidRuntime: FATAL`、`E/flutter` 或 App ANR；`git diff --check` 与通用长格式凭据扫描通过。Leaf 20.2 未新增数据库表或迁移。Leaf 20.2 已完成。
 
 ### Leaf 20.3：Shared grounded learning context
@@ -11783,7 +11783,7 @@ Branch 19 状态：已关闭。Leaf 19.1 至 19.5 均已完成；下一步进入
 - 新增 `grounded_learning_context_test.dart` 的 6 个固定回归，覆盖四 surface 合法证据一致性、trust/locator/quote boundary、缺失 source 等候选拒绝、越界 citation subset、错误 quote、请求前阻断，以及 task 不得读取 context 外裸 chunks。更新 Agent 与 widget fixtures，使测试也提供完整 source 链路，并修复导师先修过滤错误地用 `KnowledgePoint` 对象而不是 point ID 查 map 的问题。
 - 全量 `flutter test --no-pub` 为 155 tests passed。`flutter analyze --no-pub --no-fatal-infos` 为 0 errors、0 warnings，仅 34 条既有 info lint；`git diff --check` 与通用长格式凭据扫描通过，匹配凭据文件数为 0。Leaf 20.3 未新增数据库表、迁移或 checkpoint 格式。
 - 标准 Gradle Wrapper 因当前网络无法下载 `gradle-9.1.0-all.zip` 而停在 0 字节；改用本机完整 Gradle 9.4.1、离线缓存和 `android-x64` 完成 emulator debug 构建。`assembleDebug` 成功完成 292 个 actionable tasks；APK 为 77,760,261 bytes，SHA-256 为 `2e1338d9db1a365b848336e220db19b725969206560ed68169593ddb4acbfaea`，build-tools 37 验证 v2 debug 签名通过。
-- APK 已安装到 `emulator-5554`，冷启动后完成首页、Agent 和知识库页面验收；截图、UI hierarchy 与日志保存在 `build/validation/duoduo-leaf20-3-home.*`、`duoduo-leaf20-3-agent.*`、`duoduo-leaf20-3-knowledge.*` 和 `duoduo-leaf20-3-final-logcat.txt`。最终日志未发现 Fatal、Flutter error 或 ANR，SQLite `integrity_check` 为 `ok`。Leaf 20.3 已完成。
+- APK 已安装到 `emulator-5554`，冷启动后完成首页、Agent 和知识库页面验收；截图、UI hierarchy 与日志保存在 `build/validation/anchor-learning-leaf20-3-home.*`、`anchor-learning-leaf20-3-agent.*`、`anchor-learning-leaf20-3-knowledge.*` 和 `anchor-learning-leaf20-3-final-logcat.txt`。最终日志未发现 Fatal、Flutter error 或 ANR，SQLite `integrity_check` 为 `ok`。Leaf 20.3 已完成。
 
 ### Leaf 20.4：Unified target memory timeline
 
@@ -11805,7 +11805,7 @@ Branch 19 状态：已关闭。Leaf 19.1 至 19.5 均已完成；下一步进入
 - Provider 将现有 session、turn、exercise attempt、review action、question schedule 和知识点来源组装为同一 read model；编程练习与复习动作写入后同步失效 memory provider。知识点详情新增“连续学习历史”，显示记录总数、开放追问、稳定误区、薄弱维度、下一复习时间以及六类时间线记录。
 - 新增 `learning_agent_unified_memory_timeline_test.dart` 和 `learning_target_memory_timeline_widget_test.dart`，并扩展知识库 summary 回归；固定测试覆盖六 surface 归一、旧 citation 归属、练习 routing、跨 surface 追问关闭、稳定误区、薄弱维度去重、record type/goal/target 查询、旧 store 回退和 320px 宽度布局。全量 `flutter test --no-pub` 为 159 tests passed；`flutter analyze --no-pub --no-fatal-infos` 为 0 errors、0 warnings，仅 34 条既有 info lint。
 - 使用本机 Gradle 9.4.1、离线缓存和 `android-x64` 属性完成 `:app:assembleDebug`，203 个 actionable tasks 以 `BUILD SUCCESSFUL in 3m 36s` 完成。APK 为 102,377,964 bytes，SHA-256 为 `47a9be60ee58804c2a001568d905ee75b9ac08415f0e362ba65d7f071d0daf17`，build-tools 37 验证 v2 debug 签名通过。
-- APK 覆盖安装到 `emulator-5554` 并冷启动成功。固定前缀验收数据在真实 `user_version=22` 数据库中生成 7 条跨 surface 记录；知识点详情 UI hierarchy 与上下两段截图保存在 `build/validation/duoduo-leaf20-4-detail-top.*` 和 `duoduo-leaf20-4-detail-lower.*`，可见知识库回答、导师、面试、编程练习、Agent 复盘和复习动作，且无文本重叠。日志未发现 Fatal、Flutter error 或 ANR；`integrity_check` 为 `ok`。验收数据已清零，清理后再次冷启动成功。数据库原有的来源/知识点外键孤儿记录在验收前后相同，本 Leaf 未擅自修改历史数据。Leaf 20.4 已完成。
+- APK 覆盖安装到 `emulator-5554` 并冷启动成功。固定前缀验收数据在真实 `user_version=22` 数据库中生成 7 条跨 surface 记录；知识点详情 UI hierarchy 与上下两段截图保存在 `build/validation/anchor-learning-leaf20-4-detail-top.*` 和 `anchor-learning-leaf20-4-detail-lower.*`，可见知识库回答、导师、面试、编程练习、Agent 复盘和复习动作，且无文本重叠。日志未发现 Fatal、Flutter error 或 ANR；`integrity_check` 为 `ok`。验收数据已清零，清理后再次冷启动成功。数据库原有的来源/知识点外键孤儿记录在验收前后相同，本 Leaf 未擅自修改历史数据。Leaf 20.4 已完成。
 
 ### Leaf 20.5：Deterministic next-action policy
 
@@ -11827,7 +11827,7 @@ Branch 19 状态：已关闭。Leaf 19.1 至 19.5 均已完成；下一步进入
 - 待核验编程练习成为正式 next-action target，使用 `programming_exercise:<id>` 路由。executor 在启动工具前重新读取练习并核对 pending 状态，状态漂移时阻断；通过后精确打开 `ProgrammingExerciseScreen(initialExerciseId: ...)`，并自动显示该练习的来源核验对话框。
 - 新增确定性 policy、codec、trace、checkpoint 恢复、blocker、统一 memory 输入、精确导航和状态漂移回归。Agent 定向回归集 62 tests passed；全量 `flutter test --no-pub` 为 168 tests passed。`flutter analyze --no-pub --no-fatal-infos` 为 0 errors、0 warnings，仅 35 条既有 info lint。
 - 使用本机 Gradle 9.4.1 完成离线 Android debug 构建，203 个 actionable tasks 成功；APK 为 102,417,632 bytes，SHA-256 为 `cff4a6a5627c5d65808da7d9e8ca7081e247f5e63fe402042e14f49c92dd525a`，build-tools 37 验证 v2 debug 签名通过。
-- APK 已安装到 `emulator-5554`。Android 固定验收覆盖空状态证据缺口、pending 编程练习、精确核验对话框、工具启动 checkpoint、冷停恢复、重新执行和缺 plan snapshot blocker；证据保存在 `build/validation/duoduo-leaf20-5-*`，其中下半屏截图完整显示对应工具与阻断原因。
+- APK 已安装到 `emulator-5554`。Android 固定验收覆盖空状态证据缺口、pending 编程练习、精确核验对话框、工具启动 checkpoint、冷停恢复、重新执行和缺 plan snapshot blocker；证据保存在 `build/validation/anchor-learning-leaf20-5-*`，其中下半屏截图完整显示对应工具与阻断原因。
 - 验收后精确删除 1 条临时来源、片段、知识点、练习、关联，2 个 checkpoint 和 6 条 trace。所有 `leaf20-5-validation-*` 计数及指定 session 计数均为 0；数据库保持 `user_version=22`、`integrity_check=ok`，原有 12 条历史 foreign-key check 结果逐行未变。最终冷启动成功，logcat 未发现 Fatal、Flutter error 或 App ANR；`git diff --check` 与通用长格式凭据扫描通过。Leaf 20.5 已完成。
 
 ### Leaf 20.6：Unified Agent workspace and golden path
@@ -11849,7 +11849,7 @@ Branch 19 状态：已关闭。Leaf 19.1 至 19.5 均已完成；下一步进入
 - Agent 首页改为先展示统一 plan，再展示 checkpoint、记忆和工具目标；路线卡补充历史、待复习和下一复习时间，详细 session 依据折叠到“计划依据”。原导师、面试和复习三张并列模式卡已移除，功能入口保留为同一 planner 管理的工具目标。
 - 新增固定统一黄金路径 fixture 和回归，覆盖两份可审计来源导入、项目/编程/混合三种 scope、导师/面试/编程练习评价共享 grounded context、跨 surface memory 写入、开放追问优先于到期复习、workspace 工具目标，以及 checkpoint 恢复继续使用原 plan snapshot。Agent 定向回归 65 tests passed；全量 `flutter test --no-pub` 为 171 tests passed；analyzer 为 0 errors、0 warnings，仅 35 条既有 info lint。
 - 使用本机 Gradle 9.4.1、离线缓存、单 worker、关闭 Kotlin incremental 并采用 in-process compiler 完成 `android-x64` debug 构建；203 个 actionable tasks 成功。APK 为 102,409,597 bytes，SHA-256 为 `9ea1d88d92a1253dd9c7ee969399cea34041a8d07a2ccfcadcec37a090c704d2`，build-tools 37 验证 v2 debug 签名通过。
-- APK 覆盖安装到 `emulator-5554` 后，以统一 `leaf20-6-validation-*` fixture 验收项目、编程和混合目标。三种范围、历史数、确定性 next action 和四个核心工具目标均由 UI hierarchy 断言；截图保存在 `build/validation/duoduo-leaf20-6-project-*`、`duoduo-leaf20-6-programming-*` 和 `duoduo-leaf20-6-mixed-*`。混合目标的“启动面试模式”进一步打开来源约束 `Agent Session`，显示同一知识点的证据、已核验题和面试讲法。
+- APK 覆盖安装到 `emulator-5554` 后，以统一 `leaf20-6-validation-*` fixture 验收项目、编程和混合目标。三种范围、历史数、确定性 next action 和四个核心工具目标均由 UI hierarchy 断言；截图保存在 `build/validation/anchor-learning-leaf20-6-project-*`、`anchor-learning-leaf20-6-programming-*` 和 `anchor-learning-leaf20-6-mixed-*`。混合目标的“启动面试模式”进一步打开来源约束 `Agent Session`，显示同一知识点的证据、已核验题和面试讲法。
 - 验收后按依赖顺序精确删除 2 个来源、2 个片段、2 个知识点、2 个关联、1 个题组、2 道题、1 个编程练习、2 个 session、1 个导师回合、1 个面试回合和 1 个练习尝试；所有临时前缀计数均为 0。设备数据库与清理副本 SHA-256 一致，保持 `user_version=22`、`integrity_check=ok`，原有 12 条 historical foreign-key check 结果逐行未变。
 - 最终 Android 冷启动为 `LaunchState=COLD`，耗时约 3.19 秒；空态首页布局正常，logcat 未发现 `FATAL EXCEPTION`、`AndroidRuntime: FATAL`、`E/flutter` 或 App ANR。`git diff --check` 与通用长格式凭据扫描通过。Leaf 20.6 已完成，Branch 20 已关闭。
 
@@ -11981,7 +11981,7 @@ Leaf 21.4 已完成。
 - 新增真实文件型 SQLite 快照、v22 -> v23 恢复迁移、无效文件拒绝、替换后失败自动回滚、恢复确认、删除前备份、320px 窄屏、200% 字体和 semantic tap action 回归。
 - 新增 `docs/private-alpha-release-checklist.md`，固定 Android API 36 x86_64 Tier A 目标、API 24-35 Arm64 候选设备、构建/安装/迁移/中断/删除/导出/恢复/凭据/截图门槛和失败恢复路径。
 - 全量 `flutter test --no-pub` 为 215 tests passed；`flutter analyze --no-pub --no-fatal-infos` 为 0 errors、0 warnings，仅 34 条既有 info lint。`git diff --check` 与凭据形态扫描通过。
-- 离线 Gradle 9.4.1 使用单 worker、关闭 Kotlin incremental、采用 in-process compiler 和 `-Ptarget-platform=android-x64` 完成 203 个任务。APK 为 78,072,121 bytes，SHA-256 为 `ee166a61343c19b07ad31ca00b8adf3699a2f572006d72ab9ad523c3ff5fa6ab`，v2 debug 签名通过；包名为 `com.example.dlg_q`，版本为 `1.0.0+1`，min/target/compile SDK 为 24/36/37。
+- 离线 Gradle 9.4.1 使用单 worker、关闭 Kotlin incremental、采用 in-process compiler 和 `-Ptarget-platform=android-x64` 完成 203 个任务。该历史构建记录仅保留构建方法；当前发布候选以 `docs/PRODUCTIZATION_RELEASE_PLAN.md` 中的签名 Arm64 APK 和哈希为准。
 - APK 覆盖安装到 `emulator-5554` 后首次冷启动约 5.84 秒。About 页、隐私页、删除准备和恢复确认的截图/UI hierarchy 均通过目视与语义检查；未发现裁切、重叠或不可点击的关键操作。
 - Android DocumentsUI 真实完成数据库导出、保存取消保护、直接删除、备份后删除和恢复。删除产品事件后数据库只剩新 `data_deleted` 审计事件；恢复后原两条事件无需重启即刷新，并在冷启动后继续存在。恢复数据库为 schema 23、`integrity_check=ok`，App 日志未发现 Fatal、Flutter、ANR、SQLite、锁或恢复错误。
 - 验收导出与设备临时文件已删除；安装前数据库最终按 SHA-256 `65872231a9a9ad7248368d6e760a07c359f2efd43e42ab5623e3df377904a892` 逐字节恢复。
@@ -12215,7 +12215,7 @@ bytes，SHA-256 为 424087275110A499D37613B09F354C53325B0B8128195F573F8A522402EB
 v2 签名通过且原生库仅位于 lib/arm64-v8a。构建时以 project arg 禁用 Kotlin 增量缓存，
 绕过 Windows 跨盘符缓存缺陷，没有修改 Gradle 源配置。当前 adb devices -l 无设备；模型辅助
 搜索开关、输入 debounce 和状态 chip 的物理设备点击与视觉验收仍依赖真机连接，必须继续
-遵守仅操作 Duoduo App 的边界。
+遵守仅操作 Anchor Learning App 的边界。
 ### Leaf 21.13：Evidence-bound Private Alpha readiness
 
 输出：
@@ -12321,7 +12321,7 @@ Arm64 physical smoke、emulator/x86/API、READY、execution、smoke failure、�
 时间、APK 绑定和 JSON parser。全量 flutter test --no-pub 为 285 tests passed；
 flutter analyze --no-pub --no-fatal-infos 为 0 errors、0 warnings，仅 34 条既有 info。
 
-Leaf 21.17 已完成代码与自动化验收。下一次真机连接后仍需仅针对 Duoduo App 重新执行
+Leaf 21.17 已完成代码与自动化验收。下一次真机连接后仍需仅针对 Anchor Learning App 重新执行
 preflight --execute，才能生成可用于把 physical gate 设为 true 的新鲜报告。
 ### Leaf 21.6：Ten-user private alpha
 
@@ -12338,7 +12338,7 @@ preflight --execute，才能生成可用于把 physical gate 设为 true 的新�
 
 - 新增匿名招募/同意登记、D0/D7/D14 session worksheet、P0-P3 issue log 和单一主要假设 decision log；所有实际填写副本必须保存在仓库外，禁止姓名、联系方式、凭据、项目名、私有路径、源码、原始回答和模型原文。
 - `docs/private-alpha-operations-runbook.md` 已链接完整 operator pack，最终报告增加 evidence index。正式 cohort denominator 固定为 A01-A10，退出者保留在 invited denominator，S01-S02 仅作不计数 shakedown。
-- 新增 `tool/private_alpha_device_preflight.dart`，默认只读核对 APK 哈希、设备 ABI/API、真机属性和屏幕参数；只有显式 `--execute` 且设备满足 Arm64 physical API 24-35 时，才安装、冷启动并读取 Duoduo PID 日志。工具不清空全局 logcat、不检查其他 package、不修改设备设置或共享存储。Arm64 通过、x86 emulator HOLD 和安装失败三项回归通过。
+- 新增 `tool/private_alpha_device_preflight.dart`，默认只读核对 APK 哈希、设备 ABI/API、真机属性和屏幕参数；只有显式 `--execute` 且设备满足 Arm64 physical API 24-35 时，才安装、冷启动并读取 Anchor Learning PID 日志。工具不清空全局 logcat、不检查其他 package、不修改设备设置或共享存储。Arm64 通过、x86 emulator HOLD 和安装失败三项回归通过。
 - 全量 `flutter test --no-pub` 更新为 232 tests passed；`flutter analyze --no-pub --no-fatal-infos` 为 0 errors、0 warnings，仅 34 条既有 info lint。222 个 Dart 文件格式检查无变化，`git diff --check`、文档尾随空格和凭据形态扫描通过。
 - OnePlus PGP110 真机为 `arm64-v8a`、API 35、1080x2412、density 480。Arm64 APK 离线构建完成 203 个 actionable tasks，`BUILD SUCCESSFUL in 3m 45s`；APK 为 140,580,450 bytes，SHA-256 为 `08c4621fe571df06cfd4970ac35b3a2050ef397317484a4a14ede16dbaa5166e`，v2 签名通过且包含 `lib/arm64-v8a/libflutter.so`。
 - 真机只读 preflight 返回 `READY`，显式 app-only smoke 返回 `PASSED`：安装、冷启动、进程存活和 PID-filtered App 日志均通过。首屏正确显示 clean-install `1/6 目标`，无裁切、重叠或 system inset 遮挡；证据保存在 `build/validation/leaf21_6_arm64_cold_start.*`，设备临时文件已删除。
@@ -12540,3 +12540,17 @@ committed Draft 2020-12 schema 的五项 conditional gate；全量 flutter test 
 
 Leaf 21.23 已完成代码与自动化验收。operator 现在可以从真实构建身份安全创建草稿，但
 initializer 不能生成 GO；所有外部门禁仍必须通过真实流程后逐项附证。
+
+### Leaf 21.24：真实治理证据绑定
+
+完成记录（2026-08-26）：
+
+- 负责人确认本人承担 `alphaOwner`、`privacyReviewer`、`reliabilityOwner` 和数据处理责任。
+- 在仓库外受限目录建立 `OPS-ALPHA-2005` 运营记录，声明访问控制、30 天保留与删除、事故响应和撤销流程；实际目录 ACL 仅允许当前 operator、Administrators 与 SYSTEM。
+- 建立 `CRED-PRIMARY-2005` 凭据治理记录，绑定当前 release-day profile fingerprint，声明配额所有权/限制、撤销能力/负责人、保留和数据处理规则；API Key 未写入仓库、readiness JSON 或运营记录。
+- `build/validation/private-alpha-readiness.json` 仅增加匿名 CRED/OPS 引用和布尔治理声明，保留 release-day 报告的 `participantOwned` scope；readiness 从三个 blocker 收敛为唯一 `cohort_pending`。
+- 初始化仓库外 cohort working pack，复制六份冻结空白模板；没有创建参与者、同意、D0/D7/D14 或最终决策证据。
+
+验收：readiness CLI 返回 `HOLD / cohort_pending`；readiness、controlled-credential、operator-pack、release-consistency 和 CLI integration 回归通过；secret-shaped 扫描干净，`git diff --check` 通过。
+
+当前边界：正式招募现在可以开始，但 Private Alpha 仍不得标记 GO。只有真实 A01-A10 cohort 完成 D0/D7/D14、最终报告为 `GO` 并通过同一 APK/profile/scope consistency 检查后，才能解除最后 blocker。

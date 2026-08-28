@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import 'repository_relative_path.dart';
+
 enum PrivateAlphaPrivacyFindingCategory {
   apiKey,
   authorization,
@@ -50,7 +52,7 @@ class PrivateAlphaPrivacyScanEvidence {
           'privacy_scan.paths must contain non-empty strings.',
         );
       }
-      if (p.isAbsolute(rawPath)) {
+      if (isAbsolutePathOnAnyPlatform(rawPath)) {
         throw const FormatException(
           'privacy_scan.paths must be repository-relative.',
         );

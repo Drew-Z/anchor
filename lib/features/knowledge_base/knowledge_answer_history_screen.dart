@@ -249,8 +249,9 @@ class _KnowledgeAnswerHistoryScreenState
       if (_onlyWithSourceGaps && !record.hasSourceGaps) return false;
       if (_onlyWithoutCitations && record.citationIds.isNotEmpty) return false;
       if (_onlyRepairable && !record.hasRepairableQualityIssue) return false;
-      if (_onlyNeedsReview && !record.hasNonRepairableQualityIssue)
+      if (_onlyNeedsReview && !record.hasNonRepairableQualityIssue) {
         return false;
+      }
       if (query.isEmpty) return true;
       final repairKind = record.evidenceRepairKind;
       final text = [

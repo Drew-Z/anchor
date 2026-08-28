@@ -1,7 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:dlg_q/services/validation/question_validator.dart';
-import 'package:dlg_q/data/models/question.dart';
-import 'package:dlg_q/data/models/source_chunk.dart';
+import 'package:anchor_learning/services/validation/question_validator.dart';
+import 'package:anchor_learning/data/models/question.dart';
+import 'package:anchor_learning/data/models/question_type.dart';
+import 'package:anchor_learning/data/models/source_chunk.dart';
 
 void main() {
   late QuestionValidator validator;
@@ -20,7 +21,6 @@ void main() {
         options: ['2种', '3种', '4种', '5种'],
         answer: '3种',
         explanation: '',
-        createdAt: DateTime.now(),
       );
 
       final chunks = [
@@ -51,7 +51,6 @@ void main() {
         options: ['5种', '6种', '7种', '8种'],
         answer: '7种',
         explanation: '',
-        createdAt: DateTime.now(),
       );
 
       final chunks = [
@@ -82,7 +81,6 @@ void main() {
         options: ['强类型', '编译型', '动态链接', '解释型'],
         answer: '动态链接', // 这个在原文中不存在
         explanation: '',
-        createdAt: DateTime.now(),
       );
 
       final chunks = [
@@ -103,6 +101,35 @@ void main() {
       expect(result.isValid, isFalse);
       expect(result.issues.any((i) => i.contains('正确答案')), isTrue);
     });
+
+    test('部分真实但包含虚构前提的题干验证失败', () async {
+      final question = Question(
+        id: 'q1',
+        deckId: 'deck1',
+        type: QuestionType.multipleChoice,
+        content: 'Flutter 使用量子编译引擎吗?',
+        options: ['Flutter', 'Dart'],
+        answer: 'Flutter',
+        explanation: '',
+      );
+      final chunks = [
+        SourceChunk(
+          id: 'c1',
+          sourceId: 's1',
+          chunkIndex: 0,
+          content: 'Flutter 使用 Dart 语言开发移动应用。',
+          createdAt: DateTime.now(),
+        ),
+      ];
+
+      final result = await validator.validate(
+        question: question,
+        sourceChunks: chunks,
+      );
+
+      expect(result.isValid, isFalse);
+      expect(result.issues, contains('题干关键词未在原文找到'));
+    });
   });
 
   group('QuestionValidator - FillInBlank', () {
@@ -110,11 +137,10 @@ void main() {
       final question = Question(
         id: 'q1',
         deckId: 'deck1',
-        type: QuestionType.fillInBlank,
+        type: QuestionType.fillBlank,
         content: 'Flutter 的 UI 框架基于___设计。',
         answer: 'Widget',
         explanation: '',
-        createdAt: DateTime.now(),
       );
 
       final chunks = [
@@ -139,11 +165,10 @@ void main() {
       final question = Question(
         id: 'q1',
         deckId: 'deck1',
-        type: QuestionType.fillInBlank,
+        type: QuestionType.fillBlank,
         content: 'Flutter 使用___语言开发。',
         answer: 'Kotlin', // 错误答案
         explanation: '',
-        createdAt: DateTime.now(),
       );
 
       final chunks = [
@@ -165,15 +190,72 @@ void main() {
       expect(result.issues.any((i) => i.contains('Kotlin')), isTrue);
     });
 
+    test('相同汉字但语序相反的答案验证失败', () async {
+      final question = Question(
+        id: 'q1',
+        deckId: 'deck1',
+        type: QuestionType.fillBlank,
+        content: '原文描述的依赖方向是___。',
+        answer: '甲支持乙',
+        explanation: '',
+      );
+      final chunks = [
+        SourceChunk(
+          id: 'c1',
+          sourceId: 's1',
+          chunkIndex: 0,
+          content: '乙不支持甲。',
+          createdAt: DateTime.now(),
+        ),
+      ];
+
+      final result = await validator.validate(
+        question: question,
+        sourceChunks: chunks,
+      );
+
+      expect(result.isValid, isFalse);
+      expect(result.issues.any((issue) => issue.contains('甲支持乙')), isTrue);
+    });
+
+    test('部分来自原文但含虚构后缀的答案验证失败', () async {
+      final question = Question(
+        id: 'q1',
+        deckId: 'deck1',
+        type: QuestionType.fillBlank,
+        content: '原文中的完整术语是___。',
+        answer: '甲乙丙丁戊己庚辛壬癸',
+        explanation: '',
+      );
+      final chunks = [
+        SourceChunk(
+          id: 'c1',
+          sourceId: 's1',
+          chunkIndex: 0,
+          content: '原文只包含甲乙丙丁戊己庚。',
+          createdAt: DateTime.now(),
+        ),
+      ];
+
+      final result = await validator.validate(
+        question: question,
+        sourceChunks: chunks,
+      );
+
+      expect(result.isValid, isFalse);
+      expect(result.issues.any((issue) => issue.contains(question.answer)),
+          isTrue);
+    });
+
     test('代码片段在原文中存在 - 通过验证', () async {
       final question = Question(
         id: 'q1',
         deckId: 'deck1',
-        type: QuestionType.fillInBlank,
-        content: '以下代码片段用于创建按钮:\n```dart\nElevatedButton(\n  onPressed: () {},\n  child: Text(___),\n)\n```',
+        type: QuestionType.fillBlank,
+        content:
+            '以下代码片段用于创建按钮:\n```dart\nElevatedButton(\n  onPressed: () {},\n  child: Text(___),\n)\n```',
         answer: "'Click Me'",
         explanation: '',
-        createdAt: DateTime.now(),
       );
 
       final chunks = [
@@ -213,7 +295,6 @@ ElevatedButton(
         options: ['正确', '错误'],
         answer: '正确',
         explanation: '',
-        createdAt: DateTime.now(),
       );
 
       final chunks = [
@@ -243,7 +324,6 @@ ElevatedButton(
         options: ['正确', '错误'],
         answer: '错误',
         explanation: '',
-        createdAt: DateTime.now(),
       );
 
       final chunks = [
@@ -275,7 +355,6 @@ ElevatedButton(
         options: ['正确', '错误'],
         answer: '正确',
         explanation: '',
-        createdAt: DateTime.now(),
       );
 
       final chunks = [
@@ -309,7 +388,6 @@ ElevatedButton(
         matchRight: ['显示图片', '显示文本', '布局容器'],
         answer: 'Container-布局容器|Text-显示文本|Image-显示图片',
         explanation: '',
-        createdAt: DateTime.now(),
       );
 
       final chunks = [
@@ -345,7 +423,6 @@ Flutter 常用 Widget:
         matchRight: ['X', 'Y'],
         answer: 'A-X|B-Y',
         explanation: '',
-        createdAt: DateTime.now(),
       );
 
       final chunks = [
@@ -378,7 +455,6 @@ Flutter 常用 Widget:
         options: ['创建项目', '安装依赖', '运行应用', '编写代码'],
         answer: '创建项目|安装依赖|编写代码|运行应用',
         explanation: '',
-        createdAt: DateTime.now(),
       );
 
       final chunks = [
@@ -414,7 +490,6 @@ Flutter 开发流程:
         options: ['步骤1', '步骤2', '步骤3'],
         answer: '步骤1|步骤2|步骤3',
         explanation: '',
-        createdAt: DateTime.now(),
       );
 
       final chunks = [
@@ -448,16 +523,14 @@ Flutter 开发流程:
           options: ['Dart', 'Java', 'Kotlin', 'Swift'],
           answer: 'Dart',
           explanation: '',
-          createdAt: DateTime.now(),
         ),
         Question(
           id: 'q2',
           deckId: 'deck1',
-          type: QuestionType.fillInBlank,
+          type: QuestionType.fillBlank,
           content: 'Flutter 的核心是___。',
           answer: 'Widget',
           explanation: '',
-          createdAt: DateTime.now(),
         ),
       ];
 
@@ -492,7 +565,6 @@ Flutter 开发流程:
         options: ['正确', '错误'],
         answer: '正确',
         explanation: '',
-        createdAt: DateTime.now(),
       );
 
       final chunks = [
@@ -523,7 +595,6 @@ Flutter 开发流程:
         options: ['A', 'B', 'C', 'D'],
         answer: 'A',
         explanation: '',
-        createdAt: DateTime.now(),
       );
 
       final chunks = [

@@ -14,8 +14,7 @@ import '../../data/models/source_chunk.dart';
 import '../../services/ingestion/project_source_import_service.dart';
 import '../../services/ingestion/source_grounded_ingestion_service.dart';
 import '../../services/privacy/product_event_recorder.dart';
-import '../../services/validation/question_validator.dart';
-import '../../shared/widgets/duo_button.dart';
+import '../../shared/widgets/anchor_button.dart';
 import 'knowledge_review_screen.dart';
 
 class ProjectImportResult {
@@ -241,7 +240,8 @@ class _ProjectImportScreenState extends ConsumerState<ProjectImportScreen> {
           return q;
         }
         // 添加验证警告到解析中
-        final warningText = '\n\n⚠️ 验证发现以下问题:\n${validation.issues.map((i) => '• $i').join('\n')}\n(置信度: ${(validation.confidence * 100).toInt()}%)';
+        final warningText =
+            '\n\n⚠️ 验证发现以下问题:\n${validation.issues.map((i) => '• $i').join('\n')}\n(置信度: ${(validation.confidence * 100).toInt()}%)';
         return q.copyWith(
           explanation: (q.explanation ?? '') + warningText,
         );
@@ -314,7 +314,7 @@ class _ProjectImportScreenState extends ConsumerState<ProjectImportScreen> {
         return;
       }
 
-      final directoryPath = await FilePicker.platform.getDirectoryPath(
+      final directoryPath = await FilePicker.getDirectoryPath(
         dialogTitle: '选择项目目录',
       );
       if (directoryPath == null) return;
@@ -331,14 +331,14 @@ class _ProjectImportScreenState extends ConsumerState<ProjectImportScreen> {
   Future<void> _pickProjectZip() async {
     await _recordImportStarted('zip');
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final result = await FilePicker.pickFiles(
         dialogTitle: '选择项目 ZIP',
         type: FileType.custom,
         allowedExtensions: const ['zip'],
       );
-      if (result == null || result.files.isEmpty) return;
+      if (result.isEmpty) return;
 
-      final file = result.files.single;
+      final file = result.single;
       final service = ref.read(projectSourceImportServiceProvider);
       final future = file.path == null
           ? file.xFile.readAsBytes().then(
@@ -678,7 +678,7 @@ class _ProjectImportScreenState extends ConsumerState<ProjectImportScreen> {
               _ProjectTextField(
                 controller: _nameController,
                 label: '项目名称',
-                hintText: '例如：Duoduo Learn',
+                hintText: '例如：Anchor Learning',
               ),
               _ProjectTextField(
                 controller: _goalController,
@@ -761,7 +761,7 @@ class _ProjectImportScreenState extends ConsumerState<ProjectImportScreen> {
                 ),
               ],
               const SizedBox(height: 20),
-              DuoButton(
+              AnchorButton(
                 label: _isSaving
                     ? (widget.localMaterialOnly ? '保存中...' : '生成中...')
                     : (widget.localMaterialOnly ? '保存本地项目材料' : '生成并核验学习内容'),

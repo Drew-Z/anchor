@@ -31,7 +31,7 @@ class LearningAgentCheckpointRevisionConflict implements Exception {
 
 /// SQLite 数据库帮助类
 class DatabaseHelper {
-  static const String databaseName = 'dlg_q.db';
+  static const String databaseName = 'anchor_learning.db';
   static const int schemaVersion = 23;
 
   static final DatabaseHelper _instance = DatabaseHelper._internal();

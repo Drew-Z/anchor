@@ -7,7 +7,7 @@ import '../../data/models/question.dart';
 import '../../data/models/question_type.dart';
 import '../../data/models/source_chunk.dart';
 import '../../data/models/user_stats.dart';
-import '../../shared/widgets/duo_button.dart';
+import '../../shared/widgets/anchor_button.dart';
 import '../../shared/widgets/source_citation_block.dart';
 import '../../shared/widgets/stats_widgets.dart';
 import '../knowledge_base/knowledge_library_error_state.dart';
@@ -168,8 +168,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       case QuestionType.ordering:
         // 对于匹配和排序，答案格式为 "item1-match1|item2-match2" 或 "step1|step2|step3"
         // 比较时需要规范化
-        final normalize =
-            (String s) => s.split('|').map((e) => e.trim()).join('|');
+        String normalize(String value) =>
+            value.split('|').map((item) => item.trim()).join('|');
         return normalize(answer) == normalize(question.answer);
     }
   }
@@ -231,8 +231,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     if (before.streak < 3 && after.streak >= 3) newAchievements.add('连续3天');
     if (before.streak < 7 && after.streak >= 7) newAchievements.add('连续7天');
     if (before.streak < 30 && after.streak >= 30) newAchievements.add('连续30天');
-    if (before.streak < 100 && after.streak >= 100)
+    if (before.streak < 100 && after.streak >= 100) {
       newAchievements.add('连续100天');
+    }
     // XP
     if (before.xp < 100 && after.xp >= 100) newAchievements.add('初心者');
     if (before.xp < 500 && after.xp >= 500) newAchievements.add('积少成多');
@@ -489,7 +490,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           border: Border(top: BorderSide(color: AppColors.border, width: 2)),
         ),
         child: SafeArea(
-          child: DuoButton(
+          child: AnchorButton(
             label: '检查',
             color: AppColors.green,
             enabled: _selectedAnswer != null && !_isChecking,
@@ -559,7 +560,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
               ),
             ),
             const SizedBox(width: 16),
-            DuoButton(
+            AnchorButton(
               label: _currentIndex < _questions.length - 1 ? '继续' : '完成',
               color: isCorrect ? AppColors.green : AppColors.red,
               width: 140,
@@ -637,7 +638,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                 ),
               ),
               const SizedBox(height: 32),
-              DuoButton(
+              AnchorButton(
                 label: '返回',
                 color: AppColors.blue,
                 width: double.infinity,
@@ -762,7 +763,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                 ],
               ),
               const SizedBox(height: 32),
-              DuoButton(
+              AnchorButton(
                 label: '返回',
                 color: AppColors.blue,
                 width: double.infinity,

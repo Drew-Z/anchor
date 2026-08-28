@@ -30,7 +30,7 @@ ai-tutor, personal-learning, knowledge-management, study-assistant
 2. Click **⚙️ Settings** (top right of About box)
 3. Fill in:
    - **Description**: ⚓ Anchor your knowledge with full source traceability | Turn docs into AI quizzes that trace back to source
-   - **Website**: https://biau.playlab.eu.cc
+   - **Website**: https://anchor.playlab.eu.cc
    - **Topics**: (add the tags above one by one)
    - ✅ Check "Use GitHub Pages" if you want to host docs
 
@@ -49,20 +49,24 @@ If you want a custom preview image when sharing on social media:
 ⚓ Anchor Learning
 Turn Docs → AI Quizzes → Traceable Answers
 Built with Flutter • MIT License
-From BIAU PORT
 ```
 
 ---
 
-## 🏷️ Create First Release
+## 🏷️ Prepare the Private Alpha Release
 
-After pushing code:
+The current candidate is `1.0.0+2005`. Do not publish a public release until the
+Private Alpha readiness record changes from `HOLD` to `GO` after the real cohort
+evidence is complete.
+
+When the cohort gate is approved:
 
 1. Go to **Releases** → **Create a new release**
-2. **Tag version**: `v0.1.0`
-3. **Release title**: `⚓ Anchor Learning v0.1.0 - Initial Public Release`
-4. **Description**: Copy from CHANGELOG.md v0.1.0 section
-5. Click **Publish release**
+2. **Tag version**: `v1.0.0`
+3. **Release title**: `⚓ Anchor Learning v1.0.0 - Private Alpha`
+4. **Description**: Use the approved release notes and `CHANGELOG.md` references; include the supported Android package and known limitations.
+5. Attach only the approved, signed release artifact and its SHA-256 from the release evidence.
+6. Publish only after the release checklist and rollback owner have been recorded.
 
 ---
 
@@ -104,9 +108,6 @@ Use this when posting to Chinese communities:
 - Question Validator: 二次核验答案准确性  
 - Semantic Chunking: 保持语义完整性
 
-**项目名的由来**:
-Anchor (锚) 来自我的主站 [BIAU PORT (泊岸)](https://biau.playlab.eu.cc) —— 船需要抛锚才能稳定停靠,知识也需要"锚定"才能记得牢固。
-
 **开源地址**: https://github.com/Drew-Z/anchor  
 **技术栈**: Flutter + SQLite + OpenAI API  
 **许可**: MIT
@@ -145,9 +146,6 @@ Existing learning apps either have fixed content or AI-generated questions that 
 - Question Validator: Cross-checks answers for accuracy
 - Semantic Chunking: Preserves context integrity
 
-**The Name**:
-"Anchor" comes from my main site [BIAU PORT](https://biau.playlab.eu.cc)—ships need anchors to dock securely, and knowledge needs to be "anchored" to stick.
-
 **Repo**: https://github.com/Drew-Z/anchor  
 **Stack**: Flutter + SQLite + OpenAI API  
 **License**: MIT
@@ -164,7 +162,7 @@ Feedback welcome! 🚀
 - [ ] Code pushed to main branch
 - [ ] README.md displays correctly
 - [ ] LICENSE file present
-- [ ] First release (v0.1.0) created
+- [ ] Private Alpha release (v1.0.0) created after readiness changes to `GO`
 - [ ] Demo video recorded (or placeholder added)
 - [ ] Screenshots ready (4-6 images)
 - [ ] Community post drafted
@@ -174,4 +172,4 @@ Feedback welcome! 🚀
 
 **Created**: 2026-07-26  
 **Project**: Anchor Learning  
-**From**: BIAU PORT (泊岸)
+**Website**: https://anchor.playlab.eu.cc

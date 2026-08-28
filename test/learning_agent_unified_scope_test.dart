@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:dlg_q/data/models/knowledge_point.dart';
-import 'package:dlg_q/data/models/question.dart';
-import 'package:dlg_q/data/models/question_type.dart';
-import 'package:dlg_q/services/agent/learning_agent_practice_target.dart';
-import 'package:dlg_q/services/agent/learning_agent_planner_service.dart';
+import 'package:anchor_learning/data/models/knowledge_point.dart';
+import 'package:anchor_learning/data/models/question.dart';
+import 'package:anchor_learning/data/models/question_type.dart';
+import 'package:anchor_learning/services/agent/learning_agent_practice_target.dart';
+import 'package:anchor_learning/services/agent/learning_agent_planner_service.dart';
 
 void main() {
   final planner = LearningAgentPlannerService();

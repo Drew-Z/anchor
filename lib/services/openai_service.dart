@@ -160,6 +160,10 @@ abstract class AiHttpTransport {
 }
 
 class DioAiHttpTransport implements AiHttpTransport {
+  /// Some reasoning models need longer than a conventional HTTP request to
+  /// produce a complete, non-streaming JSON response.
+  static const Duration defaultReceiveTimeout = Duration(minutes: 5);
+
   final Dio _dio;
 
   DioAiHttpTransport({Dio? dio})
@@ -167,7 +171,7 @@ class DioAiHttpTransport implements AiHttpTransport {
             Dio(
               BaseOptions(
                 connectTimeout: const Duration(seconds: 30),
-                receiveTimeout: const Duration(seconds: 120),
+                receiveTimeout: defaultReceiveTimeout,
               ),
             );
 
@@ -234,6 +238,13 @@ class AiProviderException implements AiProviderDiagnostic {
   String toString() => message;
 }
 
+class _ProviderResponseError {
+  final String? code;
+  final String message;
+
+  const _ProviderResponseError({required this.code, required this.message});
+}
+
 Future<SharedPreferences> _defaultPreferencesLoader() {
   return SharedPreferences.getInstance();
 }
@@ -241,11 +252,7 @@ Future<SharedPreferences> _defaultPreferencesLoader() {
 /// AI 服务（兼容 OpenAI 接口格式）
 class OpenAIService implements AiCompletionClient {
   static const String profilePreferencePrefix = 'ai_profile.';
-  static const String _apiKeyKey = 'ai_api_key';
-  static const String _modelKey = 'ai_model';
-  static const String _baseUrlKey = 'ai_base_url';
   static const String _providerIdKey = 'ai_provider_id';
-  static const String _protocolKey = 'ai_api_protocol';
 
   final AiHttpTransport _transport;
   final AiApiCredentialStore _credentialStore;
@@ -269,20 +276,7 @@ class OpenAIService implements AiCompletionClient {
 
   Future<String?> getApiKey({String? providerId}) async {
     final resolvedProviderId = providerId ?? await getProviderId();
-    final secureKey = await _credentialStore.readApiKey(resolvedProviderId);
-    if (secureKey != null && secureKey.trim().isNotEmpty) {
-      return secureKey;
-    }
-
-    final prefs = await _preferencesLoader();
-    final legacyKey =
-        prefs.getString(_apiKeyKey) ?? prefs.getString('openai_api_key');
-    if (legacyKey == null || legacyKey.trim().isEmpty) return null;
-
-    await _credentialStore.writeApiKey(resolvedProviderId, legacyKey.trim());
-    await prefs.remove(_apiKeyKey);
-    await prefs.remove('openai_api_key');
-    return legacyKey.trim();
+    return _credentialStore.readApiKey(resolvedProviderId);
   }
 
   Future<void> setApiKey(String key, {String? providerId}) async {
@@ -293,17 +287,11 @@ class OpenAIService implements AiCompletionClient {
     } else {
       await _credentialStore.writeApiKey(resolvedProviderId, trimmed);
     }
-    final prefs = await _preferencesLoader();
-    await prefs.remove(_apiKeyKey);
-    await prefs.remove('openai_api_key');
   }
 
   Future<void> clearApiKey({String? providerId}) async {
     final resolvedProviderId = providerId ?? await getProviderId();
     await _credentialStore.deleteApiKey(resolvedProviderId);
-    final prefs = await _preferencesLoader();
-    await prefs.remove(_apiKeyKey);
-    await prefs.remove('openai_api_key');
   }
 
   static String profilePreferenceKey(String providerId, String field) {
@@ -322,7 +310,6 @@ class OpenAIService implements AiCompletionClient {
     final stored = await _readProfileValue(
       providerId: providerId,
       field: 'model',
-      legacyKeys: const [_modelKey, 'openai_model'],
     );
     if (stored != null) return stored;
     final provider = AIProviders.getById(providerId);
@@ -342,8 +329,6 @@ class OpenAIService implements AiCompletionClient {
       profilePreferenceKey(providerId, 'model'),
       model.trim(),
     );
-    await prefs.remove(_modelKey);
-    await prefs.remove('openai_model');
   }
 
   Future<String> getBaseUrl() async {
@@ -354,7 +339,6 @@ class OpenAIService implements AiCompletionClient {
     final stored = await _readProfileValue(
       providerId: providerId,
       field: 'base_url',
-      legacyKeys: const [_baseUrlKey],
     );
     if (stored != null) return stored;
     final provider = AIProviders.getById(providerId);
@@ -371,7 +355,6 @@ class OpenAIService implements AiCompletionClient {
       profilePreferenceKey(providerId, 'base_url'),
       url.trim(),
     );
-    await prefs.remove(_baseUrlKey);
   }
 
   Future<String> getProviderId() async {
@@ -392,7 +375,6 @@ class OpenAIService implements AiCompletionClient {
     final stored = await _readProfileValue(
       providerId: providerId,
       field: 'protocol',
-      legacyKeys: const [_protocolKey],
     );
     if (stored != null) return AiApiProtocol.fromString(stored);
     final provider = AIProviders.getById(providerId);
@@ -412,29 +394,15 @@ class OpenAIService implements AiCompletionClient {
       profilePreferenceKey(providerId, 'protocol'),
       protocol.value,
     );
-    await prefs.remove(_protocolKey);
   }
 
   Future<String?> _readProfileValue({
     required String providerId,
     required String field,
-    required List<String> legacyKeys,
   }) async {
     final prefs = await _preferencesLoader();
     final profileKey = profilePreferenceKey(providerId, field);
-    final scoped = prefs.getString(profileKey);
-    if (scoped != null) return scoped;
-
-    final activeProviderId = prefs.getString(_providerIdKey) ?? 'openai';
-    if (activeProviderId != providerId) return null;
-    for (final legacyKey in legacyKeys) {
-      final legacyValue = prefs.getString(legacyKey);
-      if (legacyValue == null) continue;
-      await prefs.setString(profileKey, legacyValue);
-      await prefs.remove(legacyKey);
-      return legacyValue;
-    }
-    return null;
+    return prefs.getString(profileKey);
   }
 
   Future<bool> hasApiKey({String? providerId}) async {
@@ -508,6 +476,7 @@ class OpenAIService implements AiCompletionClient {
               systemPrompt: systemPrompt,
               userContent: userContent,
               imageBase64: imageBase64,
+              maxOutputTokens: bypassAcceptanceGate ? 2048 : 4096,
             )
           : _chatCompletionsRequest(
               model: model,
@@ -515,6 +484,7 @@ class OpenAIService implements AiCompletionClient {
               userContent: userContent,
               imageBase64: imageBase64,
               temperature: temperature,
+              maxTokens: bypassAcceptanceGate ? 2048 : 4096,
             ),
     );
     stopwatch.stop();
@@ -524,18 +494,29 @@ class OpenAIService implements AiCompletionClient {
       throw _providerException(response);
     }
 
-    final data = _asMap(response.data);
+    final data = _responseEnvelope(_asMap(response.data));
+    final providerError = _responseError(data);
+    if (providerError != null) {
+      throw AiProviderException(
+        statusCode: statusCode,
+        code: providerError.code,
+        message: providerError.message,
+      );
+    }
     final content = protocol == AiApiProtocol.responses
         ? _responsesOutputText(data)
         : _chatCompletionsOutputText(data);
-    if (content.trim().isEmpty) {
+    final normalizedContent = content.trim().isNotEmpty
+        ? content
+        : _streamText(response.data, protocol);
+    if (normalizedContent.trim().isEmpty) {
       throw const AiProviderException(
         code: 'empty_response',
         message: 'API 返回空结果或不兼容的响应结构',
       );
     }
     return AiCompletionResult(
-      text: content,
+      text: normalizedContent,
       requestedModel: model,
       resolvedModel: data['model']?.toString(),
       protocol: protocol,
@@ -550,6 +531,7 @@ class OpenAIService implements AiCompletionClient {
     required String userContent,
     required String? imageBase64,
     required double? temperature,
+    required int maxTokens,
   }) {
     final messages = <Map<String, dynamic>>[
       {'role': 'system', 'content': systemPrompt},
@@ -571,7 +553,7 @@ class OpenAIService implements AiCompletionClient {
       'model': model,
       'messages': messages,
       'temperature': temperature ?? 0.7,
-      'max_tokens': 4096,
+      'max_tokens': maxTokens,
       // Keep compatible relays from switching the client into SSE mode.
       'stream': false,
     };
@@ -582,6 +564,7 @@ class OpenAIService implements AiCompletionClient {
     required String systemPrompt,
     required String userContent,
     required String? imageBase64,
+    required int maxOutputTokens,
   }) {
     return {
       'model': model,
@@ -604,7 +587,7 @@ class OpenAIService implements AiCompletionClient {
           ],
         },
       ],
-      'max_output_tokens': 4096,
+      'max_output_tokens': maxOutputTokens,
       'store': false,
       // The app consumes one complete JSON response rather than a stream.
       'stream': false,
@@ -614,39 +597,107 @@ class OpenAIService implements AiCompletionClient {
   String _chatCompletionsOutputText(Map<String, dynamic> data) {
     final choices = data['choices'];
     if (choices is! List || choices.isEmpty || choices.first is! Map) {
-      return '';
+      return _textFromValue(data['text']);
     }
-    final message = Map<String, dynamic>.from(
-      (choices.first as Map)['message'] as Map? ?? const {},
-    );
-    final content = message['content'];
-    if (content is String) return content;
-    if (content is List) {
-      return content
-          .whereType<Map>()
-          .map((part) => part['text'])
-          .whereType<String>()
-          .join('\n');
+    final choice = Map<String, dynamic>.from(choices.first as Map);
+    final message = choice['message'];
+    if (message is Map) {
+      final content = _textFromValue(message['content']);
+      if (content.isNotEmpty) return content;
     }
-    return '';
+    final delta = _textFromValue(choice['delta']);
+    if (delta.isNotEmpty) return delta;
+    return _textFromValue(choice['text']);
   }
 
   String _responsesOutputText(Map<String, dynamic> data) {
     final direct = data['output_text'];
-    if (direct is String && direct.trim().isNotEmpty) return direct;
+    final directText = _textFromValue(direct);
+    if (directText.trim().isNotEmpty) return directText;
     final output = data['output'];
-    if (output is! List) return '';
-    final texts = <String>[];
-    for (final item in output.whereType<Map>()) {
-      final content = item['content'];
-      if (content is! List) continue;
-      for (final part in content.whereType<Map>()) {
-        if (part['type'] == 'output_text' && part['text'] is String) {
-          texts.add(part['text'] as String);
-        }
+    final outputText = _textFromValue(output);
+    if (outputText.isNotEmpty) return outputText;
+    final deltaText = _textFromValue(data['delta']);
+    if (deltaText.isNotEmpty) return deltaText;
+    return _textFromValue(data['text']);
+  }
+
+  Map<String, dynamic> _responseEnvelope(Map<String, dynamic> data) {
+    final nested = data['data'];
+    if (nested is! Map ||
+        data.containsKey('choices') ||
+        data.containsKey('output') ||
+        data.containsKey('output_text') ||
+        (data.containsKey('error') && data['error'] != null)) {
+      return data;
+    }
+    final unwrapped = Map<String, dynamic>.from(nested);
+    // Preserve relay-level metadata used for diagnostics and token accounting.
+    for (final key in const ['model', 'usage', 'id']) {
+      if (!unwrapped.containsKey(key) && data.containsKey(key)) {
+        unwrapped[key] = data[key];
       }
     }
-    return texts.join('\n');
+    return unwrapped;
+  }
+
+  _ProviderResponseError? _responseError(Map<String, dynamic> data) {
+    final error = data['error'];
+    if (error is String && error.trim().isNotEmpty) {
+      return _ProviderResponseError(code: null, message: error.trim());
+    }
+    if (error is Map) {
+      final errorMap = Map<String, dynamic>.from(error);
+      final message = errorMap['message']?.toString().trim();
+      if (message != null && message.isNotEmpty) {
+        return _ProviderResponseError(
+          code: errorMap['code']?.toString(),
+          message: message,
+        );
+      }
+    }
+    return null;
+  }
+
+  String _streamText(dynamic raw, AiApiProtocol protocol) {
+    if (raw is! String || !raw.contains('data:')) return '';
+    final texts = <String>[];
+    for (final line in raw.split(RegExp(r'\r?\n'))) {
+      final trimmed = line.trim();
+      if (!trimmed.startsWith('data:')) continue;
+      final payload = trimmed.substring('data:'.length).trim();
+      if (payload.isEmpty || payload == '[DONE]') continue;
+      try {
+        final decoded = jsonDecode(payload);
+        if (decoded is! Map) continue;
+        final data = _responseEnvelope(Map<String, dynamic>.from(decoded));
+        final text = protocol == AiApiProtocol.responses
+            ? _responsesOutputText(data)
+            : _chatCompletionsOutputText(data);
+        if (text.isNotEmpty) texts.add(text);
+      } catch (_) {
+        // Ignore keep-alive/comment lines and malformed partial events.
+      }
+    }
+    return texts.join();
+  }
+
+  String _textFromValue(dynamic value) {
+    if (value is String) return value;
+    if (value is List) {
+      return value
+          .map(_textFromValue)
+          .where((text) => text.isNotEmpty)
+          .join('\n');
+    }
+    if (value is Map) {
+      final map = Map<String, dynamic>.from(value);
+      for (final key in const ['text', 'value', 'content', 'delta']) {
+        final text = _textFromValue(map[key]);
+        if (text.isNotEmpty) return text;
+      }
+    }
+    return '';
   }
 
   AiTokenUsage _tokenUsage(

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// 多邻国风格颜色系统
+/// Anchor Learning 颜色系统。
 class AppColors {
   AppColors._();
 

@@ -4,29 +4,29 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-import 'package:dlg_q/data/database/database_helper.dart';
-import 'package:dlg_q/data/models/interview_turn.dart';
-import 'package:dlg_q/data/models/knowledge_point.dart';
-import 'package:dlg_q/data/models/learning_session.dart';
-import 'package:dlg_q/data/models/question.dart';
-import 'package:dlg_q/data/models/source.dart';
-import 'package:dlg_q/data/repositories/knowledge_point_repository.dart';
-import 'package:dlg_q/data/repositories/learning_session_repository.dart';
-import 'package:dlg_q/data/repositories/question_repository.dart';
-import 'package:dlg_q/data/repositories/source_chunk_repository.dart';
-import 'package:dlg_q/data/repositories/source_repository.dart';
-import 'package:dlg_q/services/agent/interviewer_service.dart';
-import 'package:dlg_q/services/ai/tasks/answer_evaluation_task.dart';
-import 'package:dlg_q/services/ai/tasks/citation_verification_task.dart';
-import 'package:dlg_q/services/ai/tasks/interview_question_task.dart';
-import 'package:dlg_q/services/ai/tasks/project_understanding_task.dart';
-import 'package:dlg_q/services/ai/tasks/question_generation_task.dart';
-import 'package:dlg_q/services/ingestion/project_source_import_service.dart';
-import 'package:dlg_q/services/ingestion/source_grounded_ingestion_service.dart';
-import 'package:dlg_q/services/openai_service.dart';
-import 'package:dlg_q/services/scheduling/mastery_service.dart';
-import 'package:dlg_q/services/scheduling/interview_review_closure_service.dart';
-import 'package:dlg_q/services/scheduling/review_scheduler_service.dart';
+import 'package:anchor_learning/data/database/database_helper.dart';
+import 'package:anchor_learning/data/models/interview_turn.dart';
+import 'package:anchor_learning/data/models/knowledge_point.dart';
+import 'package:anchor_learning/data/models/learning_session.dart';
+import 'package:anchor_learning/data/models/question.dart';
+import 'package:anchor_learning/data/models/source.dart';
+import 'package:anchor_learning/data/repositories/knowledge_point_repository.dart';
+import 'package:anchor_learning/data/repositories/learning_session_repository.dart';
+import 'package:anchor_learning/data/repositories/question_repository.dart';
+import 'package:anchor_learning/data/repositories/source_chunk_repository.dart';
+import 'package:anchor_learning/data/repositories/source_repository.dart';
+import 'package:anchor_learning/services/agent/interviewer_service.dart';
+import 'package:anchor_learning/services/ai/tasks/answer_evaluation_task.dart';
+import 'package:anchor_learning/services/ai/tasks/citation_verification_task.dart';
+import 'package:anchor_learning/services/ai/tasks/interview_question_task.dart';
+import 'package:anchor_learning/services/ai/tasks/project_understanding_task.dart';
+import 'package:anchor_learning/services/ai/tasks/question_generation_task.dart';
+import 'package:anchor_learning/services/ingestion/project_source_import_service.dart';
+import 'package:anchor_learning/services/ingestion/source_grounded_ingestion_service.dart';
+import 'package:anchor_learning/services/openai_service.dart';
+import 'package:anchor_learning/services/scheduling/mastery_service.dart';
+import 'package:anchor_learning/services/scheduling/interview_review_closure_service.dart';
+import 'package:anchor_learning/services/scheduling/review_scheduler_service.dart';
 
 void main() {
   sqfliteFfiInit();
@@ -323,7 +323,7 @@ void main() {
 
 Future<Map<String, dynamic>> _loadFixture() async {
   final json = await File(
-    'test/fixtures/golden_path/duoduo_checkpoint_fixture.json',
+    'test/fixtures/golden_path/anchor_learning_checkpoint_fixture.json',
   ).readAsString();
   return _asMap(jsonDecode(json));
 }

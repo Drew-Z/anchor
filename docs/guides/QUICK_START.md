@@ -4,9 +4,9 @@
 
 ## 📋 前置要求
 
-- **Flutter SDK**: 3.0 或更高版本
-- **设备**: Android/iOS/macOS 任一平台
-- **OpenAI API Key**: 用于 AI 功能(可在设置中配置)
+- **Flutter SDK**: 3.44.8 stable
+- **设备**: 当前 Private Alpha 只验收 Android；公开 Web 地址是独立静态 Demo
+- **模型配置**: 可先不配置；本地导入和 coverage review 不需要模型，AI 生成需要应用内验收通过的配置
 
 ---
 
@@ -16,7 +16,7 @@
 
 ```bash
 git clone https://github.com/Drew-Z/anchor.git
-cd duoduo
+cd anchor
 ```
 
 ### 2. 安装依赖
@@ -25,24 +25,21 @@ cd duoduo
 flutter pub get
 ```
 
-### 3. 配置 API Key(可选)
+### 3. 配置模型（AI 生成为必需）
 
 首次运行后,在 APP 内通过以下路径配置:
 
 ```
-设置 → API 配置 → 输入你的 OpenAI API Key
+设置 → AI 配置 → 输入 API Key、Base URL 和模型名
 ```
 
-如果没有 API Key,可以到 [OpenAI Platform](https://platform.openai.com/api-keys) 申请。
+没有模型配置时仍可完成本地项目导入和范围检查；生成内容前必须通过应用内五任务验收。
 
 ### 4. 运行应用
 
 ```bash
-# Android/iOS
+# Android Private Alpha
 flutter run
-
-# macOS
-flutter run -d macos
 
 # 查看可用设备
 flutter devices
@@ -61,7 +58,7 @@ flutter devices
 
 ### 开始学习
 
-#### 方式 1: 刷题模式(类似多邻国)
+#### 方式 1: 渐进式答题模式
 - 进入"练习"页面
 - 支持选择题/填空题/判断题
 - 即时反馈 + 错题记录
@@ -80,7 +77,7 @@ flutter devices
 
 ## 📚 示例内容
 
-项目内置了 Flutter 基础教程示例,首次运行时自动导入。你也可以:
+仓库提供独立示例材料和 Web Demo 数据；Flutter 应用首次运行仍建议导入自己的 Markdown 或项目文件。你也可以:
 
 1. **导入自己的 Markdown 笔记**
    - 学习文档

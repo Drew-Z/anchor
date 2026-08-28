@@ -6,8 +6,8 @@ nodes_managed: true
 exported_at: "2026-06-25T09:11:18Z"
 modules:
     "":
-        dir_name: DIY多邻国风格学习应用
-        title: DIY多邻国风格学习应用
+        dir_name: Anchor Learning
+        title: Anchor Learning 锚学
         scope:
             - README.md
             - pubspec.yaml
@@ -17,7 +17,7 @@ modules:
             - test/
             - .flutter-plugins-dependencies
             - .metadata
-            - dlg_q.iml
+            - anchor_learning.iml
         source_files: []
         children:
             - app_core
@@ -102,13 +102,13 @@ modules:
         depends_on: []
         related_to: []
     frontend_style:
-        dir_name: 多邻国风格前端视觉体系
-        title: 多邻国风格前端视觉体系
+        dir_name: 游戏化学习前端视觉体系
+        title: 游戏化学习前端视觉体系
         scope: []
         source_files:
             - lib/core/constants/app_colors.dart
             - lib/core/theme/app_theme.dart
-            - lib/shared/widgets/duo_button.dart
+            - lib/shared/widgets/anchor_button.dart
             - lib/shared/widgets/stats_widgets.dart
             - pubspec.yaml
         children: []

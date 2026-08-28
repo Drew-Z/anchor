@@ -215,12 +215,9 @@ class SharedPreferencesFirstRunProgressStore implements FirstRunProgressStore {
 }
 
 class FirstRunBootstrapService {
-  static const Set<String> _legacyPreferenceKeys = {
+  static const Set<String> _existingPreferenceKeys = {
     'learning_agent_goal',
     'ai_provider_id',
-    'ai_model',
-    'ai_base_url',
-    'ai_api_protocol',
     'ai_model_acceptance_reports_v1',
   };
 
@@ -230,7 +227,8 @@ class FirstRunBootstrapService {
   final DeckRepository _deckRepository;
   final QuestionRepository _questionRepository;
   final LearningSessionRepository _learningSessionRepository;
-  final DatabaseHelper _databaseHelper;
+  final DatabaseHelper? _databaseHelper;
+  final Future<void> Function()? _demoDataSeeder;
   final Future<SharedPreferences> Function() _preferencesLoader;
 
   FirstRunBootstrapService({
@@ -240,7 +238,8 @@ class FirstRunBootstrapService {
     required DeckRepository deckRepository,
     required QuestionRepository questionRepository,
     required LearningSessionRepository learningSessionRepository,
-    required DatabaseHelper databaseHelper,
+    DatabaseHelper? databaseHelper,
+    Future<void> Function()? demoDataSeeder,
     Future<SharedPreferences> Function()? preferencesLoader,
   })  : _sourceRepository = sourceRepository,
         _sourceChunkRepository = sourceChunkRepository,
@@ -249,17 +248,30 @@ class FirstRunBootstrapService {
         _questionRepository = questionRepository,
         _learningSessionRepository = learningSessionRepository,
         _databaseHelper = databaseHelper,
-        _preferencesLoader = preferencesLoader ?? SharedPreferences.getInstance;
+        _demoDataSeeder = demoDataSeeder,
+        _preferencesLoader =
+            preferencesLoader ?? SharedPreferences.getInstance {
+    if (databaseHelper == null && demoDataSeeder == null) {
+      throw ArgumentError(
+        'Provide databaseHelper or demoDataSeeder for first-run demo data.',
+      );
+    }
+  }
 
   /// 导入 Demo 数据(Vue.js 响应式系统)
   Future<void> seedDemoData() async {
-    final seeder = DemoDataSeeder(_databaseHelper);
+    final demoDataSeeder = _demoDataSeeder;
+    if (demoDataSeeder != null) {
+      await demoDataSeeder();
+      return;
+    }
+    final seeder = DemoDataSeeder(_databaseHelper!);
     await seeder.seedVueCoreDemo();
   }
 
   Future<bool> hasExistingUserData() async {
     final preferences = await _preferencesLoader();
-    if (_legacyPreferenceKeys.any(preferences.containsKey)) return true;
+    if (_existingPreferenceKeys.any(preferences.containsKey)) return true;
 
     final results = await Future.wait<bool>([
       _sourceRepository.getAllSources().then((items) => items.isNotEmpty),
@@ -394,7 +406,7 @@ class FirstRunProgressNotifier
           await _bootstrapService.seedDemoData();
           progress = FirstRunProgress(
             step: FirstRunStep.completed,
-            selectedGoal: LearningAgentGoal.sourceCodeLearning,
+            selectedGoal: LearningAgentGoal.programmingFoundations,
             startedAt: now,
             updatedAt: now,
             completedAt: now,

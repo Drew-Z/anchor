@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:dlg_q/services/release/private_alpha_device_preflight.dart';
+import 'package:anchor_learning/services/release/private_alpha_device_preflight.dart';
 
 Future<void> main(List<String> arguments) async {
   try {

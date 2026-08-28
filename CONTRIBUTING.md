@@ -26,8 +26,8 @@
 ```bash
 # Fork 项目到你的 GitHub 账户
 # 然后克隆到本地
-git clone https://github.com/your-username/duoduo.git
-cd duoduo
+git clone https://github.com/your-username/anchor.git
+cd anchor
 
 # 添加上游仓库
 git remote add upstream https://github.com/Drew-Z/anchor.git
@@ -402,7 +402,7 @@ git push origin feature/your-feature-name
 ## 📞 需要帮助?
 
 - 💬 在 [Discussions](https://github.com/Drew-Z/anchor/discussions) 提问
-- 📧 发送邮件至 your-email@example.com
+- 📧 安全问题请使用仓库的 [Security Advisories](https://github.com/Drew-Z/anchor/security/advisories)，一般反馈请创建 Issue
 - 🐛 对于 Bug,请创建 Issue
 
 祝你编码愉快! 🚀

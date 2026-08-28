@@ -6,7 +6,7 @@
 
 Turn your documentation and code into personalized AI quizzes—every answer traces back to its source.
 
-[![Flutter](https://img.shields.io/badge/Flutter-3.0+-blue.svg)](https://flutter.dev/)
+[![Flutter](https://img.shields.io/badge/Flutter-3.24+-blue.svg)](https://flutter.dev/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
@@ -16,13 +16,11 @@ Turn your documentation and code into personalized AI quizzes—every answer tra
 
 **🌐 Website**: [anchor.playlab.eu.cc](https://anchor.playlab.eu.cc)
 
-**From [BIAU PORT (泊岸)](https://biau.playlab.eu.cc)** 🌊
+## 🌐 Interactive Web Demo
 
-## 📺 Demo Video
+[Open the bilingual demo](https://anchor.playlab.eu.cc/app/) to complete 12 traceable questions across Flutter, Git, and JavaScript datasets.
 
-> 🎬 Coming soon...
-
-See how Anchor Learning prevents AI hallucinations in 3 minutes
+The browser demo uses bundled sample data and scripted tutor hints. It does not call an AI provider or replace the full Flutter application.
 
 </div>
 
@@ -35,8 +33,8 @@ See how Anchor Learning prevents AI hallucinations in 3 minutes
 🔗 **Complete Citation Chain**: Every question traces back to specific locations in source documents  
 🤖 **AI Agent Tutoring**: Interview-style guidance helps you understand code projects  
 🛡️ **Anti-Hallucination**: Citation Verification + Question Validator dual verification  
-🔒 **Privacy First**: Local data storage with optional cloud sync  
-📱 **Cross-Platform**: Android / iOS / macOS / Windows / Linux
+🔒 **Privacy First**: Local data storage with export, backup, restore, and deletion controls
+📱 **Private Alpha**: Android native app; the public Web experience is a separate static demo
 
 ---
 
@@ -84,15 +82,15 @@ See how Anchor Learning prevents AI hallucinations in 3 minutes
 
 ### 前置要求
 
-- Flutter 3.0+
-- OpenAI API Key(或兼容的本地模型)
+- Flutter 3.24+
+- 兼容 OpenAI 协议的模型 profile（凭据在应用内保存）
 
 ### 安装步骤
 
 ```bash
 # 1. 克隆项目
 git clone https://github.com/Drew-Z/anchor.git
-cd duoduo
+cd anchor
 
 # 2. 安装依赖
 flutter pub get
@@ -100,8 +98,8 @@ flutter pub get
 # 3. 运行应用
 flutter run
 
-# 4. 在应用内配置 API Key
-# 打开应用 → 设置 → API 配置 → 输入 OpenAI API Key
+# 4. 在应用内配置模型 profile
+# 打开应用 → 设置 → AI 配置 → 保存 provider、Base URL、模型名和 API Key
 ```
 
 ### 导入第一份学习资料
@@ -111,7 +109,7 @@ flutter run
 3. 等待 AI 分析(30-120 秒,取决于文档大小)
 4. 进入 **"练习"** 页面,开始答题! 🎉
 
-> 💡 **提示**: 项目内置了示例数据,首次运行即可体验完整功能
+> 💡 **提示**: Flutter 应用首次运行需要导入自己的 Markdown 或项目文件；无需 API Key 即可先完成本地导入和范围预览。AI 生成流程需要在应用内配置兼容的模型凭据。
 
 📚 **详细指南**: [快速开始文档](docs/guides/QUICK_START.md)
 
@@ -260,7 +258,6 @@ StatefulWidget 通过 State 对象管理状态...
 
 本项目受以下项目启发:
 
-- [xuanli199/duoduo](https://github.com/xuanli199/duoduo) - 早期探索阶段的参考
 - [aicoding-cookbook](https://github.com/lili-luo/aicoding-cookbook) - Claude Code Skills 最佳实践
 - [Anki](https://apps.ankiweb.net/) - 间隔重复算法先驱
 - [Obsidian](https://obsidian.md/) - 个人知识管理理念
@@ -293,8 +290,6 @@ StatefulWidget 通过 State 对象管理状态...
 ---
 
 <div align="center">
-
-**Part of the [BIAU PORT (泊岸)](https://biau.playlab.eu.cc) experiments** 🌊
 
 Made with ❤️ by [bill](https://github.com/Drew-Z)
 

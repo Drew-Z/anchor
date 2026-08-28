@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://duoduo.local/schema/private-alpha-readiness-v2.schema.json",
-  "title": "Duoduo Private Alpha Readiness Evidence v2",
+  "$id": "https://anchor-learning.local/schema/private-alpha-readiness-v2.schema.json",
+  "title": "Anchor Learning Private Alpha Readiness Evidence v2",
   "type": "object",
   "additionalProperties": false,
   "required": [

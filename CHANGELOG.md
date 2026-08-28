@@ -9,6 +9,11 @@
 
 ## [Unreleased]
 
+### 修复
+- 修复长耗时模型响应在客户端先超时、但中转服务已完成生成时被误报失败的问题。
+- 兼容 OpenAI-compatible 中转层的嵌套响应、SSE 文本片段和 2xx 错误体，并保留可诊断的供应商错误信息。
+- 将模型固定验收的默认预算调整到覆盖已观测的 2-3 分钟响应尾部。
+
 ### 新增
 - 📚 完整的用户指南文档
   - 快速开始指南
@@ -16,6 +21,10 @@
   - AI Prompt 自定义教程
 - 📖 贡献指南和开发路线图
 - 🌍 项目开源准备(文档/示例/CI)
+
+### 维护
+- GitHub Actions 工作流升级到 Node 24 运行时兼容的稳定 action 版本。
+- GitHub 发布指南、推广计划和开源准备文档统一指向 `1.0.0+2005` Private Alpha 候选，并保留历史版本记录。
 
 ---
 
@@ -61,11 +70,9 @@
 - 🔍 混合检索(BM25 + Semantic Embedding)
 
 #### 平台支持
-- ✅ Android
-- ✅ iOS
-- ✅ macOS
-- ✅ Windows
-- ✅ Linux
+- ✅ Android Private Alpha 主路径
+- ✅ 独立 Web 静态 Demo
+- ⏳ iOS、macOS、Windows、Linux 尚未完成发布验收
 
 ### 数据模型
 

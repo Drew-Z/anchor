@@ -4,7 +4,7 @@
 
 ## 结论
 
-Duoduo 可以做成自己的知识库学习 agent，但第一版不建议直接引入 Python 后端或重型 agent 框架。更稳的路线是：
+Anchor Learning 可以做成自己的知识库学习 agent，但第一版不建议直接引入 Python 后端或重型 agent 框架。更稳的路线是：
 
 ```text
 Flutter-native lightweight agent runtime
@@ -39,7 +39,7 @@ Flutter-native lightweight agent runtime
 
 ## 框架调研取舍
 
-| 框架 | 适合借鉴 | 对 Duoduo 的决定 |
+| 框架 | 适合借鉴 | 对 Anchor Learning 的决定 |
 | --- | --- | --- |
 | LangGraph | 状态图、持久执行、human-in-the-loop、memory、trace | 作为核心架构蓝图，不直接引入依赖 |
 | OpenAI Agents SDK | agent loop、function tools、handoffs、guardrails、sessions、tracing | 借鉴 runtime 术语和工具循环；以后有后端时可考虑 |
@@ -315,7 +315,7 @@ runtime contract checklist 用于把一次 Agent Session 的架构契约转成�
 
 ### LearningAgentPolicy
 
-这是 Duoduo 比通用 agent 更重要的一层。规则应集中、可测试、可解释。
+这是 Anchor Learning 比通用 agent 更重要的一层。规则应集中、可测试、可解释。
 
 第一批 policy：
 
@@ -1298,9 +1298,9 @@ operation O + routing input I1
 Smart Search evidence files:
 
 ```text
-C:\tmp\smart-search-evidence\agent-architecture-duoduo
-C:\tmp\smart-search-evidence\agent-architecture-duoduo\langgraph-checkpointers.md
-C:\tmp\smart-search-evidence\agent-architecture-duoduo\langgraph-persistence-direct.md
-C:\tmp\smart-search-evidence\agent-architecture-duoduo\aws-making-retries-safe.md
-C:\tmp\smart-search-evidence\agent-architecture-duoduo\stripe-idempotent-requests.md
+C:\tmp\smart-search-evidence\agent-architecture-anchor-learning
+C:\tmp\smart-search-evidence\agent-architecture-anchor-learning\langgraph-checkpointers.md
+C:\tmp\smart-search-evidence\agent-architecture-anchor-learning\langgraph-persistence-direct.md
+C:\tmp\smart-search-evidence\agent-architecture-anchor-learning\aws-making-retries-safe.md
+C:\tmp\smart-search-evidence\agent-architecture-anchor-learning\stripe-idempotent-requests.md
 ```

@@ -1,10 +1,10 @@
 import 'dart:async';
 
-import 'package:dlg_q/core/providers/providers.dart';
-import 'package:dlg_q/data/models/grounded_learning_context.dart';
-import 'package:dlg_q/features/knowledge_base/knowledge_base_screen.dart';
-import 'package:dlg_q/services/agent/hybrid_knowledge_search_service.dart';
-import 'package:dlg_q/services/agent/knowledge_search_service.dart';
+import 'package:anchor_learning/core/providers/providers.dart';
+import 'package:anchor_learning/data/models/grounded_learning_context.dart';
+import 'package:anchor_learning/features/knowledge_base/knowledge_base_screen.dart';
+import 'package:anchor_learning/services/agent/hybrid_knowledge_search_service.dart';
+import 'package:anchor_learning/services/agent/knowledge_search_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

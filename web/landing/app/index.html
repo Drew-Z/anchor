@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Interactive Demo - Anchor Learning</title>
+  <meta name="description" content="Try the Anchor Learning source-traced quiz demo with bundled datasets.">
+  <meta name="theme-color" content="#0b1210">
+  <link rel="canonical" href="https://anchor.playlab.eu.cc/app/">
+  <link rel="icon" type="image/svg+xml" href="../assets/anchor-icon.svg">
+  <link rel="stylesheet" href="styles/app.css">
+  <script type="module" src="scripts/app.js?v=20260727-2"></script>
+</head>
+<body data-surface="app">
+  <a class="skip-link" href="#app-content" data-i18n="a11y.skip">Skip to content</a>
+  <header class="app-header">
+    <div class="app-brand">
+      <img src="../assets/anchor-icon.svg" width="30" height="30" alt="">
+      <div><strong>Anchor Learning</strong><span>DEMO</span></div>
+    </div>
+    <div class="app-header-actions">
+      <a class="back-link" href="../">
+        <span aria-hidden="true">←</span>
+        <span data-i18n="app.back">Product site</span>
+      </a>
+      <div class="locale-switch" role="group" aria-label="Language" data-i18n-aria-label="a11y.language">
+        <button type="button" data-locale="zh" aria-pressed="false">中文</button>
+        <button type="button" data-locale="en" aria-pressed="true">EN</button>
+      </div>
+      <button id="dataset-menu-button" class="icon-button dataset-menu-button" type="button" aria-controls="dataset-sidebar" aria-expanded="false" aria-label="Open datasets" data-i18n-aria-label="app.menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+
+  <div class="app-shell">
+    <aside id="dataset-sidebar" class="dataset-sidebar" aria-label="Datasets" data-i18n-aria-label="app.datasets">
+      <div class="sidebar-heading">
+        <p class="eyebrow" data-i18n="app.datasets">Datasets</p>
+        <button id="dataset-menu-close" class="icon-button sidebar-close" type="button" aria-label="Close datasets" data-i18n-aria-label="app.closeMenu">×</button>
+      </div>
+      <nav id="dataset-list" class="dataset-list"></nav>
+      <section class="privacy-note">
+        <strong data-i18n="app.localOnly">Bundled data only</strong>
+        <p data-i18n="app.localOnlyBody">This guided demo runs entirely in your browser. It does not upload files or call an AI provider.</p>
+      </section>
+      <button id="reset-progress" class="reset-button" type="button" data-i18n="app.reset">Reset progress</button>
+    </aside>
+
+    <main id="app-content" class="app-content" tabindex="-1"></main>
+  </div>
+  <div id="app-announcer" class="visually-hidden" role="status" aria-live="polite"></div>
+</body>
+</html>

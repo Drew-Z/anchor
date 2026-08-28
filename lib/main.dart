@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app.dart';
+import 'core/constants/app_metadata.dart';
 import 'core/theme/app_theme.dart';
 import 'features/onboarding/first_run_gate.dart';
 
@@ -25,7 +26,7 @@ void main() {
     );
     runApp(
       const ProviderScope(
-        child: DIYDuolingoApp(),
+        child: AnchorLearningApp(),
       ),
     );
   }, (error, stack) {
@@ -33,8 +34,8 @@ void main() {
   });
 }
 
-class DIYDuolingoApp extends StatelessWidget {
-  const DIYDuolingoApp({super.key});
+class AnchorLearningApp extends StatelessWidget {
+  const AnchorLearningApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +57,7 @@ class DIYDuolingoApp extends StatelessWidget {
     };
 
     return MaterialApp(
-      title: '多多学',
+      title: AppMetadata.productName,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       home: const FirstRunGate(completedChild: MainApp()),

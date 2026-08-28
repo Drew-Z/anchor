@@ -71,7 +71,7 @@ A: 参见[自定义 Prompt - 添加自定义题型](guides/CUSTOMIZE_PROMPTS.md#
 
 发现文档有误或需要补充?
 
-1. [创建 Issue](https://github.com/你的用户名/duoduo/issues/new)
+1. [创建 Issue](https://github.com/Drew-Z/anchor/issues/new)
 2. 或直接提交 PR 修改 `docs/` 目录
 
 ---

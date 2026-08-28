@@ -11,7 +11,7 @@ import '../../data/models/source_chunk.dart';
 import '../../data/models/tutor_turn.dart';
 import '../../services/agent/grounded_learning_context_service.dart';
 import '../../services/ai/tasks/tutor_explanation_task.dart';
-import '../../shared/widgets/duo_button.dart';
+import '../../shared/widgets/anchor_button.dart';
 import '../../shared/widgets/source_citation_block.dart';
 import '../knowledge_base/knowledge_library_error_state.dart';
 import 'programming_exercise_screen.dart';
@@ -508,7 +508,7 @@ class _TutorSessionScreenState extends ConsumerState<TutorSessionScreen> {
                 ],
                 if (_selectedPoint != null) ...[
                   const SizedBox(height: 14),
-                  DuoButton(
+                  AnchorButton(
                     key: const ValueKey('open-programming-exercises'),
                     label: '进入编程练习',
                     color: AppColors.purple,
@@ -812,7 +812,7 @@ class _ExplanationView extends StatelessWidget {
             ),
           ),
         const SizedBox(height: 12),
-        DuoButton(
+        AnchorButton(
           label: '重新讲解',
           color: AppColors.blue,
           width: double.infinity,
@@ -947,7 +947,7 @@ class _CurrentQuestionCard extends StatelessWidget {
           if (isSubmitting)
             const _GeneratingBlock(label: '正在核对回答与来源...')
           else
-            DuoButton(
+            AnchorButton(
               key: const ValueKey('tutor-submit-answer'),
               label: '提交回答',
               color: AppColors.green,

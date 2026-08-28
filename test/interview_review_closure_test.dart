@@ -1,15 +1,15 @@
-import 'package:dlg_q/data/database/database_helper.dart';
-import 'package:dlg_q/data/models/deck.dart';
-import 'package:dlg_q/data/models/grounded_claim.dart';
-import 'package:dlg_q/data/models/interview_turn.dart';
-import 'package:dlg_q/data/models/knowledge_point.dart';
-import 'package:dlg_q/data/models/learning_session.dart';
-import 'package:dlg_q/data/models/question.dart';
-import 'package:dlg_q/data/models/question_type.dart';
-import 'package:dlg_q/data/repositories/knowledge_point_repository.dart';
-import 'package:dlg_q/data/repositories/learning_session_repository.dart';
-import 'package:dlg_q/data/repositories/question_repository.dart';
-import 'package:dlg_q/services/scheduling/interview_review_closure_service.dart';
+import 'package:anchor_learning/data/database/database_helper.dart';
+import 'package:anchor_learning/data/models/deck.dart';
+import 'package:anchor_learning/data/models/grounded_claim.dart';
+import 'package:anchor_learning/data/models/interview_turn.dart';
+import 'package:anchor_learning/data/models/knowledge_point.dart';
+import 'package:anchor_learning/data/models/learning_session.dart';
+import 'package:anchor_learning/data/models/question.dart';
+import 'package:anchor_learning/data/models/question_type.dart';
+import 'package:anchor_learning/data/repositories/knowledge_point_repository.dart';
+import 'package:anchor_learning/data/repositories/learning_session_repository.dart';
+import 'package:anchor_learning/data/repositories/question_repository.dart';
+import 'package:anchor_learning/services/scheduling/interview_review_closure_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 

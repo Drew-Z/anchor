@@ -10,7 +10,7 @@ import '../../data/models/source.dart';
 import '../../data/models/source_chunk.dart';
 import '../../services/ingestion/programming_source_import_service.dart';
 import '../../services/ingestion/source_grounded_ingestion_service.dart';
-import '../../shared/widgets/duo_button.dart';
+import '../../shared/widgets/anchor_button.dart';
 import 'deck_preview_screen.dart';
 import 'knowledge_review_screen.dart';
 import 'project_import_screen.dart';
@@ -509,7 +509,7 @@ class _IngestionScreenState extends ConsumerState<IngestionScreen> {
           ],
           const SizedBox(height: 24),
           // 开始拆解按钮
-          DuoButton(
+          AnchorButton(
             label: 'AI 拆解为题目',
             color: AppColors.green,
             width: double.infinity,

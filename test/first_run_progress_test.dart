@@ -1,18 +1,18 @@
-import 'package:dlg_q/data/database/database_helper.dart';
-import 'package:dlg_q/data/models/deck.dart';
-import 'package:dlg_q/data/models/knowledge_point_source.dart';
-import 'package:dlg_q/data/models/learning_session.dart';
-import 'package:dlg_q/data/models/question.dart';
-import 'package:dlg_q/data/models/source.dart';
-import 'package:dlg_q/data/models/source_chunk.dart';
-import 'package:dlg_q/data/repositories/deck_repository.dart';
-import 'package:dlg_q/data/repositories/knowledge_point_repository.dart';
-import 'package:dlg_q/data/repositories/learning_session_repository.dart';
-import 'package:dlg_q/data/repositories/question_repository.dart';
-import 'package:dlg_q/data/repositories/source_chunk_repository.dart';
-import 'package:dlg_q/data/repositories/source_repository.dart';
-import 'package:dlg_q/services/agent/learning_agent_planner_service.dart';
-import 'package:dlg_q/services/onboarding/first_run_progress.dart';
+import 'package:anchor_learning/data/database/database_helper.dart';
+import 'package:anchor_learning/data/models/deck.dart';
+import 'package:anchor_learning/data/models/knowledge_point_source.dart';
+import 'package:anchor_learning/data/models/learning_session.dart';
+import 'package:anchor_learning/data/models/question.dart';
+import 'package:anchor_learning/data/models/source.dart';
+import 'package:anchor_learning/data/models/source_chunk.dart';
+import 'package:anchor_learning/data/repositories/deck_repository.dart';
+import 'package:anchor_learning/data/repositories/knowledge_point_repository.dart';
+import 'package:anchor_learning/data/repositories/learning_session_repository.dart';
+import 'package:anchor_learning/data/repositories/question_repository.dart';
+import 'package:anchor_learning/data/repositories/source_chunk_repository.dart';
+import 'package:anchor_learning/data/repositories/source_repository.dart';
+import 'package:anchor_learning/services/agent/learning_agent_planner_service.dart';
+import 'package:anchor_learning/services/onboarding/first_run_progress.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -44,6 +44,7 @@ void main() {
 
   test('clean install persists every durable first-run boundary', () async {
     final store = _MemoryFirstRunProgressStore();
+    await store.write(FirstRunProgress.initial(now: startedAt));
     final notifier = FirstRunProgressNotifier(
       store: store,
       bootstrapService: _bootstrap(),
@@ -77,6 +78,31 @@ void main() {
     expect(store.writeCount, 7);
   });
 
+  test('clean install seeds demo data and completes first run', () async {
+    final store = _MemoryFirstRunProgressStore();
+    var seedCount = 0;
+    final notifier = FirstRunProgressNotifier(
+      store: store,
+      bootstrapService: _bootstrap(
+        demoDataSeeder: () async {
+          seedCount++;
+        },
+      ),
+      clock: () => startedAt,
+      autoLoad: false,
+    );
+
+    await notifier.load();
+
+    final progress = notifier.state.value!;
+    expect(seedCount, 1);
+    expect(progress.step, FirstRunStep.completed);
+    expect(progress.selectedGoal, LearningAgentGoal.programmingFoundations);
+    expect(progress.legacyUser, isFalse);
+    expect(progress.completedAt, startedAt);
+    expect(store.value, progress);
+  });
+
   test('existing local data bootstraps as a non-destructive legacy user',
       () async {
     final source = _source(startedAt);
@@ -108,6 +134,7 @@ void main() {
       deckRepository: DeckRepository(databaseHelper),
       questionRepository: QuestionRepository(databaseHelper),
       learningSessionRepository: LearningSessionRepository(databaseHelper),
+      databaseHelper: databaseHelper,
     );
 
     expect(
@@ -195,6 +222,7 @@ FirstRunBootstrapService _bootstrap({
   List<Deck> decks = const [],
   List<Question> questions = const [],
   List<LearningSession> sessions = const [],
+  Future<void> Function()? demoDataSeeder,
 }) {
   return FirstRunBootstrapService(
     sourceRepository: _FakeSourceRepository(sources),
@@ -203,6 +231,7 @@ FirstRunBootstrapService _bootstrap({
     deckRepository: _FakeDeckRepository(decks),
     questionRepository: _FakeQuestionRepository(questions),
     learningSessionRepository: _FakeLearningSessionRepository(sessions),
+    demoDataSeeder: demoDataSeeder ?? () async {},
   );
 }
 

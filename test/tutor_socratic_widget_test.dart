@@ -4,20 +4,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:dlg_q/core/providers/providers.dart';
-import 'package:dlg_q/data/database/database_helper.dart';
-import 'package:dlg_q/data/models/knowledge_point.dart';
-import 'package:dlg_q/data/models/knowledge_point_prerequisite.dart';
-import 'package:dlg_q/data/models/knowledge_point_source.dart';
-import 'package:dlg_q/data/models/learning_session.dart';
-import 'package:dlg_q/data/models/source.dart';
-import 'package:dlg_q/data/models/source_chunk.dart';
-import 'package:dlg_q/data/models/tutor_turn.dart';
-import 'package:dlg_q/data/repositories/knowledge_point_repository.dart';
-import 'package:dlg_q/data/repositories/learning_session_repository.dart';
-import 'package:dlg_q/data/repositories/source_chunk_repository.dart';
-import 'package:dlg_q/features/agent/tutor_session_screen.dart';
-import 'package:dlg_q/services/openai_service.dart';
+import 'package:anchor_learning/core/providers/providers.dart';
+import 'package:anchor_learning/data/database/database_helper.dart';
+import 'package:anchor_learning/data/models/knowledge_point.dart';
+import 'package:anchor_learning/data/models/knowledge_point_prerequisite.dart';
+import 'package:anchor_learning/data/models/knowledge_point_source.dart';
+import 'package:anchor_learning/data/models/learning_session.dart';
+import 'package:anchor_learning/data/models/source.dart';
+import 'package:anchor_learning/data/models/source_chunk.dart';
+import 'package:anchor_learning/data/models/tutor_turn.dart';
+import 'package:anchor_learning/data/repositories/knowledge_point_repository.dart';
+import 'package:anchor_learning/data/repositories/learning_session_repository.dart';
+import 'package:anchor_learning/data/repositories/source_chunk_repository.dart';
+import 'package:anchor_learning/features/agent/tutor_session_screen.dart';
+import 'package:anchor_learning/services/openai_service.dart';
 
 import 'support/fake_programming_review_closure_service.dart';
 

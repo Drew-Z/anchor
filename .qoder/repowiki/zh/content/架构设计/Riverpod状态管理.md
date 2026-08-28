@@ -31,7 +31,7 @@
 
 ## 简介
 
-Dlg-Q项目采用Flutter Riverpod作为状态管理解决方案，实现了现代化的状态管理模式。该项目展示了Riverpod Provider模式的完整实现，包括AsyncNotifier、StateNotifier等核心概念，以及Provider的作用域管理、依赖注入机制和异步状态处理。
+Anchor Learning项目采用Flutter Riverpod作为状态管理解决方案，实现了现代化的状态管理模式。该项目展示了Riverpod Provider模式的完整实现，包括AsyncNotifier、StateNotifier等核心概念，以及Provider的作用域管理、依赖注入机制和异步状态处理。
 
 Riverpod相比传统Provider模式具有以下优势：
 - 编译时类型安全
@@ -66,7 +66,7 @@ end
 subgraph "共享组件"
 Stats[StatsWidgets]
 QuestionWidgets[QuestionWidgets]
-DuoButton[DuoButton]
+AnchorButton[AnchorButton]
 end
 Main --> Providers
 App --> Home
@@ -491,7 +491,7 @@ DatabaseHelper --> ContentAnalyzer : "依赖"
 
 ## 结论
 
-Dlg-Q项目展示了Riverpod状态管理的最佳实践，通过合理的Provider分层设计、清晰的依赖关系和完善的异步状态处理，实现了可维护、可扩展的状态管理方案。
+Anchor Learning项目展示了Riverpod状态管理的最佳实践，通过合理的Provider分层设计、清晰的依赖关系和完善的异步状态处理，实现了可维护、可扩展的状态管理方案。
 
 ### 主要优势
 

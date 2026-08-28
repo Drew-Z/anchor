@@ -2,7 +2,7 @@
 
 <cite>
 **本文引用的文件**
-- [lib/shared/widgets/duo_button.dart](file://lib/shared/widgets/duo_button.dart)
+- [lib/shared/widgets/anchor_button.dart](file://lib/shared/widgets/anchor_button.dart)
 - [lib/shared/widgets/stats_widgets.dart](file://lib/shared/widgets/stats_widgets.dart)
 - [lib/core/constants/app_colors.dart](file://lib/core/constants/app_colors.dart)
 - [lib/data/models/user_stats.dart](file://lib/data/models/user_stats.dart)
@@ -24,8 +24,8 @@
 10. [附录](#附录)
 
 ## 简介
-本文件聚焦Dlg-Q项目中的基础UI组件，重点解析以下两个组件：
-- duo_button：多邻国风格的3D凸起按钮，强调触控反馈与视觉层次。
+本文件聚焦Anchor Learning项目中的基础UI组件，重点解析以下两个组件：
+- anchor_button：Anchor Learning 的通用凸起按钮，强调触控反馈与视觉层次。
 - stats_widgets：统计数据展示组件集合，包括顶部状态栏、答题进度条等。
 
 文档将从设计理念、实现细节、属性配置、事件处理、样式定制、生命周期管理、性能优化到常见问题解决进行系统化说明，并提供可复用的使用示例与最佳实践。
@@ -36,7 +36,7 @@
 ```mermaid
 graph TB
 subgraph "共享组件"
-DB["duo_button<br/>多邻国风格按钮"]
+DB["anchor_button<br/>Anchor Learning 按钮"]
 SW["stats_widgets<br/>统计组件集合"]
 end
 subgraph "主题与样式"
@@ -60,7 +60,7 @@ QW --> DB
 ```
 
 **图示来源**
-- [lib/shared/widgets/duo_button.dart:1-103](file://lib/shared/widgets/duo_button.dart#L1-L103)
+- [lib/shared/widgets/anchor_button.dart:1-103](file://lib/shared/widgets/anchor_button.dart#L1-L103)
 - [lib/shared/widgets/stats_widgets.dart:1-139](file://lib/shared/widgets/stats_widgets.dart#L1-L139)
 - [lib/core/constants/app_colors.dart:1-43](file://lib/core/constants/app_colors.dart#L1-L43)
 - [lib/data/models/user_stats.dart:1-83](file://lib/data/models/user_stats.dart#L1-L83)
@@ -69,7 +69,7 @@ QW --> DB
 - [lib/features/learning/widgets/question_widgets.dart:1-656](file://lib/features/learning/widgets/question_widgets.dart#L1-L656)
 
 **章节来源**
-- [lib/shared/widgets/duo_button.dart:1-103](file://lib/shared/widgets/duo_button.dart#L1-L103)
+- [lib/shared/widgets/anchor_button.dart:1-103](file://lib/shared/widgets/anchor_button.dart#L1-L103)
 - [lib/shared/widgets/stats_widgets.dart:1-139](file://lib/shared/widgets/stats_widgets.dart#L1-L139)
 - [lib/core/constants/app_colors.dart:1-43](file://lib/core/constants/app_colors.dart#L1-L43)
 - [lib/data/models/user_stats.dart:1-83](file://lib/data/models/user_stats.dart#L1-L83)
@@ -78,17 +78,17 @@ QW --> DB
 - [lib/features/learning/widgets/question_widgets.dart:1-656](file://lib/features/learning/widgets/question_widgets.dart#L1-L656)
 
 ## 核心组件
-- duo_button：提供可配置的颜色、尺寸、图标与禁用态，通过手势识别与AnimatedContainer实现按压反馈与阴影变化，适合作为主操作入口或导航按钮。
+- anchor_button：提供可配置的颜色、尺寸、图标与禁用态，通过手势识别与AnimatedContainer实现按压反馈与阴影变化，适合作为主操作入口或导航按钮。
 - stats_widgets：包含TopStatsBar（顶部状态栏）、QuizProgressBar（答题进度条）等，用于展示用户XP、连续天数、心数等关键指标，配合用户统计模型实现动态更新。
 
 **章节来源**
-- [lib/shared/widgets/duo_button.dart:5-31](file://lib/shared/widgets/duo_button.dart#L5-L31)
+- [lib/shared/widgets/anchor_button.dart:5-31](file://lib/shared/widgets/anchor_button.dart#L5-L31)
 - [lib/shared/widgets/stats_widgets.dart:6-42](file://lib/shared/widgets/stats_widgets.dart#L6-L42)
 - [lib/shared/widgets/stats_widgets.dart:76-138](file://lib/shared/widgets/stats_widgets.dart#L76-L138)
 
 ## 架构概览
 组件间协作关系如下：
-- duo_button作为通用交互元素，在答题页的题型组件中被广泛使用，以一致的视觉与交互体验提升学习过程的沉浸感。
+- anchor_button作为通用交互元素，在答题页的题型组件中被广泛使用，以一致的视觉与交互体验提升学习过程的沉浸感。
 - stats_widgets在答题页与个人资料页分别承担“实时进度”和“长期统计”的职责，二者共同构成用户的学习状态可视化体系。
 - app_colors提供统一色彩语义，确保不同组件在视觉上保持一致性。
 - user_stats为统计组件提供数据源，驱动UI的动态更新。
@@ -96,7 +96,7 @@ QW --> DB
 ```mermaid
 sequenceDiagram
 participant U as "用户"
-participant DB as "DuoButton"
+participant DB as "AnchorButton"
 participant QS as "QuizScreen"
 participant QW as "QuestionWidget"
 participant SW as "QuizProgressBar"
@@ -108,16 +108,16 @@ SW-->>U : 展示进度与心数
 ```
 
 **图示来源**
-- [lib/shared/widgets/duo_button.dart:44-91](file://lib/shared/widgets/duo_button.dart#L44-L91)
+- [lib/shared/widgets/anchor_button.dart:44-91](file://lib/shared/widgets/anchor_button.dart#L44-L91)
 - [lib/features/learning/quiz_screen.dart:126-138](file://lib/features/learning/quiz_screen.dart#L126-L138)
 - [lib/features/learning/widgets/question_widgets.dart:599-655](file://lib/features/learning/widgets/question_widgets.dart#L599-L655)
 - [lib/shared/widgets/stats_widgets.dart:76-138](file://lib/shared/widgets/stats_widgets.dart#L76-L138)
 
 ## 详细组件分析
 
-### duo_button 组件
+### anchor_button 组件
 - 设计理念
-  - 模仿多邻国的3D凸起风格，强调触控反馈与层级感，通过阴影与位移模拟“按下”效果，提升交互真实感。
+  - 使用 Anchor Learning 的凸起按钮风格，强调触控反馈与层级感，通过阴影与位移模拟“按下”效果，提升交互真实感。
   - 支持禁用态、图标、字体大小等灵活配置，满足不同场景下的按钮需求。
 - 实现要点
   - 使用GestureDetector捕获触摸事件，结合AnimatedContainer实现平滑过渡。
@@ -154,7 +154,7 @@ SW-->>U : 展示进度与心数
 
 ```mermaid
 classDiagram
-class DuoButton {
+class AnchorButton {
 +String label
 +VoidCallback onPressed
 +Color color
@@ -166,21 +166,21 @@ class DuoButton {
 +double fontSize
 +createState()
 }
-class DuoButtonState {
+class AnchorButtonState {
 -bool _isPressed
 -_darken(color) Color
 +build(context) Widget
 }
-DuoButton --> DuoButtonState : "创建状态"
+AnchorButton --> AnchorButtonState : "创建状态"
 ```
 
 **图示来源**
-- [lib/shared/widgets/duo_button.dart:5-31](file://lib/shared/widgets/duo_button.dart#L5-L31)
-- [lib/shared/widgets/duo_button.dart:33-101](file://lib/shared/widgets/duo_button.dart#L33-L101)
+- [lib/shared/widgets/anchor_button.dart:5-31](file://lib/shared/widgets/anchor_button.dart#L5-L31)
+- [lib/shared/widgets/anchor_button.dart:33-101](file://lib/shared/widgets/anchor_button.dart#L33-L101)
 
 **章节来源**
-- [lib/shared/widgets/duo_button.dart:5-31](file://lib/shared/widgets/duo_button.dart#L5-L31)
-- [lib/shared/widgets/duo_button.dart:33-101](file://lib/shared/widgets/duo_button.dart#L33-L101)
+- [lib/shared/widgets/anchor_button.dart:5-31](file://lib/shared/widgets/anchor_button.dart#L5-L31)
+- [lib/shared/widgets/anchor_button.dart:33-101](file://lib/shared/widgets/anchor_button.dart#L33-L101)
 - [lib/core/constants/app_colors.dart:8-10](file://lib/core/constants/app_colors.dart#L8-L10)
 
 ### stats_widgets 组件
@@ -249,14 +249,14 @@ QuizProgressBar --> AppColors : "使用颜色"
 - [lib/features/profile/profile_screen.dart:108-210](file://lib/features/profile/profile_screen.dart#L108-L210)
 
 ## 依赖关系分析
-- duo_button依赖AppColors提供统一颜色，内部通过_darken派生暗色，保证视觉层次。
+- anchor_button依赖AppColors提供统一颜色，内部通过_darken派生暗色，保证视觉层次。
 - stats_widgets依赖AppColors与UserStats，TopStatsBar与QuizProgressBar分别在不同页面承担不同职责。
 - quiz_screen通过Riverpod订阅userStatsProvider，向QuizProgressBar传递progress与hearts，实现数据驱动的UI更新。
-- question_widgets在答题流程中与duo_button协同，提供一致的交互体验。
+- question_widgets在答题流程中与anchor_button协同，提供一致的交互体验。
 
 ```mermaid
 graph LR
-AC["AppColors"] --> DB["DuoButton"]
+AC["AppColors"] --> DB["AnchorButton"]
 AC --> SW["StatsWidgets"]
 US["UserStats"] --> SW
 US --> QS["QuizScreen"]
@@ -266,7 +266,7 @@ DB --> QW["QuestionWidgets"]
 
 **图示来源**
 - [lib/core/constants/app_colors.dart:1-43](file://lib/core/constants/app_colors.dart#L1-L43)
-- [lib/shared/widgets/duo_button.dart:1-103](file://lib/shared/widgets/duo_button.dart#L1-L103)
+- [lib/shared/widgets/anchor_button.dart:1-103](file://lib/shared/widgets/anchor_button.dart#L1-L103)
 - [lib/shared/widgets/stats_widgets.dart:1-139](file://lib/shared/widgets/stats_widgets.dart#L1-L139)
 - [lib/data/models/user_stats.dart:1-83](file://lib/data/models/user_stats.dart#L1-L83)
 - [lib/features/learning/quiz_screen.dart:1-200](file://lib/features/learning/quiz_screen.dart#L1-L200)
@@ -274,7 +274,7 @@ DB --> QW["QuestionWidgets"]
 
 **章节来源**
 - [lib/core/constants/app_colors.dart:1-43](file://lib/core/constants/app_colors.dart#L1-L43)
-- [lib/shared/widgets/duo_button.dart:1-103](file://lib/shared/widgets/duo_button.dart#L1-L103)
+- [lib/shared/widgets/anchor_button.dart:1-103](file://lib/shared/widgets/anchor_button.dart#L1-L103)
 - [lib/shared/widgets/stats_widgets.dart:1-139](file://lib/shared/widgets/stats_widgets.dart#L1-L139)
 - [lib/data/models/user_stats.dart:1-83](file://lib/data/models/user_stats.dart#L1-L83)
 - [lib/features/learning/quiz_screen.dart:1-200](file://lib/features/learning/quiz_screen.dart#L1-L200)
@@ -282,7 +282,7 @@ DB --> QW["QuestionWidgets"]
 
 ## 性能考虑
 - 动画与过渡
-  - duo_button的AnimatedContainer时长较短，避免拖慢交互响应；建议在更复杂的场景中适度延长动画时长。
+  - anchor_button的AnimatedContainer时长较短，避免拖慢交互响应；建议在更复杂的场景中适度延长动画时长。
 - 重建与渲染
   - stats_widgets大量使用const与不可变小部件，减少不必要的重建；在列表或网格中优先使用GridView或Row/Column的弹性布局。
 - 数据流
@@ -301,11 +301,11 @@ DB --> QW["QuestionWidgets"]
   - 在不同屏幕宽度下使用Expanded/Flexible；避免硬编码尺寸导致的溢出。
 
 ## 结论
-duo_button与stats_widgets构成了Dlg-Q项目的基础UI骨架：前者提供一致的交互反馈，后者负责学习状态的可视化呈现。通过统一的颜色系统与数据模型，二者在答题页与个人资料页实现了高内聚、低耦合的协作关系。遵循本文的最佳实践与性能建议，可在保证用户体验的同时提升开发效率与可维护性。
+anchor_button与stats_widgets构成了Anchor Learning项目的基础UI骨架：前者提供一致的交互反馈，后者负责学习状态的可视化呈现。通过统一的颜色系统与数据模型，二者在答题页与个人资料页实现了高内聚、低耦合的协作关系。遵循本文的最佳实践与性能建议，可在保证用户体验的同时提升开发效率与可维护性。
 
 ## 附录
 - 使用示例路径
-  - 按钮：[lib/shared/widgets/duo_button.dart:5-31](file://lib/shared/widgets/duo_button.dart#L5-L31)
+  - 按钮：[lib/shared/widgets/anchor_button.dart:5-31](file://lib/shared/widgets/anchor_button.dart#L5-L31)
   - 顶部状态栏：[lib/shared/widgets/stats_widgets.dart:6-42](file://lib/shared/widgets/stats_widgets.dart#L6-L42)
   - 答题进度条：[lib/shared/widgets/stats_widgets.dart:76-138](file://lib/shared/widgets/stats_widgets.dart#L76-L138)
   - 个人资料页统计卡：[lib/features/profile/profile_screen.dart:108-133](file://lib/features/profile/profile_screen.dart#L108-L133)

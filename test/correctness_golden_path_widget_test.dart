@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:dlg_q/data/models/grounded_claim.dart';
-import 'package:dlg_q/data/models/source.dart';
-import 'package:dlg_q/data/models/source_chunk.dart';
-import 'package:dlg_q/features/knowledge_base/knowledge_answer_citation_card.dart';
-import 'package:dlg_q/features/knowledge_base/knowledge_answer_evidence_quality_badges.dart';
-import 'package:dlg_q/features/knowledge_base/knowledge_search_ranking_reasons.dart';
-import 'package:dlg_q/services/agent/knowledge_answer_session_summary.dart';
+import 'package:anchor_learning/data/models/grounded_claim.dart';
+import 'package:anchor_learning/data/models/source.dart';
+import 'package:anchor_learning/data/models/source_chunk.dart';
+import 'package:anchor_learning/features/knowledge_base/knowledge_answer_citation_card.dart';
+import 'package:anchor_learning/features/knowledge_base/knowledge_answer_evidence_quality_badges.dart';
+import 'package:anchor_learning/features/knowledge_base/knowledge_search_ranking_reasons.dart';
+import 'package:anchor_learning/services/agent/knowledge_answer_session_summary.dart';
 
 void main() {
   testWidgets('shows distinct answer states and inspectable ranking reasons',

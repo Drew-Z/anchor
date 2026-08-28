@@ -11,11 +11,11 @@
         "uri": "https://platform.openai.com/docs/guides/structured-outputs"
       },
       {
-        "id": "source-duoduo-client",
-        "title": "Duoduo ChatCompletion client",
+        "id": "source-anchor-learning-client",
+        "title": "Anchor Learning ChatCompletion client",
         "type": "code_file",
         "trust_level": "source_code",
-        "uri": "https://github.com/xuanli199/duoduo"
+        "uri": "https://github.com/xuanli199/anchor-learning"
       },
       {
         "id": "source-json-note",
@@ -40,7 +40,7 @@
       },
       {
         "id": "chunk-code-client",
-        "source_id": "source-duoduo-client",
+        "source_id": "source-anchor-learning-client",
         "content": "chatCompletion reads the response from choices and returns the message content.",
         "locator": "lib/services/openai_service.dart"
       },

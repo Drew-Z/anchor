@@ -11,7 +11,7 @@ import '../../data/models/question.dart';
 import '../../data/models/source.dart';
 import '../../data/models/source_chunk.dart';
 import '../../services/agent/grounded_learning_context_service.dart';
-import '../../shared/widgets/duo_button.dart';
+import '../../shared/widgets/anchor_button.dart';
 import '../../shared/widgets/source_citation_block.dart';
 
 class ProgrammingExerciseScreen extends ConsumerStatefulWidget {
@@ -480,7 +480,7 @@ class _ProgrammingExerciseScreenState
                   if (_isGenerating)
                     const _BusyBlock(label: '正在基于来源生成练习...')
                   else
-                    DuoButton(
+                    AnchorButton(
                       key: const ValueKey('generate-programming-exercises'),
                       label: _exercises.isEmpty ? '生成练习' : '补充一组练习',
                       color: AppColors.blue,
@@ -779,7 +779,7 @@ class _AnswerPanel extends StatelessWidget {
           if (isSubmitting)
             const _BusyBlock(label: '正在按四个维度核对来源...')
           else
-            DuoButton(
+            AnchorButton(
               key: const ValueKey('submit-programming-exercise-answer'),
               label: '提交评价',
               color: AppColors.green,

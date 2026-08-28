@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 
-/// 多邻国风格主题
+/// Anchor Learning 主题。
 class AppTheme {
   AppTheme._();
 

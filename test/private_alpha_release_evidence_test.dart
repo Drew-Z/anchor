@@ -1,13 +1,14 @@
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
-import 'package:dlg_q/services/release/private_alpha_release_evidence.dart';
+import 'package:anchor_learning/services/release/private_alpha_release_evidence.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
 void main() {
   test('verifies a passing gate against the actual APK identity', () async {
-    final root = await Directory.systemTemp.createTemp('duoduo-release-');
+    final root =
+        await Directory.systemTemp.createTemp('anchor-learning-release-');
     addTearDown(() => root.delete(recursive: true));
     final apk = File(p.join(root.path, 'build', 'app.apk'));
     await apk.parent.create(recursive: true);
@@ -30,7 +31,8 @@ void main() {
   });
 
   test('holds when the APK is missing or its identity drifts', () async {
-    final root = await Directory.systemTemp.createTemp('duoduo-release-');
+    final root =
+        await Directory.systemTemp.createTemp('anchor-learning-release-');
     addTearDown(() => root.delete(recursive: true));
     final missing = await const PrivateAlphaReleaseEvidenceVerifier().verify(
       evidence: _evidence(
@@ -60,7 +62,8 @@ void main() {
   });
 
   test('rejects unsafe paths and incomplete automated evidence', () async {
-    final root = await Directory.systemTemp.createTemp('duoduo-release-');
+    final root =
+        await Directory.systemTemp.createTemp('anchor-learning-release-');
     addTearDown(() => root.delete(recursive: true));
     final verification =
         await const PrivateAlphaReleaseEvidenceVerifier().verify(
@@ -95,6 +98,26 @@ void main() {
       }),
       throwsA(isA<FormatException>()),
     );
+    for (final path in const [
+      'C:/private/app.apk',
+      r'C:\private\app.apk',
+      '/tmp/app.apk',
+      'file:///tmp/app.apk',
+      'https://example.com/app.apk',
+      'data:text/plain,app.apk',
+    ]) {
+      expect(
+        () => PrivateAlphaAndroidBuildEvidence.fromJson({
+          'apk_path': path,
+          'bytes': 1,
+          'sha256': List.filled(64, '0').join(),
+          'arm64_only': true,
+          'v2_signed': true,
+        }),
+        throwsA(isA<FormatException>()),
+        reason: path,
+      );
+    }
   });
 }
 
