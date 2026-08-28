@@ -53,15 +53,20 @@ Built with Flutter • MIT License
 
 ---
 
-## 🏷️ Create First Release
+## 🏷️ Prepare the Private Alpha Release
 
-After pushing code:
+The current candidate is `1.0.0+2005`. Do not publish a public release until the
+Private Alpha readiness record changes from `HOLD` to `GO` after the real cohort
+evidence is complete.
+
+When the cohort gate is approved:
 
 1. Go to **Releases** → **Create a new release**
-2. **Tag version**: `v0.1.0`
-3. **Release title**: `⚓ Anchor Learning v0.1.0 - Initial Public Release`
-4. **Description**: Copy from CHANGELOG.md v0.1.0 section
-5. Click **Publish release**
+2. **Tag version**: `v1.0.0`
+3. **Release title**: `⚓ Anchor Learning v1.0.0 - Private Alpha`
+4. **Description**: Use the approved release notes and `CHANGELOG.md` references; include the supported Android package and known limitations.
+5. Attach only the approved, signed release artifact and its SHA-256 from the release evidence.
+6. Publish only after the release checklist and rollback owner have been recorded.
 
 ---
 
@@ -157,7 +162,7 @@ Feedback welcome! 🚀
 - [ ] Code pushed to main branch
 - [ ] README.md displays correctly
 - [ ] LICENSE file present
-- [ ] First release (v0.1.0) created
+- [ ] Private Alpha release (v1.0.0) created after readiness changes to `GO`
 - [ ] Demo video recorded (or placeholder added)
 - [ ] Screenshots ready (4-6 images)
 - [ ] Community post drafted
