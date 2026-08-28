@@ -246,7 +246,7 @@
 
 ### 短期 (1 个月内)
 - [ ] 获得 100+ GitHub Stars
-- [ ] 发布首个 Release (v0.1.0)
+- [ ] 在 Private Alpha readiness 变为 `GO` 后发布 `v1.0.0` 候选
 - [ ] 完成 Demo 视频
 - [ ] 发布到 3+ 技术社区
 

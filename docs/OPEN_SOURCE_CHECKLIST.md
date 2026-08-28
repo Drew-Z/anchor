@@ -8,8 +8,8 @@
 - Issue 模板和 PR 模板已存在于 `.github/`。
 - Flutter 依赖已升级并完成 `file_picker` 新 API 迁移。
 - `flutter analyze --no-fatal-infos`: 0 errors, 0 warnings（仅 info 级 lint）。
-- `flutter test`: 387/387 通过。
-- `flutter test --coverage`: 本轮功能测试 387/387 通过；覆盖率快照 60.69%（16089/26510）仍为历史记录，不作为 Private Alpha 单独放行条件。
+- `flutter test`: 385/385 通过。
+- `flutter test --coverage`: 本轮功能测试 385/385 通过；覆盖率快照 60.84%（16274/26751）仍不作为 Private Alpha 单独放行条件。
 - `dart format --output=none --set-exit-if-changed lib test`: 通过。
 - Web 单元测试和 Playwright 测试共 17/17 通过；Web 是独立静态 Demo，不作为原生发布验收。
 - Android release 签名改为环境变量注入；缺少签名时只阻止 release task，debug 构建仍可运行。
@@ -20,7 +20,7 @@
 ### 仓库内可继续完成
 
 - [x] 为 Agent 启动 checkpoint 失败/重试、页面销毁后的异步返回、详情页完成/失败/恢复、首页与历史页错误恢复和深层导航补充 widget 覆盖。
-- [x] 覆盖率已提升到 60.69%（16089/26510）；覆盖率不是 Private Alpha 的单独放行条件。
+- [x] 覆盖率已提升到 60.84%（16274/26751）；覆盖率不是 Private Alpha 的单独放行条件。
 - [x] 已生成当前 Android Arm64 release APK：`build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`（2026-08-26，26272915 bytes），SHA-256 `74DCFB95CD9C123B51D9B35678FFD0153D23654BF6A5597DE1070880D667207B`，包名 `cc.eu.playlab.anchor`，versionName `1.0.0`，Flutter build number `2005` / Arm64 split APK manifest `versionCode=4005`，Anchor Learning release v2 签名，ABI `arm64-v8a`。
 - [x] 已将推广、交付、架构、研究和 Trellis 文档统一到正式产品名 `Anchor Learning / 锚学`；正式应用标识单独记录在 `docs/PRODUCT_NAMING.md`。
 

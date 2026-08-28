@@ -194,11 +194,11 @@
   ```
 
 - [ ] **GitHub Release**
-  - v0.1.0-alpha: "First public preview"
+  - 当前候选：`v1.0.0` Private Alpha（仅在 readiness 从 `HOLD` 变为 `GO` 后发布）
   - 附带:
-    - APK 下载(Android 用户直接试用)
-    - CHANGELOG.md
-    - 已知限制说明
+    - 经过批准的签名 APK
+    - `CHANGELOG.md`
+    - 已知限制说明和回滚责任人
 
 - [ ] **GitHub Actions CI**
   ```yaml

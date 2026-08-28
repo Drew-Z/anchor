@@ -217,7 +217,7 @@
 - [ ] 文档补全(README/CONTRIBUTING/ARCHITECTURE)
 - [ ] 示例内容包(3 个高质量 Demo)
 - [ ] 桌面/移动端打包
-- [ ] GitHub Release 0.1.0
+- [ ] GitHub Private Alpha Release `v1.0.0`（须等待真实 cohort readiness `GO`）
 
 ### Week 5-8: 社区增长
 - [ ] 技术博客 4 篇
