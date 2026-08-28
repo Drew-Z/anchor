@@ -23,7 +23,7 @@ void main() {
       OpenAIService.profilePreferenceKey(
         AIProviders.grokPrimaryId,
         'model',
-      ): 'grok-4.5',
+      ): 'grok-4.6',
       OpenAIService.profilePreferenceKey(
         AIProviders.grokPrimaryId,
         'protocol',
@@ -61,7 +61,7 @@ void main() {
     _expectVisibleProfile(
       tester,
       baseUrl: 'https://grok-profile.example/v1',
-      model: 'grok-4.5',
+      model: 'grok-4.6',
       protocol: AiApiProtocol.responses,
     );
 
@@ -73,11 +73,11 @@ void main() {
       protocol: AiApiProtocol.chatCompletions,
     );
 
-    await _selectProvider(tester, 'Grok 4.5 通道（主）');
+    await _selectProvider(tester, 'Grok 4.6 通道（主）');
     _expectVisibleProfile(
       tester,
       baseUrl: 'https://grok-profile.example/v1',
-      model: 'grok-4.5',
+      model: 'grok-4.6',
       protocol: AiApiProtocol.responses,
     );
     expect(tester.takeException(), isNull);

@@ -70,7 +70,7 @@ does not satisfy the latency contract and is not counted as a passed case.
 
 Anchor Learning exposes two durable operator-facing candidate slots:
 
-- `custom_grok_primary`: `Grok 4.5 通道（主）`
+- `custom_grok_primary`: `Grok 4.6 通道（主）`
 - `custom_mimo_fallback`: `Mimo 通道（备）`
 
 Each slot owns its base URL, requested model, API protocol, secure credential,

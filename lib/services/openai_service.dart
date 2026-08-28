@@ -98,7 +98,7 @@ class AIProviders {
     ),
     AIProviderPreset(
       id: grokPrimaryId,
-      name: 'Grok 4.5 通道（主）',
+      name: 'Grok 4.6 通道（主）',
       baseUrl: '',
       models: [],
       protocols: [
