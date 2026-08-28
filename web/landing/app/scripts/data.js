@@ -407,6 +407,191 @@ export const DATASETS = [
   },
 ];
 
+/**
+ * Copy for the app shell surfaces.
+ *
+ * These strings live here instead of `landing/scripts/i18n.js` because the shell is specific to
+ * the `/app/` surface. Existing landing keys are still resolved with `translate()` so the demo
+ * keeps a single bilingual vocabulary.
+ */
+export const SHELL_TEXT = {
+  navAria: localized('App sections', '应用分区'),
+  navLearn: localized('Learn', '学习'),
+  navDecks: localized('Decks', '题库'),
+  navAgent: localized('Agent', 'Agent'),
+  navLibrary: localized('Library', '知识库'),
+  navProfile: localized('Profile', '我的'),
+  navImport: localized('Import', '导入'),
+  badgeLocal: localized('Local demo', '本地演示'),
+  badgeAndroid: localized('Android app', 'Android 应用'),
+  browserScope: localized(
+    'The browser shell mirrors the app layout. It runs on bundled data with no account, upload, or AI request.',
+    '浏览器外壳复刻应用结构，只使用内置数据，不需要账号，也不会上传文件或发起 AI 请求。',
+  ),
+  backToDecks: localized('All datasets', '全部数据集'),
+
+  home: {
+    eyebrow: localized('Learn', '学习'),
+    title: localized('Practice from bundled sources', '从内置来源开始练习'),
+    body: localized(
+      'Anchor Learning turns technical material into exercises that stay attached to their evidence. This browser shell ships fixed datasets so you can walk the whole loop without an account.',
+      'Anchor Learning 把技术资料转化为始终附带证据的练习。这个浏览器外壳内置固定数据集，无需账号即可走完整个流程。',
+    ),
+    statAnswered: localized('Answered', '已答题'),
+    statCorrect: localized('Supported', '得到支持'),
+    statStarted: localized('Datasets started', '已开始数据集'),
+    continueTitle: localized('Continue where you stopped', '继续上次的练习'),
+    continueAction: localized('Continue', '继续'),
+    startTitle: localized('Pick a dataset', '选择一套数据集'),
+    startBody: localized(
+      'Each dataset mixes single choice, multiple choice, and true/false questions, and every answer opens its source passage.',
+      '每套数据集包含单选、多选和判断题，每个答案都可以展开对应的原文。',
+    ),
+    startAction: localized('Open decks', '打开题库'),
+    importTitle: localized('Add content', '添加内容'),
+    importBody: localized(
+      'The Android app builds questions from files, pasted text, or shared content. See what import covers before it reaches this shell.',
+      'Android 应用可以从文件、粘贴的文本或分享的内容生成题目。可以先了解导入涵盖的范围。',
+    ),
+    importAction: localized('How import works', '导入方式说明'),
+    planTitle: localized('Review plan', '复习计划'),
+    planBody: localized(
+      'Built from the progress stored in this browser. Nothing is scheduled on a server.',
+      '根据保存在此浏览器中的进度生成，不依赖任何服务端排程。',
+    ),
+    planRemaining: localized('{n} left', '还剩 {n} 题'),
+    planDone: localized('Complete', '已完成'),
+  },
+
+  decks: {
+    eyebrow: localized('Decks', '题库'),
+    note: localized(
+      'These datasets are bundled with the demo. Generating new questions from your own material happens in the Android app.',
+      '这些数据集随演示内置。基于你自己的资料生成新题目在 Android 应用中完成。',
+    ),
+  },
+
+  agent: {
+    eyebrow: localized('Agent', 'Agent'),
+    title: localized('Guided help that shows its sources', '会展示来源的引导式辅导'),
+    body: localized(
+      'In the Android Private Alpha the Agent sets a learning target, explains concepts from imported material, and runs interview practice. The browser shell carries the scripted part of that experience.',
+      '在 Android Private Alpha 中，Agent 会设定学习目标、基于导入资料讲解概念，并进行面试练习。浏览器外壳只承载其中的预置部分。',
+    ),
+    tutorTitle: localized('Scripted tutor hints', '预置导师提示'),
+    tutorBody: localized(
+      'Answer a question in the decks, then open the tutor panel to read hints that ship with the demo. No model is called.',
+      '在题库中作答后展开导师面板，即可阅读随演示内置的提示，不会调用任何模型。',
+    ),
+    tutorAction: localized('Practice and open a hint', '去练习并查看提示'),
+    nativeTitle: localized('Runs on Android only', '仅在 Android 上运行'),
+    nativeBody: localized(
+      'These capabilities need a configured model and on-device storage, so the static browser demo does not include them.',
+      '这些能力需要已配置的模型和设备本地存储，静态浏览器演示不包含它们。',
+    ),
+    nativeTutor: localized('Live tutor conversation about an imported concept', '围绕导入概念的实时导师对话'),
+    nativeInterview: localized('Interview mode with evidence-bound follow-up questions', '带证据约束追问的面试官模式'),
+    nativeTarget: localized('Learning targets for interview prep, project study, or open exploration', '面试准备、项目学习、自由探索等学习目标'),
+    nativeReview: localized('Session history and interview review records', '会话历史与面试复盘记录'),
+  },
+
+  library: {
+    eyebrow: localized('Library', '知识库'),
+    title: localized('Every source passage in this demo', '演示中的全部来源片段'),
+    body: localized(
+      '{n} excerpts back the {q} bundled questions. Each one is the passage the demo quotes when it explains an answer.',
+      '{n} 段摘录支撑内置的 {q} 道题目，每段都是演示解释答案时引用的原文。',
+    ),
+    openDataset: localized('Practice this dataset', '练习这套数据集'),
+    questionLabel: localized('Explains', '用于解释'),
+  },
+
+  profile: {
+    eyebrow: localized('Profile', '我的'),
+    title: localized('Your local demo state', '你的本地演示状态'),
+    body: localized(
+      'Everything on this page comes from this browser. Clearing site data removes it.',
+      '本页所有内容都来自当前浏览器，清除站点数据即会一并删除。',
+    ),
+    storageTitle: localized('Stored in this browser', '保存在此浏览器'),
+    storageBody: localized(
+      'Answers and the current question index are kept in localStorage so a reload resumes the same place.',
+      '答案和当前题号保存在 localStorage 中，重新加载后会回到同一位置。',
+    ),
+    accountTitle: localized('No account involved', '不涉及账号'),
+    accountBody: localized(
+      'There is no sign-in, no profile sync, and no server holding your answers.',
+      '这里没有登录、没有资料同步，也没有服务端保存你的答案。',
+    ),
+    languageTitle: localized('Language', '语言'),
+    languageBody: localized(
+      'Switch between English and 中文 with the toggle in the header. The choice is remembered locally.',
+      '使用页眉的切换按钮在 English 与中文之间切换，选择会保存在本地。',
+    ),
+    resetTitle: localized('Reset local progress', '重置本地进度'),
+    resetBody: localized(
+      'Clears answers and scores for all bundled datasets in this browser.',
+      '清除此浏览器中所有内置数据集的答案与得分。',
+    ),
+    nativeTitle: localized('Part of the Android app', '属于 Android 应用'),
+    nativeStreak: localized('Streaks, badges, and achievement history', '连续学习、成就徽章与历史记录'),
+    nativeSettings: localized('Model configuration and app settings', '模型配置与应用设置'),
+    nativeBackup: localized('Local backup export and restore', '本地备份导出与恢复'),
+  },
+
+  sources: {
+    eyebrow: localized('Import', '导入'),
+    title: localized('Bringing in your own material', '导入你自己的资料'),
+    body: localized(
+      'The browser demo has no file picker and no upload. It only reads the three datasets bundled with this page.',
+      '浏览器演示没有文件选择器，也不会上传任何内容，只读取本页内置的三套数据集。',
+    ),
+    nativeTitle: localized('How import works in the Android app', 'Android 应用中的导入方式'),
+    nativeBody: localized(
+      'Pick a file, paste text, or share content into the app. Import keeps document headings and code structure so citations can point back to a stable location.',
+      '可以选择文件、粘贴文本，或把内容分享到应用中。导入会保留文档标题与代码结构，让引用能指向稳定位置。',
+    ),
+    loopTitle: localized('What happens after import', '导入之后会发生什么'),
+    productAction: localized('See the Android workflow', '查看 Android 工作流'),
+    demoAction: localized('Use the bundled datasets', '使用内置数据集'),
+  },
+};
+
+export function formatCount(template, values) {
+  return Object.entries(values).reduce(
+    (text, [key, value]) => text.replaceAll(`{${key}}`, String(value)),
+    String(template ?? ''),
+  );
+}
+
+/**
+ * Flattens bundled citations into a per-dataset source index for the Library surface.
+ * Excerpts stay grouped by dataset and keep the question they explain.
+ */
+export function collectSources(datasets = DATASETS) {
+  return datasets.map((dataset) => ({
+    id: dataset.id,
+    mark: dataset.mark,
+    title: dataset.title,
+    excerpts: dataset.questions.flatMap((question) =>
+      question.citations.map((citation) => ({
+        locator: citation.locator,
+        excerpt: citation.excerpt,
+        questionId: question.id,
+        prompt: question.prompt,
+      })),
+    ),
+  }));
+}
+
+export function countSources(datasets = DATASETS) {
+  return collectSources(datasets).reduce((total, group) => total + group.excerpts.length, 0);
+}
+
+export function countQuestions(datasets = DATASETS) {
+  return datasets.reduce((total, dataset) => total + dataset.questions.length, 0);
+}
+
 export function textFor(value, locale) {
   return value?.[locale] ?? value?.en ?? '';
 }

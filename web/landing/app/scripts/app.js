@@ -1,5 +1,16 @@
-import { getLocale, initializeLocale, setLocale, translate } from '../../scripts/i18n.js?v=20260727-2';
-import { DATA_VERSION, DATASETS, getDataset, textFor, validateDatasets } from './data.js';
+import { getLocale, initializeLocale, setLocale, translate } from '../../scripts/i18n.js?v=20260829-1';
+import {
+  DATA_VERSION,
+  DATASETS,
+  SHELL_TEXT,
+  collectSources,
+  countQuestions,
+  countSources,
+  formatCount,
+  getDataset,
+  textFor,
+  validateDatasets,
+} from './data.js';
 
 export const PROGRESS_STORAGE_KEY = 'anchor.demo.progress.v1';
 
@@ -50,6 +61,28 @@ export function normalizeProgress(candidate) {
   return normalized;
 }
 
+export const VIEWS = ['home', 'decks', 'agent', 'library', 'profile', 'import'];
+export const DEFAULT_VIEW = 'home';
+
+/**
+ * Hash routing keeps every shell surface linkable on static hosting, with no server rewrite and no
+ * history API dependency beyond normalising a bare `/app/` entry.
+ */
+export function parseRoute(hash, hasDataset = (id) => Boolean(getDataset(id))) {
+  const [rawView, rawDataset] = String(hash ?? '')
+    .replace(/^#\/?/, '')
+    .split('/')
+    .map((part) => decodeURIComponent(part ?? '').trim());
+  const view = VIEWS.includes(rawView) ? rawView : DEFAULT_VIEW;
+  const datasetId = view === 'decks' && rawDataset && hasDataset(rawDataset) ? rawDataset : null;
+  return { view, datasetId };
+}
+
+export function routeHash({ view, datasetId } = {}) {
+  const target = VIEWS.includes(view) ? view : DEFAULT_VIEW;
+  return target === 'decks' && datasetId ? `#/decks/${encodeURIComponent(datasetId)}` : `#/${target}`;
+}
+
 function escapeHtml(value) {
   return String(value)
     .replaceAll('&', '&amp;')
@@ -83,12 +116,53 @@ if (typeof document !== 'undefined') {
   const sidebar = document.querySelector('#dataset-sidebar');
   const menuButton = document.querySelector('#dataset-menu-button');
   const closeButton = document.querySelector('#dataset-menu-close');
-  const resetButton = document.querySelector('#reset-progress');
+  const navList = document.querySelector('#app-nav');
+  const tabBar = document.querySelector('#app-tabbar');
+  const sidebarImport = document.querySelector('#sidebar-import');
   let progress = loadProgress();
+  let route = parseRoute(window.location.hash);
   const openTutorQuestions = new Set();
 
   function locale() {
     return getLocale();
+  }
+
+  function shell(value) {
+    return textFor(value, locale());
+  }
+
+  const NAV_ICONS = {
+    home: '<path d="M3 9.5 10 4l7 5.5V16a1 1 0 0 1-1 1h-3.5v-4.5h-5V17H4a1 1 0 0 1-1-1Z"/>',
+    decks: '<path d="M4 3.5h9l3 3V16a.5.5 0 0 1-.5.5h-11A.5.5 0 0 1 4 16Z"/><path d="M6.75 8.5h6.5M6.75 11.5h6.5M6.75 14h4"/>',
+    agent: '<rect x="4" y="6.5" width="12" height="9.5" rx="2"/><path d="M10 3v3.5M7.5 10.5h.01M12.5 10.5h.01M8 13.5h4"/>',
+    library: '<path d="M4 4.5h4.5v11H4Z"/><path d="M9.5 4.5H14v11H9.5Z"/><path d="M6.25 7.5h.01M11.75 7.5h.01"/>',
+    profile: '<circle cx="10" cy="7.5" r="3"/><path d="M4.5 16.5c0-2.8 2.5-4.5 5.5-4.5s5.5 1.7 5.5 4.5"/>',
+    import: '<path d="M10 3.5v8M6.75 8.25 10 11.5l3.25-3.25"/><path d="M4.5 14v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V14"/>',
+  };
+
+  const NAV_ITEMS = [
+    { view: 'home', label: () => shell(SHELL_TEXT.navLearn) },
+    { view: 'decks', label: () => shell(SHELL_TEXT.navDecks) },
+    { view: 'agent', label: () => shell(SHELL_TEXT.navAgent) },
+    { view: 'library', label: () => shell(SHELL_TEXT.navLibrary) },
+    { view: 'profile', label: () => shell(SHELL_TEXT.navProfile) },
+  ];
+
+  function navIcon(view) {
+    return `<svg class="nav-icon" viewBox="0 0 20 20" width="20" height="20" aria-hidden="true" focusable="false">${NAV_ICONS[view]}</svg>`;
+  }
+
+  function badge(kind) {
+    const label = kind === 'android' ? SHELL_TEXT.badgeAndroid : SHELL_TEXT.badgeLocal;
+    return `<span class="scope-badge scope-${kind}">${escapeHtml(shell(label))}</span>`;
+  }
+
+  /** Navigates the shell. Returns true when the hash actually changed and `hashchange` will render. */
+  function navigate(next) {
+    const target = routeHash(next);
+    if (window.location.hash === target) return false;
+    window.location.hash = target;
+    return true;
   }
 
   function datasetProgress(datasetId) {
@@ -121,7 +195,7 @@ if (typeof document !== 'undefined') {
       const state = datasetProgress(dataset.id);
       const submitted = Object.values(state.submitted).filter(Boolean).length;
       return `
-        <button class="dataset-button" type="button" data-select-dataset="${dataset.id}" aria-current="${progress.activeDatasetId === dataset.id ? 'page' : 'false'}">
+        <button class="dataset-button" type="button" data-select-dataset="${dataset.id}" aria-current="${route.datasetId === dataset.id ? 'page' : 'false'}">
           <span class="dataset-mark">${dataset.mark}</span>
           <span class="dataset-label">
             <strong>${escapeHtml(textFor(dataset.title, locale()))}</strong>
@@ -132,23 +206,312 @@ if (typeof document !== 'undefined') {
     }).join('');
   }
 
-  function renderWelcome() {
+  function renderNavigation() {
+    const links = NAV_ITEMS.map((item) => {
+      const active = route.view === item.view;
+      return `
+        <a class="nav-link" href="${routeHash({ view: item.view })}" data-nav-route="${item.view}"${active ? ' aria-current="page"' : ''}>
+          ${navIcon(item.view)}
+          <span>${escapeHtml(item.label())}</span>
+        </a>`;
+    }).join('');
+
+    if (navList) {
+      navList.setAttribute('aria-label', shell(SHELL_TEXT.navAria));
+      navList.innerHTML = links;
+    }
+    if (tabBar) {
+      tabBar.setAttribute('aria-label', shell(SHELL_TEXT.navAria));
+      tabBar.innerHTML = NAV_ITEMS.map((item) => {
+        const active = route.view === item.view;
+        return `
+          <a class="tab-link" href="${routeHash({ view: item.view })}" data-tab-route="${item.view}"${active ? ' aria-current="page"' : ''}>
+            ${navIcon(item.view)}
+            <span>${escapeHtml(item.label())}</span>
+          </a>`;
+      }).join('');
+    }
+    if (sidebarImport) {
+      const active = route.view === 'import';
+      sidebarImport.innerHTML = `
+        <a class="nav-link nav-link-import" href="${routeHash({ view: 'import' })}" data-nav-route="import"${active ? ' aria-current="page"' : ''}>
+          ${navIcon('import')}
+          <span>${escapeHtml(shell(SHELL_TEXT.navImport))}</span>
+        </a>`;
+    }
+  }
+
+  function submittedCountFor(dataset) {
+    return Object.values(datasetProgress(dataset.id).submitted).filter(Boolean).length;
+  }
+
+  function progressSummary() {
+    return DATASETS.reduce((summary, dataset) => {
+      const state = datasetProgress(dataset.id);
+      const submitted = submittedCountFor(dataset);
+      summary.total += dataset.questions.length;
+      summary.submitted += submitted;
+      summary.correct += scoreDataset(dataset, state);
+      if (submitted > 0 || state.completed) summary.started += 1;
+      return summary;
+    }, { total: 0, submitted: 0, correct: 0, started: 0 });
+  }
+
+  /** Deterministic resume target: the stored active dataset when it still has work, else the first one. */
+  function continueTarget() {
+    const partial = DATASETS.filter((dataset) => !datasetProgress(dataset.id).completed && submittedCountFor(dataset) > 0);
+    return partial.find((dataset) => dataset.id === progress.activeDatasetId) ?? partial[0] ?? null;
+  }
+
+  function viewHeading(eyebrow, title, body) {
+    return `
+      <header class="view-heading">
+        <p class="eyebrow">${escapeHtml(eyebrow)}</p>
+        <h1>${escapeHtml(title)}</h1>
+        <p class="view-lead">${escapeHtml(body)}</p>
+      </header>`;
+  }
+
+  function scopeList(items) {
+    return `<ul class="scope-list">${items.map((item) => `<li>${escapeHtml(shell(item))}</li>`).join('')}</ul>`;
+  }
+
+  function renderHome() {
+    const summary = progressSummary();
+    const resume = continueTarget();
+    const text = SHELL_TEXT.home;
+
+    const resumeCard = resume ? `
+      <article class="shell-card shell-card-accent">
+        <div class="shell-card-head">
+          <span class="dataset-mark">${resume.mark}</span>
+          <div>
+            <h2>${escapeHtml(shell(text.continueTitle))}</h2>
+            <p>${escapeHtml(textFor(resume.title, locale()))} · ${submittedCountFor(resume)}/${resume.questions.length}</p>
+          </div>
+        </div>
+        <a class="button button-primary" href="${routeHash({ view: 'decks', datasetId: resume.id })}">${escapeHtml(shell(text.continueAction))}</a>
+      </article>` : '';
+
     content.innerHTML = `
-      <section class="welcome-view">
+      <section class="shell-view" data-view="home">
+        ${viewHeading(shell(text.eyebrow), shell(text.title), shell(text.body))}
+        <p class="shell-scope">${badge('local')}<span>${escapeHtml(shell(SHELL_TEXT.browserScope))}</span></p>
+
+        <div class="stat-grid">
+          <div class="stat-card"><span>${escapeHtml(shell(text.statAnswered))}</span><strong>${summary.submitted}<small>/${summary.total}</small></strong></div>
+          <div class="stat-card"><span>${escapeHtml(shell(text.statCorrect))}</span><strong>${summary.correct}<small>/${summary.total}</small></strong></div>
+          <div class="stat-card"><span>${escapeHtml(shell(text.statStarted))}</span><strong>${summary.started}<small>/${DATASETS.length}</small></strong></div>
+        </div>
+
+        <div class="shell-cards">
+          ${resumeCard}
+          <article class="shell-card">
+            <h2>${escapeHtml(shell(text.startTitle))}</h2>
+            <p>${escapeHtml(shell(text.startBody))}</p>
+            <a class="button ${resume ? 'button-secondary' : 'button-primary'}" href="${routeHash({ view: 'decks' })}">${escapeHtml(shell(text.startAction))}</a>
+          </article>
+          <article class="shell-card">
+            <div class="shell-card-head"><h2>${escapeHtml(shell(text.importTitle))}</h2>${badge('android')}</div>
+            <p>${escapeHtml(shell(text.importBody))}</p>
+            <a class="button button-secondary" href="${routeHash({ view: 'import' })}" data-nav-route="import">${escapeHtml(shell(text.importAction))}</a>
+          </article>
+        </div>
+
+        <section class="shell-section">
+          <h2>${escapeHtml(shell(text.planTitle))}</h2>
+          <p class="section-lead">${escapeHtml(shell(text.planBody))}</p>
+          <ul class="plan-list">
+            ${DATASETS.map((dataset) => {
+              const state = datasetProgress(dataset.id);
+              const submitted = submittedCountFor(dataset);
+              const remaining = dataset.questions.length - submitted;
+              const status = state.completed || remaining === 0
+                ? escapeHtml(shell(text.planDone))
+                : escapeHtml(formatCount(shell(text.planRemaining), { n: remaining }));
+              return `
+                <li>
+                  <a class="plan-row" href="${routeHash({ view: 'decks', datasetId: dataset.id })}">
+                    <span class="dataset-mark">${dataset.mark}</span>
+                    <span class="plan-label">
+                      <strong>${escapeHtml(textFor(dataset.title, locale()))}</strong>
+                      <span>${submitted}/${dataset.questions.length} ${escapeHtml(translate('app.questions'))}</span>
+                    </span>
+                    <span class="plan-status${state.completed || remaining === 0 ? ' is-done' : ''}">${status}</span>
+                    <span class="plan-arrow" aria-hidden="true">→</span>
+                  </a>
+                </li>`;
+            }).join('')}
+          </ul>
+        </section>
+      </section>`;
+  }
+
+  // The dataset chooser keeps the `welcome-view` class so the original quiz entry point, its styles,
+  // and its regression coverage stay anchored to the same node inside the new shell.
+  function renderDeckChooser() {
+    content.innerHTML = `
+      <section class="shell-view welcome-view" data-view="decks">
         <div class="welcome-heading">
-          <p class="eyebrow">ANCHOR DEMO</p>
+          <p class="eyebrow">${escapeHtml(shell(SHELL_TEXT.decks.eyebrow))}</p>
           <h1>${escapeHtml(translate('app.chooseDataset'))}</h1>
           <p>${escapeHtml(translate('app.chooseDatasetBody'))}</p>
         </div>
         <div class="dataset-grid">
-          ${DATASETS.map((dataset) => `
+          ${DATASETS.map((dataset) => {
+            const submitted = submittedCountFor(dataset);
+            return `
             <button class="dataset-choice" type="button" data-select-dataset="${dataset.id}">
               <span class="dataset-mark">${dataset.mark}</span>
               <h2>${escapeHtml(textFor(dataset.title, locale()))}</h2>
               <p>${escapeHtml(textFor(dataset.summary, locale()))}</p>
-              <footer><span>${dataset.questions.length} ${escapeHtml(translate('app.questions'))}</span><span aria-hidden="true">→</span></footer>
-            </button>`).join('')}
+              <footer>
+                <span>${submitted}/${dataset.questions.length} ${escapeHtml(translate('app.questions'))}</span>
+                <span aria-hidden="true">→</span>
+              </footer>
+            </button>`;
+          }).join('')}
         </div>
+        <p class="shell-scope shell-scope-footer">${badge('android')}<span>${escapeHtml(shell(SHELL_TEXT.decks.note))}</span></p>
+      </section>`;
+  }
+
+  function renderAgent() {
+    const text = SHELL_TEXT.agent;
+    content.innerHTML = `
+      <section class="shell-view" data-view="agent">
+        ${viewHeading(shell(text.eyebrow), shell(text.title), shell(text.body))}
+        <div class="shell-cards">
+          <article class="shell-card shell-card-accent">
+            <div class="shell-card-head">
+              <h2>${escapeHtml(shell(text.tutorTitle))}</h2>
+              ${badge('local')}
+            </div>
+            <p>${escapeHtml(shell(text.tutorBody))}</p>
+            <p class="tutor-disclosure">${escapeHtml(translate('app.tutorDisclosure'))}</p>
+            <a class="button button-primary" href="${routeHash({ view: 'decks' })}">${escapeHtml(shell(text.tutorAction))}</a>
+          </article>
+          <article class="shell-card">
+            <div class="shell-card-head">
+              <h2>${escapeHtml(shell(text.nativeTitle))}</h2>
+              ${badge('android')}
+            </div>
+            <p>${escapeHtml(shell(text.nativeBody))}</p>
+            ${scopeList([text.nativeTutor, text.nativeInterview, text.nativeTarget, text.nativeReview])}
+          </article>
+        </div>
+      </section>`;
+  }
+
+  function renderLibrary() {
+    const text = SHELL_TEXT.library;
+    const groups = collectSources();
+    content.innerHTML = `
+      <section class="shell-view" data-view="library">
+        ${viewHeading(
+          shell(text.eyebrow),
+          shell(text.title),
+          formatCount(shell(text.body), { n: countSources(), q: countQuestions() }),
+        )}
+        <p class="shell-scope">${badge('local')}<span>${escapeHtml(shell(SHELL_TEXT.browserScope))}</span></p>
+
+        ${groups.map((group) => `
+          <section class="source-group">
+            <header class="source-group-head">
+              <span class="dataset-mark">${group.mark}</span>
+              <h2>${escapeHtml(textFor(group.title, locale()))}</h2>
+              <a class="source-group-link" href="${routeHash({ view: 'decks', datasetId: group.id })}">${escapeHtml(shell(text.openDataset))}</a>
+            </header>
+            <div class="citation-list">
+              ${group.excerpts.map((entry) => `
+                <article class="citation-item">
+                  <div class="citation-locator"><span>${escapeHtml(entry.locator)}</span><span class="source-kind">SOURCE</span></div>
+                  <blockquote>${escapeHtml(textFor(entry.excerpt, locale()))}</blockquote>
+                  <p class="citation-question"><span>${escapeHtml(shell(text.questionLabel))}</span>${escapeHtml(textFor(entry.prompt, locale()))}</p>
+                </article>`).join('')}
+            </div>
+          </section>`).join('')}
+
+        <p class="shell-scope shell-scope-footer">${badge('android')}<span>${escapeHtml(shell(SHELL_TEXT.sources.body))}</span></p>
+        <a class="button button-secondary" href="${routeHash({ view: 'import' })}">${escapeHtml(shell(SHELL_TEXT.navImport))}</a>
+      </section>`;
+  }
+
+  function renderProfile() {
+    const text = SHELL_TEXT.profile;
+    const summary = progressSummary();
+    content.innerHTML = `
+      <section class="shell-view" data-view="profile">
+        ${viewHeading(shell(text.eyebrow), shell(text.title), shell(text.body))}
+
+        <div class="stat-grid">
+          <div class="stat-card"><span>${escapeHtml(shell(SHELL_TEXT.home.statAnswered))}</span><strong>${summary.submitted}<small>/${summary.total}</small></strong></div>
+          <div class="stat-card"><span>${escapeHtml(shell(SHELL_TEXT.home.statCorrect))}</span><strong>${summary.correct}<small>/${summary.total}</small></strong></div>
+          <div class="stat-card"><span>${escapeHtml(shell(SHELL_TEXT.home.statStarted))}</span><strong>${summary.started}<small>/${DATASETS.length}</small></strong></div>
+        </div>
+
+        <div class="shell-cards">
+          <article class="shell-card">
+            <div class="shell-card-head"><h2>${escapeHtml(shell(text.storageTitle))}</h2>${badge('local')}</div>
+            <p>${escapeHtml(shell(text.storageBody))}</p>
+          </article>
+          <article class="shell-card">
+            <div class="shell-card-head"><h2>${escapeHtml(shell(text.accountTitle))}</h2>${badge('local')}</div>
+            <p>${escapeHtml(shell(text.accountBody))}</p>
+          </article>
+          <article class="shell-card">
+            <h2>${escapeHtml(shell(text.languageTitle))}</h2>
+            <p>${escapeHtml(shell(text.languageBody))}</p>
+          </article>
+          <article class="shell-card">
+            <h2>${escapeHtml(shell(text.resetTitle))}</h2>
+            <p>${escapeHtml(shell(text.resetBody))}</p>
+            <button class="button button-secondary" type="button" data-reset-progress>${escapeHtml(translate('app.reset'))}</button>
+          </article>
+          <article class="shell-card">
+            <div class="shell-card-head"><h2>${escapeHtml(shell(text.nativeTitle))}</h2>${badge('android')}</div>
+            ${scopeList([text.nativeStreak, text.nativeSettings, text.nativeBackup])}
+          </article>
+        </div>
+      </section>`;
+  }
+
+  function renderImport() {
+    const text = SHELL_TEXT.sources;
+    const steps = [
+      ['workflow.importTitle', 'workflow.importBody'],
+      ['workflow.generateTitle', 'workflow.generateBody'],
+      ['workflow.verifyTitle', 'workflow.verifyBody'],
+      ['workflow.reviewTitle', 'workflow.reviewBody'],
+    ];
+    content.innerHTML = `
+      <section class="shell-view" data-view="import">
+        ${viewHeading(shell(text.eyebrow), shell(text.title), shell(text.body))}
+        <div class="shell-cards">
+          <article class="shell-card">
+            <div class="shell-card-head"><h2>${escapeHtml(shell(text.nativeTitle))}</h2>${badge('android')}</div>
+            <p>${escapeHtml(shell(text.nativeBody))}</p>
+            <div class="card-actions">
+              <a class="button button-secondary" href="../#native-app">${escapeHtml(shell(text.productAction))}</a>
+            </div>
+          </article>
+          <article class="shell-card shell-card-accent">
+            <div class="shell-card-head"><h2>${escapeHtml(translate('app.localOnly'))}</h2>${badge('local')}</div>
+            <p>${escapeHtml(translate('app.localOnlyBody'))}</p>
+            <a class="button button-primary" href="${routeHash({ view: 'decks' })}">${escapeHtml(shell(text.demoAction))}</a>
+          </article>
+        </div>
+
+        <section class="shell-section">
+          <h2>${escapeHtml(shell(text.loopTitle))}</h2>
+          <ol class="loop-list">
+            ${steps.map(([title, body], index) => `
+              <li>
+                <span class="loop-index">${index + 1}</span>
+                <div><strong>${escapeHtml(translate(title))}</strong><p>${escapeHtml(translate(body))}</p></div>
+              </li>`).join('')}
+          </ol>
+        </section>
       </section>`;
   }
 
@@ -206,6 +569,15 @@ if (typeof document !== 'undefined') {
       </section>`;
   }
 
+  function deckBreadcrumb() {
+    return `
+      <p class="view-breadcrumb">
+        <a href="${routeHash({ view: 'decks' })}" data-nav-route="decks">
+          <span aria-hidden="true">←</span>${escapeHtml(shell(SHELL_TEXT.backToDecks))}
+        </a>
+      </p>`;
+  }
+
   function renderQuiz(dataset) {
     const state = datasetProgress(dataset.id);
     if (state.completed) {
@@ -233,6 +605,7 @@ if (typeof document !== 'undefined') {
 
     content.innerHTML = `
       <section class="quiz-view">
+        ${deckBreadcrumb()}
         <header class="quiz-header">
           <div><h1>${escapeHtml(textFor(dataset.title, locale()))}</h1><p>${escapeHtml(textFor(dataset.summary, locale()))}</p></div>
           <div class="score-block"><span>${escapeHtml(translate('app.score'))}</span><strong>${score}/${dataset.questions.length}</strong></div>
@@ -264,6 +637,7 @@ if (typeof document !== 'undefined') {
     content.innerHTML = `
       <section class="completion-view">
         <div class="completion-inner">
+          ${deckBreadcrumb()}
           <p class="eyebrow">${escapeHtml(textFor(dataset.title, locale()))}</p>
           <h1>${escapeHtml(translate('app.completed'))}</h1>
           <p>${escapeHtml(translate('app.completedBody'))}</p>
@@ -276,24 +650,54 @@ if (typeof document !== 'undefined') {
       </section>`;
   }
 
+  const SURFACES = {
+    home: renderHome,
+    agent: renderAgent,
+    library: renderLibrary,
+    profile: renderProfile,
+    import: renderImport,
+  };
+
   function render() {
+    route = parseRoute(window.location.hash);
+
+    // A bare, unknown, or unresolvable hash resolves to a real route, so the address stays
+    // copyable and reloadable. `replaceState` avoids both a history entry and a reload.
+    const canonicalHash = routeHash(route);
+    if (window.location.hash !== canonicalHash) window.history.replaceState(null, '', canonicalHash);
+
+    renderNavigation();
     renderDatasetList();
-    const dataset = getDataset(progress.activeDatasetId);
-    if (dataset) renderQuiz(dataset);
-    else renderWelcome();
+    document.body.dataset.view = route.view;
+
+    if (route.view === 'decks') {
+      const dataset = getDataset(route.datasetId);
+      if (dataset) {
+        // The route is the only writer of the resume hint, so opening a deck from a link, a deep
+        // link, or a reload all keep Home's continue card pointing at the last deck actually seen.
+        if (progress.activeDatasetId !== dataset.id) {
+          progress.activeDatasetId = dataset.id;
+          datasetProgress(dataset.id);
+          saveProgress(progress);
+        }
+        renderQuiz(dataset);
+      } else {
+        renderDeckChooser();
+      }
+      return;
+    }
+    (SURFACES[route.view] ?? renderHome)();
   }
 
   function selectDataset(datasetId) {
     if (!getDataset(datasetId)) return;
-    progress.activeDatasetId = datasetId;
-    datasetProgress(datasetId);
     setSidebarOpen(false);
-    persistAndRender();
+    if (!navigate({ view: 'decks', datasetId })) render();
     content?.focus();
   }
 
   function currentContext() {
-    const dataset = getDataset(progress.activeDatasetId);
+    const dataset = getDataset(route.datasetId);
     if (!dataset) return null;
     const state = datasetProgress(dataset.id);
     return { dataset, state, question: dataset.questions[state.currentIndex] };
@@ -321,6 +725,20 @@ if (typeof document !== 'undefined') {
     const datasetButton = event.target.closest('[data-select-dataset]');
     if (datasetButton) {
       selectDataset(datasetButton.dataset.selectDataset);
+      return;
+    }
+
+    if (event.target.closest('[data-reset-progress]')) {
+      progress = createInitialProgress();
+      openTutorQuestions.clear();
+      try {
+        globalThis.localStorage?.removeItem(PROGRESS_STORAGE_KEY);
+      } catch {
+        // Reset remains effective for the active session.
+      }
+      setSidebarOpen(false);
+      if (!navigate(route.datasetId ? { view: 'decks' } : route)) render();
+      announce(translate('app.progressReset'));
       return;
     }
 
@@ -369,7 +787,8 @@ if (typeof document !== 'undefined') {
 
     if (event.target.closest('[data-choose-another]')) {
       progress.activeDatasetId = null;
-      persistAndRender();
+      saveProgress(progress);
+      if (!navigate({ view: 'decks' })) render();
       content?.focus();
     }
   });
@@ -380,19 +799,13 @@ if (typeof document !== 'undefined') {
 
   menuButton?.addEventListener('click', () => setSidebarOpen(menuButton.getAttribute('aria-expanded') !== 'true'));
   closeButton?.addEventListener('click', () => setSidebarOpen(false));
-  resetButton?.addEventListener('click', () => {
-    progress = createInitialProgress();
-    openTutorQuestions.clear();
-    try {
-      globalThis.localStorage?.removeItem(PROGRESS_STORAGE_KEY);
-    } catch {
-      // Reset remains effective for the active session.
-    }
-    render();
-    announce(translate('app.progressReset'));
-  });
 
   window.addEventListener('anchor:localechange', render);
+  window.addEventListener('hashchange', () => {
+    setSidebarOpen(false);
+    render();
+    content?.focus();
+  });
   window.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') setSidebarOpen(false);
   });
@@ -402,6 +815,7 @@ if (typeof document !== 'undefined') {
     console.error('Anchor demo data validation failed', dataErrors);
     progress = createInitialProgress();
   }
+
   initializeLocale();
   render();
 }
