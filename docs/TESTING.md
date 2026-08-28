@@ -705,7 +705,7 @@ test:
   name: Run Tests
   runs-on: ubuntu-latest
   steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - uses: subosito/flutter-action@v2
       with:
         flutter-version: '3.44.8'
@@ -717,7 +717,7 @@ test:
       run: flutter test --coverage
     
     - name: Upload coverage
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v7
       with:
         files: ./coverage/lcov.info
 ```
