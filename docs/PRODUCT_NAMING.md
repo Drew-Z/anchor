@@ -10,17 +10,17 @@
 
 ## Formal Application Identifiers
 
-The following identifiers are the productization candidates for new installs:
+The following are the formal product identifiers for all new installs:
 
 - Android `applicationId` and namespace: `cc.eu.playlab.anchor`
 - SQLite database file: `anchor_learning.db`
 - Android platform channel: `cc.eu.playlab.anchor/project_directory`
 - macOS bundle identifier: `cc.eu.playlab.anchor`
 
-The Android application ID migration is intentionally performed before external
-users are invited. Existing local data must be transferred through the app's
-SQLite backup/restore flow; it cannot be assumed to survive an Android package
-change by overwrite installation.
+These identifiers were established before any external distribution. Anchor
+Learning does not provide compatibility or overwrite-install migration for
+unpublished development builds that used an earlier package identity. The
+SQLite backup/restore flow remains the supported way to move current app data.
 
 ## Naming Rules
 
