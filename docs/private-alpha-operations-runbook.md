@@ -9,18 +9,24 @@ count toward the formal ten-user cohort.
 Formal cohort work must not begin until every entry gate below has an owner and
 recorded evidence.
 
-Current launch status on 2026-08-26: `HOLD`.
+Current launch status on 2026-08-28: `HOLD`.
 
 - Implementation and Tier A emulator acceptance are complete.
 - The signed `1.0.0+2005` Arm64 release candidate passed the physical-device
-  smoke and the release-day Chat Completions matrix with `grok-4.6` at `5/5`.
+  smoke and the release-day Chat Completions matrix with `grok-4.6` at `5/5`
+  on 2026-08-26. Those reports remain identity-bound technical records, but
+  they are outside the 24-hour final release window and must be rerun only
+  when the formal cohort is ready for final evaluation.
 - Arm64 physical install, cold start, process, App-log, first-screen, local
   project import, feedback export, model acceptance, onboarding, database backup,
   and database restore checks pass.
 - The participant-owned credential governance and data-processing owner records
   are now bound through `CRED-PRIMARY-2005` and `OPS-ALPHA-2005`. Formal cohort
   recruitment may begin; readiness remains `HOLD` until A01-A10 complete the
-  required D0/D7/D14 window and the final decision is recorded.
+  required D0/D7/D14 window and the final decision is recorded. The current
+  evaluator blockers are `cohort_pending`,
+  `release_day_acceptance_primary_stale`, and
+  `physical_device_evidence_stale`.
 
 ## Roles
 
