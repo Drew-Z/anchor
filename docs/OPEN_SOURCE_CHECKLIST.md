@@ -11,7 +11,7 @@
 - `flutter test`: 386/386 通过。
 - `flutter test --coverage`: 本轮功能测试 386/386 通过；覆盖率快照 60.84%（16274/26751）仍不作为 Private Alpha 单独放行条件。
 - `dart format --output=none --set-exit-if-changed lib test`: 通过。
-- Web 单元测试和 Playwright 测试共 17/17 通过；Web 是独立静态 Demo，不作为原生发布验收。
+- Web 单元测试和 Playwright 测试共 20/20 通过（5 个 Node 单元测试、15 个 Chromium 用例）；Web 是独立静态 Demo，不作为原生发布验收。
 - Android release 签名改为环境变量注入；缺少签名时只阻止 release task，debug 构建仍可运行。
 - 本地备份、恢复、导出、删除、支持包和隐私控制已有实现与测试。
 

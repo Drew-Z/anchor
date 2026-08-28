@@ -161,7 +161,7 @@ npm ci
 npx playwright install chromium
 npm test
 
-# 对已部署站点运行 12 个 Playwright 用例
+# 对已部署站点运行 15 个 Playwright 用例
 ANCHOR_BASE_URL=https://anchor.playlab.eu.cc npm run test:e2e
 ```
 
@@ -313,7 +313,7 @@ git push -u origin feature/your-feature-name
 - **代码分析**: `flutter analyze --no-fatal-infos` (error 和 warning 阻断，info 级 lint 保留在日志中)
 - **格式检查**: `dart format --output=none --set-exit-if-changed .`
 - **运行测试**: `flutter test --coverage`
-- **Web Demo**: Node 单元测试和 12 个 Chromium Playwright 用例
+- **Web Demo**: Node 单元测试和 15 个 Chromium Playwright 用例
 - **构建 APK**: 仅在 `main` 分支
 
 查看 `.github/workflows/ci.yml` 了解详情。
