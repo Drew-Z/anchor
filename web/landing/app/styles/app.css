@@ -1213,6 +1213,288 @@ h3 {
   font-size: 13px;
 }
 
+/* Browser-local import */
+
+.import-panel {
+  margin-bottom: 26px;
+}
+
+.import-drop {
+  position: relative;
+  border: 2px dashed var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.import-drop:hover,
+.import-drop.is-dragging {
+  border-color: var(--green);
+  background: var(--green-soft);
+}
+
+/* The native control is layered over the whole zone so a click anywhere opens the picker. */
+.import-file {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.import-drop:focus-within {
+  outline: 3px solid var(--yellow);
+  outline-offset: 3px;
+}
+
+.import-drop-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 30px 20px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.import-drop-label .nav-icon {
+  width: 24px;
+  height: 24px;
+  color: var(--green);
+}
+
+.import-drop-label strong {
+  font-size: 15px;
+}
+
+.import-drop-label span {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.import-limits {
+  margin: 10px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.import-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 12px 0 0;
+  border-left: 3px solid var(--coral);
+  background: var(--coral-soft);
+  padding: 12px 14px;
+  color: #7c2f22;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.import-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin: 16px 0 0;
+}
+
+.import-meta dt {
+  margin-bottom: 3px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.import-meta dd {
+  margin: 0;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+/* Browser library: sources the learner imported, kept visually distinct from bundled data */
+
+.local-library {
+  margin-bottom: 26px;
+  padding: 20px;
+  border: 1px solid #a6c6b8;
+  border-radius: var(--radius);
+  background: #f6fbf8;
+}
+
+.local-library:focus {
+  outline: none;
+}
+
+.local-empty {
+  margin-bottom: 14px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.local-source-list {
+  display: grid;
+  gap: 12px;
+}
+
+.local-source {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+}
+
+.local-source-head {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+}
+
+.local-source-title {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.local-source-title strong {
+  display: block;
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+
+.local-source-title span {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.local-source-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.local-source-actions .button {
+  min-height: 36px;
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.local-truncated {
+  margin: 12px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.local-section-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+/* Grey, not the yellow of `.citation-item`: an imported excerpt is unverified file text. */
+.local-section {
+  border-left: 3px solid var(--line);
+  background: var(--panel-muted);
+  padding: 12px 14px;
+}
+
+.local-section-locator {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px 12px;
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.local-section-kind {
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.local-section-heading {
+  margin: 7px 0 0;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.local-section-text {
+  margin: 6px 0 0;
+  color: var(--text);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.local-confirm {
+  margin-top: 14px;
+  border: 1px solid var(--coral);
+  border-radius: 7px;
+  background: var(--coral-soft);
+  padding: 14px 16px;
+}
+
+.local-confirm-title {
+  margin: 0;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.local-confirm-body {
+  margin: 5px 0 0;
+  color: #7c2f22;
+  font-size: 13px;
+}
+
+.local-confirm .card-actions {
+  margin-top: 12px;
+}
+
+.button-danger {
+  border-color: var(--coral);
+  background: var(--coral);
+  color: #ffffff;
+}
+
+.button-danger:hover {
+  background: #bf4a3a;
+}
+
+.local-no-ai {
+  margin-top: 14px;
+}
+
+.local-reset {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.local-reset h3 {
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.local-reset p {
+  margin: 0 0 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.bundled-library {
+  margin-bottom: 18px;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -1395,6 +1677,14 @@ h3 {
   .score-block {
     text-align: left;
   }
+
+  .local-library {
+    padding: 16px;
+  }
+
+  .import-drop-label {
+    padding: 24px 16px;
+  }
 }
 
 @media (max-width: 430px) {
@@ -1416,9 +1706,21 @@ h3 {
     padding-top: 24px;
   }
 
-  .citation-locator {
+  .citation-locator,
+  .local-section-locator {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  /* Full-width buttons keep the toggle and remove targets tappable without wrapping mid-label. */
+  .local-source-actions,
+  .local-source-actions .button,
+  .local-confirm .card-actions .button {
+    width: 100%;
+  }
+
+  .import-meta {
+    grid-template-columns: 1fr;
   }
 
   .completion-score strong {

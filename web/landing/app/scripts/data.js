@@ -1,5 +1,22 @@
 export const DATA_VERSION = 1;
 
+/** Storage schema for browser-local imported sources. Bumped independently of `DATA_VERSION`. */
+export const LIBRARY_VERSION = 1;
+
+/**
+ * Conservative ceilings for browser-local import.
+ *
+ * `localStorage` is a small, synchronous, per-origin store, so the demo keeps structured excerpts
+ * rather than whole documents. The caps below bound one record to roughly 20 KB of JSON.
+ */
+export const LOCAL_IMPORT_LIMITS = {
+  extensions: ['.md', '.markdown', '.txt'],
+  maxBytes: 131_072,
+  maxSections: 40,
+  maxExcerptChars: 480,
+  maxSources: 12,
+};
+
 const localized = (en, zh) => ({ en, zh });
 
 export const DATASETS = [
@@ -425,10 +442,22 @@ export const SHELL_TEXT = {
   badgeLocal: localized('Local demo', '本地演示'),
   badgeAndroid: localized('Android app', 'Android 应用'),
   browserScope: localized(
-    'The browser shell mirrors the app layout. It runs on bundled data with no account, upload, or AI request.',
-    '浏览器外壳复刻应用结构，只使用内置数据，不需要账号，也不会上传文件或发起 AI 请求。',
+    'The browser shell mirrors the app layout. It runs on bundled data and files you import locally, with no account, upload, or AI request.',
+    '浏览器外壳复刻应用结构，只使用内置数据和你在本地导入的文件，不需要账号，也不会上传文件或发起 AI 请求。',
   ),
   backToDecks: localized('All datasets', '全部数据集'),
+
+  /**
+   * Sidebar privacy note. The shell renders this instead of the landing page's `app.localOnly`
+   * strings because local import means "bundled data only" is no longer an accurate claim.
+   */
+  privacy: {
+    title: localized('Stays in this browser', '只保留在此浏览器'),
+    body: localized(
+      'Bundled datasets and any file you import are read and stored locally. Nothing is uploaded and no AI provider is called.',
+      '内置数据集和你导入的文件都在本地读取和保存，不会上传，也不会调用任何 AI 服务。',
+    ),
+  },
 
   home: {
     eyebrow: localized('Learn', '学习'),
@@ -450,10 +479,10 @@ export const SHELL_TEXT = {
     startAction: localized('Open decks', '打开题库'),
     importTitle: localized('Add content', '添加内容'),
     importBody: localized(
-      'The Android app builds questions from files, pasted text, or shared content. See what import covers before it reaches this shell.',
-      'Android 应用可以从文件、粘贴的文本或分享的内容生成题目。可以先了解导入涵盖的范围。',
+      'Read a Markdown or text file into this browser to see how Anchor splits it into sections. The Android app takes the same file further and builds questions from it.',
+      '可以把 Markdown 或纯文本文件读入当前浏览器，看看 Anchor 如何把它切分成小节。Android 应用会在此基础上继续生成题目。',
     ),
-    importAction: localized('How import works', '导入方式说明'),
+    importAction: localized('Import a file', '导入文件'),
     planTitle: localized('Review plan', '复习计划'),
     planBody: localized(
       'Built from the progress stored in this browser. Nothing is scheduled on a server.',
@@ -497,13 +526,18 @@ export const SHELL_TEXT = {
 
   library: {
     eyebrow: localized('Library', '知识库'),
-    title: localized('Every source passage in this demo', '演示中的全部来源片段'),
+    title: localized('Sources behind this demo', '演示背后的来源'),
     body: localized(
-      '{n} excerpts back the {q} bundled questions. Each one is the passage the demo quotes when it explains an answer.',
-      '{n} 段摘录支撑内置的 {q} 道题目，每段都是演示解释答案时引用的原文。',
+      '{n} excerpts back the {q} bundled questions. Each one is the passage the demo quotes when it explains an answer. Files you import in this browser are listed separately.',
+      '{n} 段摘录支撑内置的 {q} 道题目，每段都是演示解释答案时引用的原文。你在此浏览器中导入的文件会单独列出。',
     ),
     openDataset: localized('Practice this dataset', '练习这套数据集'),
     questionLabel: localized('Explains', '用于解释'),
+    bundledTitle: localized('Bundled with this demo', '随演示内置'),
+    bundledBody: localized(
+      'Verified excerpts that back the demo questions. They ship with the page and cannot be edited or removed.',
+      '支撑演示题目的已校验摘录。它们随页面内置，无法编辑或删除。',
+    ),
   },
 
   profile: {
@@ -543,8 +577,8 @@ export const SHELL_TEXT = {
     eyebrow: localized('Import', '导入'),
     title: localized('Bringing in your own material', '导入你自己的资料'),
     body: localized(
-      'The browser demo has no file picker and no upload. It only reads the three datasets bundled with this page.',
-      '浏览器演示没有文件选择器，也不会上传任何内容，只读取本页内置的三套数据集。',
+      'Read a Markdown or text file into this browser to inspect how Anchor splits it into sections. The file is never uploaded, and question generation stays in the Android app.',
+      '可以把 Markdown 或纯文本文件读入当前浏览器，查看 Anchor 如何把它切分成小节。文件不会被上传，题目生成仍然只在 Android 应用中进行。',
     ),
     nativeTitle: localized('How import works in the Android app', 'Android 应用中的导入方式'),
     nativeBody: localized(
@@ -554,6 +588,123 @@ export const SHELL_TEXT = {
     loopTitle: localized('What happens after import', '导入之后会发生什么'),
     productAction: localized('See the Android workflow', '查看 Android 工作流'),
     demoAction: localized('Use the bundled datasets', '使用内置数据集'),
+  },
+
+  importer: {
+    pickTitle: localized('Read a file in this browser', '在此浏览器中读取文件'),
+    pickBody: localized(
+      'Choose a Markdown or plain-text file, or drop one here. It is parsed by this page and kept in this browser only.',
+      '选择 Markdown 或纯文本文件，也可以直接拖放到这里。文件由本页解析，并且只保存在当前浏览器中。',
+    ),
+    pickAction: localized('Choose a file', '选择文件'),
+    dropHint: localized('Drop a file here', '把文件拖放到这里'),
+    limits: localized(
+      'Accepted: .md, .markdown, .txt. Up to {kb} KB per file, {sources} sources kept in this browser.',
+      '支持 .md、.markdown、.txt，单个文件最大 {kb} KB，此浏览器最多保存 {sources} 个来源。',
+    ),
+    reviewTitle: localized('Review before saving', '保存前先检查'),
+    reviewBody: localized(
+      'Nothing is stored yet. Check the sections below, then confirm to keep this source in the browser library.',
+      '目前还没有保存任何内容。请检查下面的小节，确认后才会把这个来源加入浏览器知识库。',
+    ),
+    reviewSections: localized('{n} sections', '{n} 个小节'),
+    metaFile: localized('File', '文件'),
+    metaSize: localized('Size', '大小'),
+    metaSections: localized('Sections', '小节'),
+    reviewTruncated: localized(
+      'Only the first {n} sections are kept, and long passages are shortened for browser storage.',
+      '只保留前 {n} 个小节，过长的段落会为浏览器存储而截断。',
+    ),
+    confirmAction: localized('Save to browser library', '保存到浏览器知识库'),
+    cancelAction: localized('Discard', '放弃'),
+    noAiTitle: localized('No questions are generated here', '这里不会生成题目'),
+    noAiBody: localized(
+      'This browser leaf only reads and splits the file. AI concept extraction, question generation, and citation verification run in the Android app, so no exercises are created from your file here.',
+      '浏览器端只负责读取和切分文件。AI 概念提取、题目生成与引用校验都在 Android 应用中完成，因此这里不会用你的文件生成任何练习。',
+    ),
+    savedTitle: localized('Saved in this browser', '已保存到此浏览器'),
+    savedBody: localized(
+      '{name} is in your browser library with {n} sections.',
+      '{name} 已加入浏览器知识库，包含 {n} 个小节。',
+    ),
+    savedAction: localized('Open the library', '打开知识库'),
+    announceSaved: localized(
+      '{name} was saved to the browser library with {n} sections.',
+      '已把 {name} 保存到浏览器知识库，包含 {n} 个小节。',
+    ),
+    announceReview: localized(
+      '{name} is ready to review. Confirm to save it in this browser.',
+      '{name} 已准备好检查，确认后会保存在此浏览器中。',
+    ),
+    errorType: localized(
+      'That file type is not supported. Choose a .md, .markdown, or .txt file.',
+      '不支持这种文件类型，请选择 .md、.markdown 或 .txt 文件。',
+    ),
+    errorSize: localized(
+      'That file is {size} and the limit is {kb} KB. Choose a smaller file or split it.',
+      '该文件为 {size}，上限是 {kb} KB。请选择更小的文件或先拆分。',
+    ),
+    errorEmpty: localized(
+      'That file has no readable text, so there is nothing to inspect.',
+      '该文件没有可读文本，没有内容可以检查。',
+    ),
+    errorBinary: localized(
+      'That file does not look like text. Choose a Markdown or plain-text file.',
+      '该文件看起来不是文本，请选择 Markdown 或纯文本文件。',
+    ),
+    errorRead: localized(
+      'That file could not be read in this browser. Try another file.',
+      '此浏览器无法读取该文件，请换一个文件。',
+    ),
+    errorFull: localized(
+      'The browser library already holds {sources} sources. Remove one before importing another.',
+      '浏览器知识库已保存 {sources} 个来源，请先删除一个再导入。',
+    ),
+    errorStorage: localized(
+      'This browser refused to store the source, usually because site storage is full or blocked.',
+      '此浏览器拒绝保存该来源，通常是站点存储已满或被禁用。',
+    ),
+  },
+
+  localLibrary: {
+    title: localized('Imported in this browser', '在此浏览器中导入'),
+    body: localized(
+      'Files you read into this page. They stay in localStorage on this device and are never uploaded.',
+      '你读入本页的文件会保存在此设备的 localStorage 中，不会上传。',
+    ),
+    empty: localized(
+      'No imported sources yet. Reading a file adds it here without leaving the browser.',
+      '还没有导入的来源。读取一个文件即可添加到这里，全程不离开浏览器。',
+    ),
+    emptyAction: localized('Import a file', '导入文件'),
+    sectionsLabel: localized('{n} sections', '{n} 个小节'),
+    importedAt: localized('Imported {when}', '导入于 {when}'),
+    expandAction: localized('Show sections', '展开小节'),
+    collapseAction: localized('Hide sections', '收起小节'),
+    removeAction: localized('Remove', '删除'),
+    removeConfirmTitle: localized('Remove {name}?', '删除 {name}？'),
+    removeConfirmBody: localized(
+      'This deletes the stored sections for this source only. Bundled datasets and quiz progress are untouched.',
+      '这只会删除该来源保存的小节，内置数据集与答题进度不受影响。',
+    ),
+    removeConfirmAction: localized('Delete this source', '确认删除'),
+    removeCancelAction: localized('Keep it', '保留'),
+    announceRemoved: localized('{name} was removed from the browser library.', '已从浏览器知识库中删除 {name}。'),
+    resetTitle: localized('Clear imported sources', '清空导入的来源'),
+    resetBody: localized(
+      'Removes every imported source from this browser. Quiz progress uses separate storage and is not affected.',
+      '删除此浏览器中的全部导入来源。答题进度使用独立存储，不受影响。',
+    ),
+    resetAction: localized('Clear all imported sources', '清空全部导入来源'),
+    resetConfirmAction: localized('Delete all {n} sources', '删除全部 {n} 个来源'),
+    announceReset: localized('All imported sources were removed from this browser.', '已删除此浏览器中的全部导入来源。'),
+    noAi: localized(
+      'Imported sections are shown exactly as they appear in the file. No summary, question, or citation is generated from them in the browser.',
+      '导入的小节按文件原文展示，浏览器不会基于它们生成摘要、题目或引用。',
+    ),
+    kindHeading: localized('Heading section', '标题小节'),
+    kindPreamble: localized('Before the first heading', '首个标题之前'),
+    kindDocument: localized('Whole document', '整篇文档'),
   },
 };
 
@@ -598,6 +749,220 @@ export function textFor(value, locale) {
 
 export function getDataset(datasetId) {
   return DATASETS.find((dataset) => dataset.id === datasetId) ?? null;
+}
+
+function collapseWhitespace(value) {
+  return String(value ?? '').replace(/\s+/g, ' ').trim();
+}
+
+/** Shortens a passage for browser storage, preferring a word boundary when the text has one. */
+export function truncateExcerpt(value, maxChars = LOCAL_IMPORT_LIMITS.maxExcerptChars) {
+  const text = collapseWhitespace(value);
+  if (text.length <= maxChars) return { text, truncated: false };
+  const slice = text.slice(0, maxChars);
+  const boundary = slice.lastIndexOf(' ');
+  const kept = boundary > maxChars * 0.6 ? slice.slice(0, boundary) : slice;
+  return { text: `${kept.trimEnd()}…`, truncated: true };
+}
+
+/** Stable, filesystem-free anchor for a heading. Keeps CJK letters so locators stay readable. */
+export function slugifyHeading(value) {
+  return collapseWhitespace(value)
+    .toLowerCase()
+    .replace(/[^\p{Letter}\p{Number}]+/gu, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48);
+}
+
+/**
+ * Splits Markdown or plain text into deterministic, inspectable sections.
+ *
+ * Headings outside fenced code blocks start a new section. Text before the first heading becomes a
+ * `preamble` section, and a document with no headings at all yields a single `document` section, so
+ * every accepted file has something to review. Nothing is invented: each excerpt is file text.
+ */
+export function extractSections(text, limits = LOCAL_IMPORT_LIMITS) {
+  const lines = String(text ?? '').replace(/\r\n?/g, '\n').split('\n');
+  const raw = [];
+  let current = null;
+  let fence = null;
+
+  const begin = (heading, level, line) => {
+    current = { heading, level, line, body: [] };
+    raw.push(current);
+  };
+
+  lines.forEach((line, index) => {
+    const fenceMatch = line.match(/^ {0,3}(`{3,}|~{3,})/);
+    if (fenceMatch) {
+      const marker = fenceMatch[1][0];
+      if (fence === null) fence = marker;
+      else if (fence === marker) fence = null;
+    } else if (fence === null) {
+      const heading = line.match(/^(#{1,6})\s+(.*\S)\s*$/);
+      if (heading) {
+        begin(heading[2].replace(/\s+#+$/, '').trim(), heading[1].length, index + 1);
+        return;
+      }
+    }
+    if (!current) begin(null, 0, index + 1);
+    current.body.push(line);
+  });
+
+  const hasHeading = raw.some((entry) => entry.heading !== null);
+  const sections = [];
+  let truncated = false;
+
+  for (const entry of raw) {
+    const body = entry.body.join('\n');
+    if (entry.heading === null && !collapseWhitespace(body)) continue;
+    if (sections.length >= limits.maxSections) {
+      truncated = true;
+      break;
+    }
+    const excerpt = truncateExcerpt(body, limits.maxExcerptChars);
+    if (excerpt.truncated) truncated = true;
+    sections.push({
+      heading: entry.heading,
+      level: entry.level,
+      line: entry.line,
+      kind: entry.heading !== null ? 'heading' : hasHeading ? 'preamble' : 'document',
+      excerpt: excerpt.text,
+    });
+  }
+
+  return { sections, truncated };
+}
+
+/** Honest, pre-read validation from File metadata alone: extension, emptiness, size, and capacity. */
+export function validateImportCandidate(file, { limits = LOCAL_IMPORT_LIMITS, sourceCount = 0 } = {}) {
+  const name = String(file?.name ?? '').trim();
+  const lower = name.toLowerCase();
+  if (!name || !limits.extensions.some((extension) => lower.endsWith(extension))) return { ok: false, reason: 'type' };
+  const size = Number(file?.size);
+  if (!Number.isFinite(size) || size <= 0) return { ok: false, reason: 'empty' };
+  if (size > limits.maxBytes) return { ok: false, reason: 'size' };
+  if (sourceCount >= limits.maxSources) return { ok: false, reason: 'full' };
+  return { ok: true, reason: null };
+}
+
+/** Rejects files that carry a text extension but decode as binary. */
+export function looksBinary(text) {
+  const sample = String(text ?? '').slice(0, 4096);
+  if (sample.includes('\u0000')) return true;
+  const suspicious = (sample.match(/[\u0001-\u0008\u000e-\u001f\ufffd]/g) ?? []).length;
+  return suspicious > Math.max(4, sample.length * 0.02);
+}
+
+function localSourceId(name, importedAt) {
+  const base = slugifyHeading(String(name ?? '').replace(/\.[^.]+$/, '')) || 'source';
+  return `${base}-${Math.round(Number(importedAt) || 0).toString(36)}`;
+}
+
+/** Builds the versioned record persisted for one imported file. */
+export function createLocalSource(
+  { name, size, text, importedAt = Date.now(), existingIds = [] },
+  limits = LOCAL_IMPORT_LIMITS,
+) {
+  const { sections, truncated } = extractSections(text, limits);
+  const taken = new Set(existingIds);
+  const base = localSourceId(name, importedAt);
+  let id = base;
+  for (let suffix = 2; taken.has(id); suffix += 1) id = `${base}-${suffix}`;
+  return {
+    id,
+    name: String(name ?? '').trim(),
+    bytes: Math.max(0, Math.round(Number(size) || 0)),
+    importedAt: Math.round(Number(importedAt) || 0),
+    sectionCount: sections.length,
+    truncated,
+    sections,
+  };
+}
+
+export function createEmptyLibrary() {
+  return { version: LIBRARY_VERSION, sources: [] };
+}
+
+/**
+ * Accepts only records this build understands. Stale versions, wrong shapes, duplicate ids, and
+ * over-long excerpts are dropped instead of thrown, so damaged storage degrades to an empty library.
+ */
+export function normalizeLocalLibrary(candidate, limits = LOCAL_IMPORT_LIMITS) {
+  if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return createEmptyLibrary();
+  if (candidate.version !== LIBRARY_VERSION || !Array.isArray(candidate.sources)) return createEmptyLibrary();
+
+  const library = createEmptyLibrary();
+  const seen = new Set();
+
+  for (const source of candidate.sources) {
+    if (library.sources.length >= limits.maxSources) break;
+    if (!source || typeof source !== 'object') continue;
+    const id = typeof source.id === 'string' ? source.id.trim() : '';
+    const name = typeof source.name === 'string' ? source.name.trim() : '';
+    if (!id || !name || seen.has(id)) continue;
+
+    const sections = [];
+    for (const section of (Array.isArray(source.sections) ? source.sections : []).slice(0, limits.maxSections)) {
+      if (!section || typeof section !== 'object') continue;
+      const heading = typeof section.heading === 'string' && section.heading.trim()
+        ? collapseWhitespace(section.heading)
+        : null;
+      const excerpt = typeof section.excerpt === 'string'
+        ? truncateExcerpt(section.excerpt, limits.maxExcerptChars).text
+        : '';
+      if (!heading && !excerpt) continue;
+      sections.push({
+        heading,
+        level: Number.isInteger(section.level) ? Math.min(Math.max(section.level, 0), 6) : 0,
+        line: Number.isInteger(section.line) && section.line > 0 ? section.line : 1,
+        kind: ['heading', 'preamble', 'document'].includes(section.kind)
+          ? section.kind
+          : heading ? 'heading' : 'document',
+        excerpt,
+      });
+    }
+    if (!sections.length) continue;
+
+    seen.add(id);
+    library.sources.push({
+      id,
+      name,
+      bytes: Number.isFinite(Number(source.bytes)) && Number(source.bytes) > 0 ? Math.round(Number(source.bytes)) : 0,
+      importedAt: Number.isFinite(Number(source.importedAt)) && Number(source.importedAt) > 0
+        ? Math.round(Number(source.importedAt))
+        : 0,
+      sectionCount: sections.length,
+      truncated: source.truncated === true,
+      sections,
+    });
+  }
+
+  return library;
+}
+
+/** Locator shown next to an imported excerpt. Derived from the file name, never from a model. */
+export function sectionLocator(source, section) {
+  const base = String(source?.name ?? '').trim() || 'source';
+  const anchor = section?.heading ? slugifyHeading(section.heading) : '';
+  return anchor ? `${base}#${anchor}` : `${base}:L${section?.line ?? 1}`;
+}
+
+export function formatBytes(bytes) {
+  const value = Number(bytes);
+  if (!Number.isFinite(value) || value <= 0) return '0 KB';
+  if (value < 1024) return `${Math.round(value)} B`;
+  const kb = value / 1024;
+  if (kb < 1024) return `${kb >= 10 ? Math.round(kb) : kb.toFixed(1)} KB`;
+  return `${(kb / 1024).toFixed(1)} MB`;
+}
+
+/** UTC, so the same record reads identically in every timezone and in test assertions. */
+export function formatImportedAt(timestamp) {
+  const value = Number(timestamp);
+  if (!Number.isFinite(value) || value <= 0) return '';
+  const iso = new Date(value).toISOString();
+  return `${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC`;
 }
 
 export function validateDatasets(datasets = DATASETS) {

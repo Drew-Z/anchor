@@ -1,8 +1,31 @@
 import { expect, test } from '@playwright/test';
-import { DATASETS, SHELL_TEXT, countSources } from '../landing/app/scripts/data.js';
-import { PROGRESS_STORAGE_KEY } from '../landing/app/scripts/app.js';
+import { DATASETS, LOCAL_IMPORT_LIMITS, SHELL_TEXT, countSources } from '../landing/app/scripts/data.js';
+import { LOCAL_LIBRARY_STORAGE_KEY, PROGRESS_STORAGE_KEY } from '../landing/app/scripts/app.js';
 
 const expectedOrigin = new URL(process.env.ANCHOR_BASE_URL ?? 'http://127.0.0.1:4173').origin;
+
+const IMPORT_FIXTURE = [
+  '# Anchor overview',
+  'Anchor keeps every question attached to the passage it came from.',
+  '',
+  '## Local storage',
+  'Imported records stay in this browser.',
+  '',
+  '## Review loop',
+  'Due items resurface on a schedule.',
+].join('\n');
+
+/** Feeds one in-memory file to the picker. No fixture is written to disk. */
+async function pickFile(page, { name = 'anchor-notes.md', text = IMPORT_FIXTURE, mimeType = 'text/markdown' } = {}) {
+  await page.locator('[data-import-input]').setInputFiles({ name, mimeType, buffer: Buffer.from(text, 'utf8') });
+}
+
+function storedSourceNames(page) {
+  return page.evaluate((key) => {
+    const raw = window.localStorage.getItem(key);
+    return raw ? JSON.parse(raw).sources.map((source) => source.name) : null;
+  }, LOCAL_LIBRARY_STORAGE_KEY);
+}
 
 const SHELL_SURFACES = [
   { route: 'home', view: 'home', en: SHELL_TEXT.navLearn.en, zh: SHELL_TEXT.navLearn.zh },
@@ -206,8 +229,9 @@ test('the shell exposes every product surface on desktop and mobile', async ({ p
   await page.locator('#sidebar-import [data-nav-route="import"]').click();
   await expect(page).toHaveURL(/#\/import$/);
   await expect(page.locator('#sidebar-import [data-nav-route="import"]')).toHaveAttribute('aria-current', 'page');
-  await expect(page.locator('#app-content')).toContainText('no file picker');
-  await expect(page.locator('#app-content a[href="../#native-app"]')).toBeVisible();
+  await expect(page.locator('[data-import-input]')).toBeAttached();
+  await expect(page.locator('#app-content')).toContainText(SHELL_TEXT.importer.noAiTitle.en);
+  await expect(page.locator('#app-content a[href="../#native-app"]').first()).toBeVisible();
   await expect(page.locator('#app-content')).not.toContainText('APK');
 
   // Opening a deck from a Home link must set the resume hint the same way the sidebar does, so
@@ -271,6 +295,280 @@ test('the shell surfaces stay bilingual and honest about unavailable capabilitie
 
   await page.goto('/app/#/profile');
   await expect(page.locator('#app-content')).toContainText(SHELL_TEXT.profile.accountBody.zh);
+});
+
+test('an imported file is reviewed before it is stored, then survives a reload', async ({ page }) => {
+  const offOriginRequests = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).origin !== expectedOrigin) offOriginRequests.push(request.url());
+  });
+
+  await page.goto('/app/#/import');
+  await expect(page.locator('.import-drop')).toBeVisible();
+  expect(await storedSourceNames(page)).toBeNull();
+
+  await pickFile(page);
+  const review = page.locator('[data-import-review]');
+  await expect(review).toBeVisible();
+  await expect(review.locator('[data-review-name]')).toHaveText('anchor-notes.md');
+  await expect(review.locator('[data-review-sections]')).toContainText('3');
+  await expect(review.locator('.local-section')).toHaveCount(3);
+  await expect(review.locator('.local-section-heading').first()).toHaveText('Anchor overview');
+  await expect(page.locator('[data-import-confirm]')).toBeFocused();
+
+  // Selecting a file must not be the same act as keeping it.
+  expect(await storedSourceNames(page)).toBeNull();
+  await page.goto('/app/#/library');
+  await expect(page.locator('.local-source')).toHaveCount(0);
+  await expect(page.locator('[data-local-empty]')).toBeVisible();
+
+  await page.goto('/app/#/import');
+  await pickFile(page);
+  await page.locator('[data-import-confirm]').click();
+  await expect(page.locator('[data-import-saved]')).toContainText(SHELL_TEXT.importer.savedTitle.en);
+  await expect(page.locator('[data-import-saved]')).toContainText('anchor-notes.md');
+  await expect(page.locator('#app-announcer')).toContainText('anchor-notes.md');
+  await expect(page.locator('[data-import-review]')).toHaveCount(0);
+  expect(await storedSourceNames(page)).toEqual(['anchor-notes.md']);
+
+  await page.locator('[data-import-saved] .button').click();
+  await expect(page).toHaveURL(/#\/library$/);
+  const source = page.locator('.local-source');
+  await expect(source).toHaveCount(1);
+  await expect(source).toContainText('anchor-notes.md');
+  await expect(source).toContainText('3');
+
+  await page.reload();
+  await expect(page.locator('.local-source')).toHaveCount(1);
+  const toggle = page.locator('[data-toggle-source]');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(toggle).toBeFocused();
+  const region = page.locator(`#${await toggle.getAttribute('aria-controls')}`);
+  await expect(region.locator('.local-section')).toHaveCount(3);
+  await expect(region.locator('.local-section-locator').first()).toContainText('anchor-notes.md#anchor-overview');
+
+  // Bundled evidence stays separate from imported excerpts.
+  await expect(page.locator('.source-group')).toHaveCount(DATASETS.length);
+  await expect(page.locator('.citation-locator').first()).toContainText(DATASETS[0].questions[0].citations[0].locator);
+  expect(offOriginRequests).toEqual([]);
+});
+
+test('a dropped file reaches the same review step as the picker', async ({ page }) => {
+  await page.goto('/app/#/import');
+
+  // Real `File` and `DataTransfer` objects, so this exercises the drop path rather than a shortcut.
+  const dropped = await page.evaluate(() => {
+    const transfer = new DataTransfer();
+    transfer.items.add(new File(['# Dropped notes\nBody of the dropped file.'], 'dropped.md', { type: 'text/markdown' }));
+    const zone = document.querySelector('[data-import-drop]');
+    zone.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: transfer }));
+    const dragging = zone.classList.contains('is-dragging');
+    const drop = new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: transfer });
+    zone.dispatchEvent(drop);
+    return { dragging, defaultPrevented: drop.defaultPrevented };
+  });
+
+  // Without preventDefault the browser would navigate to the file and lose the demo.
+  expect(dropped).toEqual({ dragging: true, defaultPrevented: true });
+  await expect(page.locator('[data-review-name]')).toHaveText('dropped.md');
+  await expect(page.locator('.import-drop.is-dragging')).toHaveCount(0);
+  expect(await storedSourceNames(page)).toBeNull();
+
+  await page.locator('[data-import-confirm]').click();
+  expect(await storedSourceNames(page)).toEqual(['dropped.md']);
+});
+
+test('import refuses unsupported, oversized, and unreadable files with an alert', async ({ page }) => {
+  await page.goto('/app/#/import');
+  const error = page.locator('[data-import-error]');
+
+  await pickFile(page, { name: 'slides.pdf', mimeType: 'application/pdf', text: 'not markdown' });
+  await expect(error).toHaveAttribute('role', 'alert');
+  await expect(error).toContainText('not supported');
+  await expect(page.locator('[data-import-review]')).toHaveCount(0);
+  await expect(page.locator('[data-import-input]')).toHaveAttribute('aria-describedby', /import-error/);
+
+  await pickFile(page, { name: 'huge.txt', mimeType: 'text/plain', text: 'a'.repeat(LOCAL_IMPORT_LIMITS.maxBytes + 2_000) });
+  await expect(error).toContainText(`${Math.round(LOCAL_IMPORT_LIMITS.maxBytes / 1024)} KB`);
+  await expect(page.locator('[data-import-review]')).toHaveCount(0);
+
+  await pickFile(page, { name: 'blank.txt', mimeType: 'text/plain', text: '' });
+  await expect(error).toContainText('no readable text');
+
+  await pickFile(page, { name: 'binary.txt', mimeType: 'text/plain', text: `head${String.fromCharCode(0)}tail` });
+  await expect(error).toContainText('does not look like text');
+
+  expect(await storedSourceNames(page)).toBeNull();
+
+  // A valid pick clears the alert.
+  await pickFile(page);
+  await expect(page.locator('[data-import-error]')).toHaveCount(0);
+  await expect(page.locator('[data-import-review]')).toBeVisible();
+});
+
+test('imported text is rendered as text and never as markup', async ({ page }) => {
+  const pageErrors = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+
+  const hostile = [
+    '# <img src=x onerror="window.__anchorPwned = true">',
+    '<script>window.__anchorPwned = true;</script>',
+    '',
+    '## Second & <b>bold</b>',
+    '</p></div><iframe src="https://example.com"></iframe>',
+  ].join('\n');
+
+  await page.goto('/app/#/import');
+  await pickFile(page, { name: '<b>notes</b>.md', text: hostile });
+  await expect(page.locator('[data-review-name]')).toHaveText('<b>notes</b>.md');
+  await page.locator('[data-import-confirm]').click();
+  await page.goto('/app/#/library');
+  await page.locator('[data-toggle-source]').click();
+
+  await expect(page.locator('.local-source-title strong')).toHaveText('<b>notes</b>.md');
+  await expect(page.locator('.local-section-text').first()).toContainText('<script>window.__anchorPwned = true;</script>');
+  await expect(page.locator('.local-source b')).toHaveCount(0);
+  await expect(page.locator('.local-source img, .local-source iframe, .local-source script')).toHaveCount(0);
+  expect(await page.evaluate(() => window.__anchorPwned)).toBeUndefined();
+  expect(pageErrors).toEqual([]);
+});
+
+test('removing an imported source is confirmed and scoped to that source', async ({ page }) => {
+  await page.goto('/app/#/import');
+  await pickFile(page, { name: 'first.md', text: '# First\nKeep this one.' });
+  await page.locator('[data-import-confirm]').click();
+  await pickFile(page, { name: 'second.md', text: '# Second\nRemove this one.' });
+  await page.locator('[data-import-confirm]').click();
+
+  await page.goto('/app/#/library');
+  await expect(page.locator('.local-source')).toHaveCount(2);
+  const target = page.locator('[data-local-source]').filter({ hasText: 'second.md' });
+
+  await target.locator('[data-remove-source]').click();
+  const confirm = target.locator('.local-confirm');
+  await expect(confirm).toBeVisible();
+  await expect(confirm).toContainText('second.md');
+  await expect(target.locator('[data-confirm-remove]')).toBeFocused();
+  // Nothing is gone until the second, deliberate click.
+  await expect(page.locator('.local-source')).toHaveCount(2);
+  expect(await storedSourceNames(page)).toEqual(['second.md', 'first.md']);
+
+  await target.locator('[data-cancel-remove]').click();
+  await expect(page.locator('.local-confirm')).toHaveCount(0);
+  await expect(page.locator('.local-source')).toHaveCount(2);
+
+  await target.locator('[data-remove-source]').click();
+  await target.locator('[data-confirm-remove]').click();
+  await expect(page.locator('.local-source')).toHaveCount(1);
+  await expect(page.locator('.local-source')).toContainText('first.md');
+  await expect(page.locator('#app-announcer')).toContainText('second.md');
+  expect(await storedSourceNames(page)).toEqual(['first.md']);
+
+  await page.reload();
+  await expect(page.locator('.local-source')).toHaveCount(1);
+  await expect(page.locator('.local-source')).toContainText('first.md');
+});
+
+test('resetting demo progress keeps imported sources, and the library resets separately', async ({ page }) => {
+  await page.goto('/app/#/decks/flutter');
+  await page.locator('input[value="state"]').check();
+  await page.locator('[data-submit]').click();
+
+  await page.goto('/app/#/import');
+  await pickFile(page);
+  await page.locator('[data-import-confirm]').click();
+
+  await page.locator('#reset-progress').click();
+  expect(await page.evaluate((key) => window.localStorage.getItem(key), PROGRESS_STORAGE_KEY)).toBeNull();
+  await page.goto('/app/#/library');
+  await expect(page.locator('.local-source')).toHaveCount(1);
+  expect(await storedSourceNames(page)).toEqual(['anchor-notes.md']);
+
+  await page.locator('[data-reset-library]').click();
+  await expect(page.locator('[data-confirm-reset-library]')).toBeFocused();
+  await expect(page.locator('.local-source')).toHaveCount(1);
+  await page.locator('[data-confirm-reset-library]').click();
+  await expect(page.locator('.local-source')).toHaveCount(0);
+  await expect(page.locator('[data-local-empty]')).toBeVisible();
+  expect(await storedSourceNames(page)).toBeNull();
+
+  // Bundled sources are untouched by either reset.
+  await expect(page.locator('.source-group')).toHaveCount(DATASETS.length);
+  await page.reload();
+  await expect(page.locator('.local-source')).toHaveCount(0);
+  await expect(page.locator('.source-group')).toHaveCount(DATASETS.length);
+});
+
+test('malformed or stale library storage recovers instead of breaking the library', async ({ page }) => {
+  const pageErrors = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+
+  await page.goto('/app/#/library');
+  for (const value of ['not json at all', '{"version":99,"sources":[{"id":"x"}]}', '{"version":1,"sources":"nope"}', 'null']) {
+    await page.evaluate(([key, stored]) => window.localStorage.setItem(key, stored), [LOCAL_LIBRARY_STORAGE_KEY, value]);
+    await page.reload();
+    await expect(page.locator('#local-library')).toBeVisible();
+    await expect(page.locator('.local-source')).toHaveCount(0);
+    await expect(page.locator('.source-group')).toHaveCount(DATASETS.length);
+  }
+
+  // The demo still accepts a fresh import over the discarded record.
+  await page.goto('/app/#/import');
+  await pickFile(page);
+  await page.locator('[data-import-confirm]').click();
+  expect(await storedSourceNames(page)).toEqual(['anchor-notes.md']);
+  expect(pageErrors).toEqual([]);
+});
+
+test('import and browser library copy stay bilingual', async ({ page }) => {
+  await page.goto('/app/#/import');
+  await page.locator('[data-locale="zh"]').click();
+  await expect(page.locator('#app-content')).toContainText(SHELL_TEXT.importer.pickTitle.zh);
+  await expect(page.locator('#app-content')).toContainText(SHELL_TEXT.importer.noAiBody.zh);
+  await expect(page.locator('#privacy-note')).toContainText(SHELL_TEXT.privacy.title.zh);
+
+  await pickFile(page, { name: '锚学笔记.md', text: '# 概念\n每个问题都附带来源。' });
+  await expect(page.locator('[data-import-review]')).toContainText(SHELL_TEXT.importer.reviewTitle.zh);
+  await expect(page.locator('[data-review-name]')).toHaveText('锚学笔记.md');
+  await page.locator('[data-import-confirm]').click();
+  await expect(page.locator('[data-import-saved]')).toContainText(SHELL_TEXT.importer.savedTitle.zh);
+
+  await page.goto('/app/#/library');
+  await expect(page.locator('#local-library')).toContainText(SHELL_TEXT.localLibrary.title.zh);
+  await expect(page.locator('.local-source')).toContainText('锚学笔记.md');
+  await page.locator('[data-toggle-source]').click();
+  await expect(page.locator('.local-section-heading')).toHaveText('概念');
+  await expect(page.locator('.local-section-text')).toContainText('每个问题都附带来源');
+
+  // Switching back must not lose the stored source or leak the other language.
+  await page.locator('[data-locale="en"]').click();
+  await expect(page.locator('#local-library')).toContainText(SHELL_TEXT.localLibrary.title.en);
+  await expect(page.locator('.local-source')).toContainText('锚学笔记.md');
+});
+
+test('import and browser library fit a 390px viewport without horizontal overflow', async ({ page }) => {
+  const overflow = () => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/app/#/import');
+  await expect(page.locator('.import-drop')).toBeVisible();
+  expect(await overflow(), 'import picker overflows at 390px').toBeLessThanOrEqual(0);
+
+  await pickFile(page, { name: 'a-rather-long-mobile-filename-for-layout.md', text: IMPORT_FIXTURE });
+  await expect(page.locator('[data-import-review]')).toBeVisible();
+  expect(await overflow(), 'import review overflows at 390px').toBeLessThanOrEqual(0);
+
+  await page.locator('[data-import-confirm]').click();
+  await page.goto('/app/#/library');
+  await page.locator('[data-toggle-source]').click();
+  await expect(page.locator('.local-section')).toHaveCount(3);
+  expect(await overflow(), 'expanded library overflows at 390px').toBeLessThanOrEqual(0);
+
+  await page.locator('[data-remove-source]').click();
+  await expect(page.locator('.local-confirm')).toBeVisible();
+  expect(await overflow(), 'delete confirmation overflows at 390px').toBeLessThanOrEqual(0);
 });
 
 test('landing page keeps navigation and bilingual content usable on mobile', async ({ page }) => {

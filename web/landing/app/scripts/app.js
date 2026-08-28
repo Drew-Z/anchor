@@ -2,17 +2,32 @@ import { getLocale, initializeLocale, setLocale, translate } from '../../scripts
 import {
   DATA_VERSION,
   DATASETS,
+  LOCAL_IMPORT_LIMITS,
   SHELL_TEXT,
   collectSources,
   countQuestions,
   countSources,
+  createEmptyLibrary,
+  createLocalSource,
+  formatBytes,
   formatCount,
+  formatImportedAt,
   getDataset,
+  looksBinary,
+  normalizeLocalLibrary,
+  sectionLocator,
   textFor,
   validateDatasets,
+  validateImportCandidate,
 } from './data.js';
 
 export const PROGRESS_STORAGE_KEY = 'anchor.demo.progress.v1';
+
+/**
+ * Imported sources live under their own key so resetting quiz progress never deletes a document the
+ * learner brought in, and so a schema change on either side cannot invalidate the other.
+ */
+export const LOCAL_LIBRARY_STORAGE_KEY = 'anchor.demo.library.v1';
 
 export function createInitialProgress() {
   return { version: DATA_VERSION, activeDatasetId: null, datasets: {} };
@@ -109,6 +124,25 @@ function saveProgress(progress, storage = globalThis.localStorage) {
   }
 }
 
+function loadLibrary(storage = globalThis.localStorage) {
+  try {
+    const value = storage?.getItem(LOCAL_LIBRARY_STORAGE_KEY);
+    return value ? normalizeLocalLibrary(JSON.parse(value)) : createEmptyLibrary();
+  } catch {
+    return createEmptyLibrary();
+  }
+}
+
+/** Returns false when the browser refuses the write, so the UI can say so instead of losing data silently. */
+function saveLibrary(library, storage = globalThis.localStorage) {
+  try {
+    storage?.setItem(LOCAL_LIBRARY_STORAGE_KEY, JSON.stringify(library));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 if (typeof document !== 'undefined') {
   const content = document.querySelector('#app-content');
   const datasetList = document.querySelector('#dataset-list');
@@ -119,9 +153,20 @@ if (typeof document !== 'undefined') {
   const navList = document.querySelector('#app-nav');
   const tabBar = document.querySelector('#app-tabbar');
   const sidebarImport = document.querySelector('#sidebar-import');
+  const privacyNote = document.querySelector('#privacy-note');
   let progress = loadProgress();
+  let library = loadLibrary();
   let route = parseRoute(window.location.hash);
   const openTutorQuestions = new Set();
+
+  // Import is a three-step flow: select, review, confirm. Only `library` is ever persisted, so a
+  // selected-but-unconfirmed file exists in memory alone and disappears on reload.
+  let importDraft = null;
+  let importError = null;
+  let importSaved = null;
+  let readToken = 0;
+  const expandedSources = new Set();
+  let pendingDelete = null;
 
   function locale() {
     return getLocale();
@@ -189,6 +234,21 @@ if (typeof document !== 'undefined') {
     render();
   }
 
+  /**
+   * Re-renders, then restores focus. Every surface is rebuilt from `innerHTML`, so a control that
+   * triggered the change no longer exists afterwards and focus has to be re-established by hand.
+   */
+  function rerender({ focus, message } = {}) {
+    render();
+    const target = typeof focus === 'function' ? focus() : focus ? document.querySelector(focus) : null;
+    target?.focus();
+    if (message) announce(message);
+  }
+
+  function localSourceNode(sourceId) {
+    return [...document.querySelectorAll('[data-local-source]')].find((node) => node.dataset.localSource === sourceId) ?? null;
+  }
+
   function renderDatasetList() {
     if (!datasetList) return;
     datasetList.innerHTML = DATASETS.map((dataset) => {
@@ -238,6 +298,11 @@ if (typeof document !== 'undefined') {
           ${navIcon('import')}
           <span>${escapeHtml(shell(SHELL_TEXT.navImport))}</span>
         </a>`;
+    }
+    if (privacyNote) {
+      privacyNote.innerHTML = `
+        <strong>${escapeHtml(shell(SHELL_TEXT.privacy.title))}</strong>
+        <p>${escapeHtml(shell(SHELL_TEXT.privacy.body))}</p>`;
     }
   }
 
@@ -403,6 +468,110 @@ if (typeof document !== 'undefined') {
       </section>`;
   }
 
+  const SECTION_KIND_KEYS = { heading: 'kindHeading', preamble: 'kindPreamble', document: 'kindDocument' };
+
+  /**
+   * Renders imported passages as escaped text under a locator derived from the file name.
+   *
+   * These are deliberately not `.citation-item`s. A bundled citation has been checked against the
+   * question it explains; an imported excerpt is only file text the browser happened to read.
+   */
+  function renderLocalSections(source) {
+    return source.sections.map((section) => `
+      <article class="local-section">
+        <div class="local-section-locator">
+          <span>${escapeHtml(sectionLocator(source, section))}</span>
+          <span class="local-section-kind">${escapeHtml(shell(SHELL_TEXT.localLibrary[SECTION_KIND_KEYS[section.kind] ?? 'kindDocument']))}</span>
+        </div>
+        ${section.heading ? `<h4 class="local-section-heading">${escapeHtml(section.heading)}</h4>` : ''}
+        ${section.excerpt ? `<p class="local-section-text">${escapeHtml(section.excerpt)}</p>` : ''}
+      </article>`).join('');
+  }
+
+  function localSourceMeta(source) {
+    const text = SHELL_TEXT.localLibrary;
+    const parts = [formatCount(shell(text.sectionsLabel), { n: source.sections.length })];
+    if (source.bytes) parts.push(formatBytes(source.bytes));
+    const when = formatImportedAt(source.importedAt);
+    if (when) parts.push(formatCount(shell(text.importedAt), { when }));
+    return parts.join(' · ');
+  }
+
+  function renderRemoveConfirm(title, body, confirmLabel, confirmAttribute) {
+    const text = SHELL_TEXT.localLibrary;
+    return `
+      <div class="local-confirm" role="group" aria-label="${escapeHtml(title)}">
+        <p class="local-confirm-title"><strong>${escapeHtml(title)}</strong></p>
+        <p class="local-confirm-body">${escapeHtml(body)}</p>
+        <div class="card-actions">
+          <button class="button button-danger" type="button" ${confirmAttribute}>${escapeHtml(confirmLabel)}</button>
+          <button class="button button-secondary" type="button" data-cancel-remove>${escapeHtml(shell(text.removeCancelAction))}</button>
+        </div>
+      </div>`;
+  }
+
+  function renderLocalSource(source, index) {
+    const text = SHELL_TEXT.localLibrary;
+    const expanded = expandedSources.has(source.id);
+    const regionId = `local-sections-${index}`;
+    return `
+      <article class="local-source" data-local-source="${escapeHtml(source.id)}">
+        <div class="local-source-head">
+          <div class="local-source-title">
+            <strong>${escapeHtml(source.name)}</strong>
+            <span>${escapeHtml(localSourceMeta(source))}</span>
+          </div>
+          <div class="local-source-actions">
+            <button class="button button-secondary local-toggle" type="button" data-toggle-source="${escapeHtml(source.id)}" aria-expanded="${expanded}" aria-controls="${regionId}">
+              ${escapeHtml(shell(expanded ? text.collapseAction : text.expandAction))}
+            </button>
+            <button class="button button-secondary local-remove" type="button" data-remove-source="${escapeHtml(source.id)}">${escapeHtml(shell(text.removeAction))}</button>
+          </div>
+        </div>
+        ${source.truncated ? `<p class="local-truncated">${escapeHtml(formatCount(shell(SHELL_TEXT.importer.reviewTruncated), { n: LOCAL_IMPORT_LIMITS.maxSections }))}</p>` : ''}
+        ${pendingDelete === source.id ? renderRemoveConfirm(
+          formatCount(shell(text.removeConfirmTitle), { name: source.name }),
+          shell(text.removeConfirmBody),
+          shell(text.removeConfirmAction),
+          `data-confirm-remove="${escapeHtml(source.id)}"`,
+        ) : ''}
+        ${expanded ? `<div id="${regionId}" class="local-section-list">${renderLocalSections(source)}</div>` : ''}
+      </article>`;
+  }
+
+  function renderLocalLibrary() {
+    const text = SHELL_TEXT.localLibrary;
+    const head = `
+      <div class="shell-card-head"><h2>${escapeHtml(shell(text.title))}</h2>${badge('local')}</div>
+      <p class="section-lead">${escapeHtml(shell(text.body))}</p>`;
+
+    if (!library.sources.length) {
+      return `
+        <section id="local-library" class="shell-section local-library" tabindex="-1">
+          ${head}
+          <p class="local-empty" data-local-empty>${escapeHtml(shell(text.empty))}</p>
+          <a class="button button-secondary" href="${routeHash({ view: 'import' })}">${escapeHtml(shell(text.emptyAction))}</a>
+        </section>`;
+    }
+
+    return `
+      <section id="local-library" class="shell-section local-library" tabindex="-1">
+        ${head}
+        <div class="local-source-list">${library.sources.map(renderLocalSource).join('')}</div>
+        <p class="tutor-disclosure local-no-ai">${escapeHtml(shell(text.noAi))}</p>
+        <div class="local-reset">
+          <h3>${escapeHtml(shell(text.resetTitle))}</h3>
+          <p>${escapeHtml(shell(text.resetBody))}</p>
+          ${pendingDelete === 'all' ? renderRemoveConfirm(
+            shell(text.resetTitle),
+            shell(text.resetBody),
+            formatCount(shell(text.resetConfirmAction), { n: library.sources.length }),
+            'data-confirm-reset-library',
+          ) : `<button class="button button-secondary" type="button" data-reset-library>${escapeHtml(shell(text.resetAction))}</button>`}
+        </div>
+      </section>`;
+  }
+
   function renderLibrary() {
     const text = SHELL_TEXT.library;
     const groups = collectSources();
@@ -414,6 +583,13 @@ if (typeof document !== 'undefined') {
           formatCount(shell(text.body), { n: countSources(), q: countQuestions() }),
         )}
         <p class="shell-scope">${badge('local')}<span>${escapeHtml(shell(SHELL_TEXT.browserScope))}</span></p>
+
+        ${renderLocalLibrary()}
+
+        <section class="shell-section bundled-library">
+          <div class="shell-card-head"><h2>${escapeHtml(shell(text.bundledTitle))}</h2>${badge('local')}</div>
+          <p class="section-lead">${escapeHtml(shell(text.bundledBody))}</p>
+        </section>
 
         ${groups.map((group) => `
           <section class="source-group">
@@ -476,8 +652,97 @@ if (typeof document !== 'undefined') {
       </section>`;
   }
 
+  /** Turns the current `importError` into localized copy. Returns '' when there is nothing to report. */
+  function importErrorMessage() {
+    if (!importError) return '';
+    const text = SHELL_TEXT.importer;
+    const kb = Math.round(LOCAL_IMPORT_LIMITS.maxBytes / 1024);
+    switch (importError.reason) {
+      case 'size':
+        return formatCount(shell(text.errorSize), { size: formatBytes(importError.bytes ?? 0), kb });
+      case 'empty':
+        return shell(text.errorEmpty);
+      case 'binary':
+        return shell(text.errorBinary);
+      case 'read':
+        return shell(text.errorRead);
+      case 'full':
+        return formatCount(shell(text.errorFull), { sources: LOCAL_IMPORT_LIMITS.maxSources });
+      case 'storage':
+        return shell(text.errorStorage);
+      default:
+        return shell(text.errorType);
+    }
+  }
+
+  function renderImportPicker() {
+    const text = SHELL_TEXT.importer;
+    const error = importErrorMessage();
+    const describedBy = ['import-limits', error ? 'import-error' : ''].filter(Boolean).join(' ');
+    const limits = formatCount(shell(text.limits), {
+      kb: Math.round(LOCAL_IMPORT_LIMITS.maxBytes / 1024),
+      sources: LOCAL_IMPORT_LIMITS.maxSources,
+    });
+    return `
+      <section class="shell-section import-panel">
+        <h2>${escapeHtml(shell(text.pickTitle))}</h2>
+        <p class="section-lead">${escapeHtml(shell(text.pickBody))}</p>
+        <div class="import-drop" data-import-drop>
+          <input id="import-file" class="import-file" type="file" data-import-input
+            accept=".md,.markdown,.txt,text/markdown,text/plain" aria-describedby="${describedBy}">
+          <label class="import-drop-label" for="import-file">
+            ${navIcon('import')}
+            <strong>${escapeHtml(shell(text.pickAction))}</strong>
+            <span>${escapeHtml(shell(text.dropHint))}</span>
+          </label>
+        </div>
+        <p id="import-limits" class="import-limits">${escapeHtml(limits)}</p>
+        ${error ? `<p id="import-error" class="import-error" role="alert" data-import-error>${escapeHtml(error)}</p>` : ''}
+      </section>`;
+  }
+
+  /** The review step. Rendered from the in-memory draft only, so nothing here has been stored yet. */
+  function renderImportReview() {
+    if (!importDraft) return '';
+    const text = SHELL_TEXT.importer;
+    const source = importDraft.source;
+    const truncated = source.truncated
+      ? `<p class="local-truncated">${escapeHtml(formatCount(shell(text.reviewTruncated), { n: LOCAL_IMPORT_LIMITS.maxSections }))}</p>`
+      : '';
+    return `
+      <article class="shell-card shell-card-accent import-review" data-import-review>
+        <div class="shell-card-head"><h2>${escapeHtml(shell(text.reviewTitle))}</h2>${badge('local')}</div>
+        <p>${escapeHtml(shell(text.reviewBody))}</p>
+        <dl class="import-meta">
+          <div><dt>${escapeHtml(shell(text.metaFile))}</dt><dd data-review-name>${escapeHtml(source.name)}</dd></div>
+          <div><dt>${escapeHtml(shell(text.metaSize))}</dt><dd>${escapeHtml(formatBytes(source.bytes))}</dd></div>
+          <div><dt>${escapeHtml(shell(text.metaSections))}</dt><dd data-review-sections>${escapeHtml(formatCount(shell(text.reviewSections), { n: source.sections.length }))}</dd></div>
+        </dl>
+        ${truncated}
+        <div class="local-section-list">${renderLocalSections(source)}</div>
+        <div class="card-actions">
+          <button class="button button-primary" type="button" data-import-confirm>${escapeHtml(shell(text.confirmAction))}</button>
+          <button class="button button-secondary" type="button" data-import-cancel>${escapeHtml(shell(text.cancelAction))}</button>
+        </div>
+      </article>`;
+  }
+
+  /** Post-save confirmation, replaced by the picker again as soon as another file is selected. */
+  function renderImportSaved() {
+    if (!importSaved) return '';
+    const text = SHELL_TEXT.importer;
+    const body = formatCount(shell(text.savedBody), { name: importSaved.name, n: importSaved.sectionCount });
+    return `
+      <article class="shell-card shell-card-accent import-saved" data-import-saved>
+        <div class="shell-card-head"><h2>${escapeHtml(shell(text.savedTitle))}</h2>${badge('local')}</div>
+        <p>${escapeHtml(body)}</p>
+        <a class="button button-primary" href="${routeHash({ view: 'library' })}">${escapeHtml(shell(text.savedAction))}</a>
+      </article>`;
+  }
+
   function renderImport() {
     const text = SHELL_TEXT.sources;
+    const importer = SHELL_TEXT.importer;
     const steps = [
       ['workflow.importTitle', 'workflow.importBody'],
       ['workflow.generateTitle', 'workflow.generateBody'],
@@ -487,17 +752,27 @@ if (typeof document !== 'undefined') {
     content.innerHTML = `
       <section class="shell-view" data-view="import">
         ${viewHeading(shell(text.eyebrow), shell(text.title), shell(text.body))}
+        <p class="shell-scope">${badge('local')}<span>${escapeHtml(shell(SHELL_TEXT.browserScope))}</span></p>
+
+        ${renderImportSaved()}
+        ${renderImportPicker()}
+        ${renderImportReview()}
+
         <div class="shell-cards">
-          <article class="shell-card">
-            <div class="shell-card-head"><h2>${escapeHtml(shell(text.nativeTitle))}</h2>${badge('android')}</div>
-            <p>${escapeHtml(shell(text.nativeBody))}</p>
+          <article class="shell-card import-no-ai">
+            <div class="shell-card-head"><h2>${escapeHtml(shell(importer.noAiTitle))}</h2>${badge('android')}</div>
+            <p>${escapeHtml(shell(importer.noAiBody))}</p>
             <div class="card-actions">
               <a class="button button-secondary" href="../#native-app">${escapeHtml(shell(text.productAction))}</a>
             </div>
           </article>
+          <article class="shell-card">
+            <div class="shell-card-head"><h2>${escapeHtml(shell(text.nativeTitle))}</h2>${badge('android')}</div>
+            <p>${escapeHtml(shell(text.nativeBody))}</p>
+          </article>
           <article class="shell-card shell-card-accent">
-            <div class="shell-card-head"><h2>${escapeHtml(translate('app.localOnly'))}</h2>${badge('local')}</div>
-            <p>${escapeHtml(translate('app.localOnlyBody'))}</p>
+            <div class="shell-card-head"><h2>${escapeHtml(shell(SHELL_TEXT.privacy.title))}</h2>${badge('local')}</div>
+            <p>${escapeHtml(shell(SHELL_TEXT.privacy.body))}</p>
             <a class="button button-primary" href="${routeHash({ view: 'decks' })}">${escapeHtml(shell(text.demoAction))}</a>
           </article>
         </div>
@@ -703,7 +978,182 @@ if (typeof document !== 'undefined') {
     return { dataset, state, question: dataset.questions[state.currentIndex] };
   }
 
+  function importFailed(reason, bytes) {
+    importDraft = null;
+    importError = { reason, bytes };
+    rerender({ focus: '[data-import-input]' });
+  }
+
+  /**
+   * Validates and parses one picked or dropped file into a review draft. Nothing reaches storage here:
+   * the draft keeps the raw text so the record can be rebuilt at confirm time with a real timestamp.
+   */
+  async function handleFileSelection(file) {
+    if (!file) return;
+    importSaved = null;
+    const check = validateImportCandidate(file, { sourceCount: library.sources.length });
+    if (!check.ok) {
+      importFailed(check.reason, file.size);
+      return;
+    }
+
+    // Reads are async, so a second pick while the first is in flight would otherwise race. Only the
+    // newest token is allowed to publish its result.
+    readToken += 1;
+    const token = readToken;
+    let text;
+    try {
+      text = await file.text();
+    } catch {
+      if (token === readToken) importFailed('read', file.size);
+      return;
+    }
+    if (token !== readToken) return;
+
+    if (looksBinary(text)) {
+      importFailed('binary', file.size);
+      return;
+    }
+    const source = createLocalSource({ name: file.name, size: file.size, text, existingIds: library.sources.map((entry) => entry.id) });
+    if (!source.sections.length) {
+      importFailed('empty', file.size);
+      return;
+    }
+
+    importError = null;
+    importDraft = { source, text };
+    rerender({
+      focus: '[data-import-confirm]',
+      message: formatCount(shell(SHELL_TEXT.importer.announceReview), { name: source.name }),
+    });
+  }
+
+  /** Handles the import surface's own controls. Returns true when the click was consumed. */
+  function handleImportClick(event) {
+    if (event.target.closest('[data-import-confirm]')) {
+      if (!importDraft) return true;
+      // Rebuilt at confirm time so the stored timestamp is when the learner agreed to save, and so the
+      // id is unique against the library as it stands now rather than as it stood during review.
+      const source = createLocalSource({
+        name: importDraft.source.name,
+        size: importDraft.source.bytes,
+        text: importDraft.text,
+        existingIds: library.sources.map((entry) => entry.id),
+      });
+      const next = { ...library, sources: [source, ...library.sources] };
+      if (!saveLibrary(next)) {
+        // Keep the draft: the learner can free space and confirm again.
+        importError = { reason: 'storage' };
+        rerender({ focus: '[data-import-error]' });
+        return true;
+      }
+      library = next;
+      importDraft = null;
+      importError = null;
+      importSaved = { name: source.name, sectionCount: source.sections.length };
+      rerender({
+        focus: '[data-import-saved] .button',
+        message: formatCount(shell(SHELL_TEXT.importer.announceSaved), { name: source.name, n: source.sections.length }),
+      });
+      return true;
+    }
+
+    if (event.target.closest('[data-import-cancel]')) {
+      importDraft = null;
+      importError = null;
+      readToken += 1;
+      rerender({ focus: '[data-import-input]' });
+      return true;
+    }
+    return false;
+  }
+
+  /** Handles the browser library's expand, remove, and reset controls. Returns true when consumed. */
+  function handleLocalLibraryClick(event) {
+    const toggle = event.target.closest('[data-toggle-source]');
+    if (toggle) {
+      const id = toggle.dataset.toggleSource;
+      if (expandedSources.has(id)) expandedSources.delete(id);
+      else expandedSources.add(id);
+      rerender({ focus: () => localSourceNode(id)?.querySelector('[data-toggle-source]') });
+      return true;
+    }
+
+    const remove = event.target.closest('[data-remove-source]');
+    if (remove) {
+      pendingDelete = remove.dataset.removeSource;
+      rerender({ focus: () => localSourceNode(pendingDelete)?.querySelector('[data-confirm-remove]') });
+      return true;
+    }
+
+    if (event.target.closest('[data-reset-library]')) {
+      pendingDelete = 'all';
+      rerender({ focus: '[data-confirm-reset-library]' });
+      return true;
+    }
+
+    if (event.target.closest('[data-cancel-remove]')) {
+      const id = pendingDelete;
+      pendingDelete = null;
+      rerender({
+        focus: () => (id === 'all'
+          ? document.querySelector('[data-reset-library]')
+          : localSourceNode(id)?.querySelector('[data-remove-source]')),
+      });
+      return true;
+    }
+
+    const confirmRemove = event.target.closest('[data-confirm-remove]');
+    if (confirmRemove) {
+      const id = confirmRemove.dataset.confirmRemove;
+      const source = library.sources.find((entry) => entry.id === id);
+      pendingDelete = null;
+      if (!source) {
+        rerender();
+        return true;
+      }
+      // Scoped to this id only. Every other imported source and all bundled data is untouched.
+      library = { ...library, sources: library.sources.filter((entry) => entry.id !== id) };
+      expandedSources.delete(id);
+      saveLibrary(library);
+      importSaved = null;
+      rerender({
+        focus: '#local-library',
+        message: formatCount(shell(SHELL_TEXT.localLibrary.announceRemoved), { name: source.name }),
+      });
+      return true;
+    }
+
+    if (event.target.closest('[data-confirm-reset-library]')) {
+      const removed = library.sources.length;
+      pendingDelete = null;
+      library = createEmptyLibrary();
+      expandedSources.clear();
+      importSaved = null;
+      try {
+        globalThis.localStorage?.removeItem(LOCAL_LIBRARY_STORAGE_KEY);
+      } catch {
+        // Reset remains effective for the active session.
+      }
+      rerender({
+        focus: '#local-library',
+        message: formatCount(shell(SHELL_TEXT.localLibrary.announceReset), { n: removed }),
+      });
+      return true;
+    }
+    return false;
+  }
+
   document.addEventListener('change', (event) => {
+    const fileInput = event.target.closest('[data-import-input]');
+    if (fileInput) {
+      const file = fileInput.files?.[0] ?? null;
+      // Clearing the value lets the same file be picked again after a discard or a rejection.
+      fileInput.value = '';
+      handleFileSelection(file);
+      return;
+    }
+
     const input = event.target.closest('input[name="answer"]');
     const context = currentContext();
     if (!input || !context || context.state.submitted[context.question.id]) return;
@@ -729,6 +1179,8 @@ if (typeof document !== 'undefined') {
     }
 
     if (event.target.closest('[data-reset-progress]')) {
+      // Deliberately scoped to the quiz key. Imported sources are the learner's own material and are
+      // only removed through the library's own reset control.
       progress = createInitialProgress();
       openTutorQuestions.clear();
       try {
@@ -741,6 +1193,8 @@ if (typeof document !== 'undefined') {
       announce(translate('app.progressReset'));
       return;
     }
+
+    if (handleImportClick(event) || handleLocalLibraryClick(event)) return;
 
     const context = currentContext();
     if (event.target.closest('[data-submit]') && context) {
@@ -793,6 +1247,26 @@ if (typeof document !== 'undefined') {
     }
   });
 
+  // Drag events are cancelled document-wide: without this the browser navigates to the dropped file and
+  // the demo is gone. Only a drop that lands inside the zone is treated as an import.
+  document.addEventListener('dragover', (event) => {
+    if (!event.dataTransfer?.types?.includes('Files')) return;
+    event.preventDefault();
+    event.target.closest?.('[data-import-drop]')?.classList.add('is-dragging');
+  });
+
+  document.addEventListener('dragleave', (event) => {
+    event.target.closest?.('[data-import-drop]')?.classList.remove('is-dragging');
+  });
+
+  document.addEventListener('drop', (event) => {
+    const zone = event.target.closest?.('[data-import-drop]');
+    if (!event.dataTransfer?.files?.length && !zone) return;
+    event.preventDefault();
+    document.querySelector('[data-import-drop]')?.classList.remove('is-dragging');
+    if (zone) handleFileSelection(event.dataTransfer?.files?.[0] ?? null);
+  });
+
   document.querySelectorAll('[data-locale]').forEach((button) => {
     button.addEventListener('click', () => setLocale(button.dataset.locale));
   });
@@ -803,6 +1277,9 @@ if (typeof document !== 'undefined') {
   window.addEventListener('anchor:localechange', render);
   window.addEventListener('hashchange', () => {
     setSidebarOpen(false);
+    // A half-answered confirmation should not be waiting when the learner comes back to a surface.
+    pendingDelete = null;
+    importError = null;
     render();
     content?.focus();
   });
