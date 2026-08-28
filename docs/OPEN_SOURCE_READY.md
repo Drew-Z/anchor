@@ -12,11 +12,13 @@
 
 ## 当前状态
 
-Private Alpha 仍为 `HOLD`。当前真实 readiness 只剩一项外部证据：
+Private Alpha 仍为 `HOLD`。当前 evaluator 有三个阻塞码：
 
-1. A01-A10 正式 cohort、观察窗口和最终决策。
+1. `cohort_pending`：A01-A10 正式 cohort、观察窗口和最终决策尚未完成。
+2. `release_day_acceptance_primary_stale`：正式模型五项验收报告已超过 24 小时发布窗口。
+3. `physical_device_evidence_stale`：正式物理设备报告已超过 24 小时发布窗口。
 
-物理设备验收、正式 `2005` release-day 五项技术验收、participant-owned 凭据治理和数据处理负责人记录已经完成。正式 cohort 不能用模拟器、fixture、旧 APK 或 Web Demo 替代。
+物理设备验收、正式 `2005` release-day 五项技术验收、participant-owned 凭据治理和数据处理负责人记录已经完成过，但模型与设备检查必须在最终发布窗口内、同一候选产物上重新执行。正式 cohort 不能用模拟器、fixture、旧 APK 或 Web Demo 替代。
 
 ## 构建说明
 
@@ -37,4 +39,4 @@ Demo 视频、截图、博客和社区发布是非阻塞推广事项。它们可
 - 在真实外部条件满足后，只更新 `build/validation/private-alpha-readiness.json` 中的匿名绑定，再运行 readiness CLI；`test/fixtures/release/private_alpha_readiness_current.json` 仅用于测试。
 - 继续维护发布文档中的构建身份、APK SHA-256、支持平台和凭据处理声明；产品文档统一使用 `Anchor Learning / 锚学`，正式应用标识见 `docs/PRODUCT_NAMING.md`。
 
-**最后更新**: 2026-08-26
+**最后更新**: 2026-08-28

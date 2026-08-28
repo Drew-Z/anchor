@@ -145,7 +145,7 @@ Providers --> QW
 
 ### 主题系统与颜色方案
 - 主题特性
-  - 使用 Material Design 2，关闭 Material 3，确保与多邻国风格一致的视觉语言。
+  - 使用 Material Design 2，关闭 Material 3，确保与 Anchor Learning 游戏化风格一致的视觉语言。
   - 颜色方案：primary/surface/error 等基于 AppColors，保证全局一致性。
   - 字体：Nunito 字体族，针对各级文本设定字号与字重。
   - 控件主题：按钮、输入框、卡片、底栏等均基于 AppColors 与 Google Fonts 统一风格。

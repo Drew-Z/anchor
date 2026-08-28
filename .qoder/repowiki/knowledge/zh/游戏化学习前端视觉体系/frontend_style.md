@@ -1,8 +1,8 @@
-该应用采用 Flutter 框架实现跨平台 UI，通过高度定制化的主题系统和组件库复刻了多邻国（Duolingo）的标志性视觉风格。
+该应用采用 Flutter 框架实现跨平台 UI，通过高度定制化的主题系统和组件库形成 Anchor Learning 自有的高反馈游戏化学习视觉风格。
 
 ### 1. 核心系统与工具
 - **UI 框架**: Flutter (Material Design 基础，但进行了深度定制)。
-- **字体系统**: 使用 `google_fonts` 包引入 `Nunito` 字体，以匹配多邻国圆润、活泼的视觉特征。
+- **字体系统**: 使用 `google_fonts` 包引入 `Nunito` 字体，以匹配 Anchor Learning 圆润、活泼的视觉特征。
 - **状态管理**: 结合 `flutter_riverpod` 管理 UI 状态，确保视觉反馈（如按钮按压、进度条更新）与业务逻辑同步。
 
 ### 2. 设计令牌 (Design Tokens)
@@ -13,7 +13,7 @@
 
 ### 3. 架构与组件规范
 - **主题配置**: `lib/core/theme/app_theme.dart` 统一定义了全局样式。禁用 Material 3 默认效果 (`useMaterial3: false`)，转而使用圆角半径 `16px`、无阴影扁平化卡片以及自定义的输入框边框。
-- **3D 凸起按钮**: `lib/shared/widgets/anchor_button.dart` 实现了核心的“多邻国式”按钮。通过 `GestureDetector` 监听按压状态，动态调整 `AnimatedContainer` 的底部边框宽度（4px -> 2px）和垂直位移，模拟真实的物理按压反馈。
+- **3D 凸起按钮**: `lib/shared/widgets/anchor_button.dart` 实现了核心的 Anchor 风格按钮。通过 `GestureDetector` 监听按压状态，动态调整 `AnimatedContainer` 的底部边框宽度（4px -> 2px）和垂直位移，模拟真实的物理按压反馈。
 - **游戏化 HUD**: `lib/shared/widgets/stats_widgets.dart` 提供了顶部状态栏和答题进度条，统一使用粗体字重 (`FontWeight.w800`) 和高饱和度图标，强化学习应用的 gamification 氛围。
 
 ### 4. 开发者准则

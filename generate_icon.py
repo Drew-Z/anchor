@@ -5,7 +5,7 @@ import math
 from pathlib import Path
 
 # Colors
-GREEN = (88, 204, 2)       # #58CC02 - Duolingo green
+GREEN = (88, 204, 2)       # #58CC02 - Anchor green
 GREEN_DARK = (66, 160, 2)  # darker green for depth
 WHITE = (255, 255, 255)
 SHADOW = (40, 120, 0)

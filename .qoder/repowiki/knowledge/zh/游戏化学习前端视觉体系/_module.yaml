@@ -1,6 +1,6 @@
 schema_version: 1
 module_path: frontend_style
-title: 多邻国风格前端视觉体系
+title: 游戏化学习前端视觉体系
 scope: []
 source_files:
     - lib/core/constants/app_colors.dart
