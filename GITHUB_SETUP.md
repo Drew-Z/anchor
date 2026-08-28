@@ -157,11 +157,12 @@ Feedback welcome! 🚀
 
 ## ✅ Checklist Before Publishing
 
-- [ ] Repository created on GitHub
-- [ ] Description and topics added
-- [ ] Code pushed to main branch
-- [ ] README.md displays correctly
-- [ ] LICENSE file present
+- [x] Repository created on GitHub
+- [x] Description and website added
+- [x] README.md displays correctly
+- [x] LICENSE file present
+- [ ] Productization PR reviewed, explicitly authorized, and merged into `main`
+- [ ] Productized `web/landing` deployed and production-smoke-tested
 - [ ] Private Alpha release (v1.0.0) created after readiness changes to `GO`
 - [ ] Demo video recorded (or placeholder added)
 - [ ] Screenshots ready (4-6 images)
