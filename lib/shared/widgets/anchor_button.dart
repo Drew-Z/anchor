@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 
-/// 多邻国风格 3D 凸起按钮
-class DuoButton extends StatefulWidget {
+/// Anchor Learning 的 3D 凸起主操作按钮。
+class AnchorButton extends StatefulWidget {
   final String label;
   final VoidCallback? onPressed;
   final Color color;
@@ -13,7 +13,7 @@ class DuoButton extends StatefulWidget {
   final IconData? icon;
   final double fontSize;
 
-  const DuoButton({
+  const AnchorButton({
     super.key,
     required this.label,
     this.onPressed,
@@ -27,10 +27,10 @@ class DuoButton extends StatefulWidget {
   });
 
   @override
-  State<DuoButton> createState() => _DuoButtonState();
+  State<AnchorButton> createState() => _AnchorButtonState();
 }
 
-class _DuoButtonState extends State<DuoButton> {
+class _AnchorButtonState extends State<AnchorButton> {
   bool _isPressed = false;
 
   @override
@@ -92,11 +92,10 @@ class _DuoButtonState extends State<DuoButton> {
   }
 
   Color _darken(Color color) {
-    return Color.fromARGB(
-      color.alpha,
-      (color.red * 0.8).round(),
-      (color.green * 0.8).round(),
-      (color.blue * 0.8).round(),
+    return color.withValues(
+      red: color.r * 0.8,
+      green: color.g * 0.8,
+      blue: color.b * 0.8,
     );
   }
 }
