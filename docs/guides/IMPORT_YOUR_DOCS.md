@@ -6,15 +6,15 @@
 
 ## 📁 支持的文件格式
 
-### ✅ 完全支持
-- **Markdown** (`.md`) - 推荐格式,解析效果最佳
-- **Dart 代码** (`.dart`) - 自动提取类/方法/注释
-- **纯文本** (`.txt`) - 基础文本内容
+### ✅ 支持的文本源码与配置文件
 
-### 🚧 计划支持
-- **PDF** - 需要 OCR 转文本
-- **代码多语言** (`.js`, `.py`, `.java`, `.go`) - 通用代码解析
-- **Notion 导出** - JSON 格式导入
+项目目录扫描器支持 Markdown、纯文本、Dart/Java/Kotlin/Swift、JavaScript/TypeScript、Python、C/C++、C#、Go、Rust、PHP、Ruby、Shell、SQL、HTML/CSS、JSON/YAML/TOML/XML、Gradle/Properties 等常见源码和配置扩展名，以及 `Dockerfile`、`Makefile`、`.gitignore` 等无扩展名文件。扫描会排除依赖、构建产物、生成文件、敏感文件、二进制和超出大小限制的文件。
+
+单文件导入仍以 Markdown 或文本内容为主；项目导入支持目录、Android DocumentsUI 目录桥接和 ZIP。
+
+### 🚧 当前不支持
+
+- PDF、Word、图片 OCR、视频和 Notion 专用格式不会被直接解析；请先转换为 Markdown 或纯文本。
 
 ---
 
@@ -106,7 +106,7 @@ Flutter 性能很好。
 1. **打开 APP → 导入页面 → 项目导入**
 2. **选择项目根目录**
 3. **配置扫描选项**:
-   - 包含的文件扩展名(`.dart`, `.md`)
+   - 按扫描器支持列表筛选源码和文本扩展名
    - 排除目录(`node_modules`, `build`, `.git`)
 4. **开始扫描**
 5. **AI 分析项目结构**:

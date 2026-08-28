@@ -1,7 +1,7 @@
-import 'package:dlg_q/data/models/source.dart';
-import 'package:dlg_q/data/models/source_chunk.dart';
-import 'package:dlg_q/services/agent/hybrid_knowledge_search_service.dart';
-import 'package:dlg_q/services/agent/knowledge_search_service.dart';
+import 'package:anchor_learning/data/models/source.dart';
+import 'package:anchor_learning/data/models/source_chunk.dart';
+import 'package:anchor_learning/services/agent/hybrid_knowledge_search_service.dart';
+import 'package:anchor_learning/services/agent/knowledge_search_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

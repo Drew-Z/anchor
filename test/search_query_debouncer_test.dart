@@ -1,4 +1,4 @@
-import 'package:dlg_q/services/agent/search_query_debouncer.dart';
+import 'package:anchor_learning/services/agent/search_query_debouncer.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

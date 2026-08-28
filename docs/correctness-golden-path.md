@@ -206,19 +206,19 @@ prefixed `leaf19-validation-`.
 
 - Answer history visibly distinguishes `证据合格`, `部分主张未支持`, and
   `证据不足已拒答`:
-  `build/validation/duoduo-leaf19-5-history-states.png`
+  `build/validation/anchor-learning-leaf19-5-history-states.png`
 - Searching `JSON schema guarantee` shows `排序依据` on every result and ranks
   the official OpenAI chunk above the personal note:
-  `build/validation/duoduo-leaf19-5-search-ranking.png`
+  `build/validation/anchor-learning-leaf19-5-search-ranking.png`
 - Opening the grounded answer's citation navigates to the official source
   detail and highlights `当前引用片段`:
-  `build/validation/duoduo-leaf19-5-citation-navigation.png`
+  `build/validation/anchor-learning-leaf19-5-citation-navigation.png`
 - Matching UI hierarchy evidence is stored beside each PNG as XML.
 - After evidence capture, all two temporary sources, two chunks, and three
   learning sessions were deleted. SQLite `integrity_check` returned `ok`.
 - A post-cleanup relaunch reached the knowledge base with no
   `FATAL EXCEPTION`, `E/flutter`, or App ANR in
-  `build/validation/duoduo-leaf19-5-post-cleanup-logcat.txt`.
+  `build/validation/anchor-learning-leaf19-5-post-cleanup-logcat.txt`.
 
 ## Current Android Build Artifact
 

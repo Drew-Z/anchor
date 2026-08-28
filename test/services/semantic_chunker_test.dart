@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:dlg_q/services/ingestion/semantic_chunker.dart';
+import 'package:anchor_learning/services/ingestion/semantic_chunker.dart';
 
 void main() {
   late SemanticChunker chunker;

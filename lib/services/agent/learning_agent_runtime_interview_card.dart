@@ -2110,7 +2110,7 @@ LearningAgentRuntimeInterviewCard learningAgentRuntimeInterviewCard({
         trustNote: 'LangChain 官方文档，适合引用状态图和持久执行概念。',
         verifiedAt: '2026-07-09',
         evidenceNote:
-            '记录于 docs/agent-runtime-architecture.md；Smart Search evidence: C:\\tmp\\smart-search-evidence\\agent-architecture-duoduo。',
+            '记录于 docs/agent-runtime-architecture.md；Smart Search evidence: C:\\tmp\\smart-search-evidence\\agent-architecture-anchor-learning。',
       ),
       LearningAgentRuntimeSourceReference(
         title: 'LangGraph checkpointers',
@@ -2122,7 +2122,7 @@ LearningAgentRuntimeInterviewCard learningAgentRuntimeInterviewCard({
             'LangChain 官方文档，适合说明 checkpoint 边界、故障恢复和 pending writes；本项目只借鉴语义，不宣称等价实现。',
         verifiedAt: '2026-07-14',
         evidenceNote:
-            'Smart Search fetch evidence: C:\\tmp\\smart-search-evidence\\agent-architecture-duoduo\\langgraph-checkpointers.md。',
+            'Smart Search fetch evidence: C:\\tmp\\smart-search-evidence\\agent-architecture-anchor-learning\\langgraph-checkpointers.md。',
       ),
       LearningAgentRuntimeSourceReference(
         title:
@@ -2136,7 +2136,7 @@ LearningAgentRuntimeInterviewCard learningAgentRuntimeInterviewCard({
             'AWS Builders’ Library 官方文章，适合说明 unknown outcome、重复副作用风险和幂等 API 边界。',
         verifiedAt: '2026-07-14',
         evidenceNote:
-            'Smart Search fetch evidence: C:\\tmp\\smart-search-evidence\\agent-architecture-duoduo\\aws-making-retries-safe.md。',
+            'Smart Search fetch evidence: C:\\tmp\\smart-search-evidence\\agent-architecture-anchor-learning\\aws-making-retries-safe.md。',
       ),
       LearningAgentRuntimeSourceReference(
         title: 'Stripe idempotent requests',
@@ -2147,7 +2147,7 @@ LearningAgentRuntimeInterviewCard learningAgentRuntimeInterviewCard({
             'Stripe 官方 API 文档，适合对照真正的服务端 idempotency contract；本项目当前尚未实现该契约。',
         verifiedAt: '2026-07-14',
         evidenceNote:
-            'Smart Search fetch evidence: C:\\tmp\\smart-search-evidence\\agent-architecture-duoduo\\stripe-idempotent-requests.md。',
+            'Smart Search fetch evidence: C:\\tmp\\smart-search-evidence\\agent-architecture-anchor-learning\\stripe-idempotent-requests.md。',
       ),
       LearningAgentRuntimeSourceReference(
         title: 'OpenAI Agents SDK',
@@ -2157,7 +2157,7 @@ LearningAgentRuntimeInterviewCard learningAgentRuntimeInterviewCard({
         trustNote: 'OpenAI Agents SDK 文档，适合引用工具循环和 tracing 术语。',
         verifiedAt: '2026-07-09',
         evidenceNote:
-            '记录于 docs/agent-runtime-architecture.md；Smart Search evidence: C:\\tmp\\smart-search-evidence\\agent-architecture-duoduo。',
+            '记录于 docs/agent-runtime-architecture.md；Smart Search evidence: C:\\tmp\\smart-search-evidence\\agent-architecture-anchor-learning。',
       ),
       LearningAgentRuntimeSourceReference(
         title: 'Parlant agentic design',
@@ -2167,7 +2167,7 @@ LearningAgentRuntimeInterviewCard learningAgentRuntimeInterviewCard({
         trustNote: 'Parlant 项目文档，适合引用 guideline 和行为边界设计。',
         verifiedAt: '2026-07-09',
         evidenceNote:
-            '记录于 docs/agent-runtime-architecture.md；Smart Search evidence: C:\\tmp\\smart-search-evidence\\agent-architecture-duoduo。',
+            '记录于 docs/agent-runtime-architecture.md；Smart Search evidence: C:\\tmp\\smart-search-evidence\\agent-architecture-anchor-learning。',
       ),
       LearningAgentRuntimeSourceReference(
         title: 'AgentScope GitHub',
@@ -2177,7 +2177,7 @@ LearningAgentRuntimeInterviewCard learningAgentRuntimeInterviewCard({
         trustNote: 'AgentScope 项目仓库，适合引用事件、多 session 和工具边界能力。',
         verifiedAt: '2026-07-09',
         evidenceNote:
-            '记录于 docs/agent-runtime-architecture.md；Smart Search evidence: C:\\tmp\\smart-search-evidence\\agent-architecture-duoduo。',
+            '记录于 docs/agent-runtime-architecture.md；Smart Search evidence: C:\\tmp\\smart-search-evidence\\agent-architecture-anchor-learning。',
       ),
       LearningAgentRuntimeSourceReference(
         title: 'SQLite transaction and UPDATE',
@@ -2187,7 +2187,7 @@ LearningAgentRuntimeInterviewCard learningAgentRuntimeInterviewCard({
         trustNote: 'SQLite 官方文档，适合说明 transaction 与 conditional update 语义。',
         verifiedAt: '2026-07-14',
         evidenceNote:
-            'Smart Search fetch evidence: C:\\tmp\\smart-search-evidence\\agent-architecture-duoduo\\sqlite-transactions.md 与 sqlite-update.md。',
+            'Smart Search fetch evidence: C:\\tmp\\smart-search-evidence\\agent-architecture-anchor-learning\\sqlite-transactions.md 与 sqlite-update.md。',
       ),
     ],
     prompts: [

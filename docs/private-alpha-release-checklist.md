@@ -1,16 +1,18 @@
-# Duoduo Private Alpha Release Checklist
+# Anchor Learning Private Alpha Release Checklist
 
 ## Release Identity
 
-- Product: Duoduo / 多多学
+- Product: Anchor Learning / 锚学
 - Channel: Private Alpha
-- App version: `1.0.0+1`
-- Android package: `com.example.dlg_q`
-- Database: SQLite `dlg_q.db`, schema `23`
-- Distribution: direct debug APK sideload to invited testers only
+- App version: `1.0.0+2005`
+- Arm64 split APK manifest versionCode: `4005`
+- Android package: `cc.eu.playlab.anchor`
+- Database: SQLite `anchor_learning.db`, schema `23`
+- Distribution: direct sideload of the signed Arm64 release APK to invited testers only
 
-This is not a production store release. The package identifier and debug signing
-must be replaced before public distribution.
+This is not a production store release. The current candidate already uses the
+final Android package identifier and the Anchor Learning release certificate;
+store publication still requires the external readiness gates below.
 
 ## Supported-Device Matrix
 
@@ -19,7 +21,7 @@ must be replaced before public distribution.
 | A | Android API 36, x86_64 emulator, 1080x2400 / 420 dpi | Release exercise target | Build, install, migration, cold start, backup-delete-restore, export, screenshot, and log scan on every alpha build |
 | B | Android API 24-35, Arm64 physical device | Cohort candidate | Run the short device smoke before enrolling that device; record API, ABI, viewport, install result, backup/restore result, and known OEM issue |
 | Unsupported | Android API 23 and earlier | Do not install | Current Flutter 3.44 support starts at API 24 |
-| Not release-supported | iOS, Windows, macOS, Linux, web | Deferred | Framework support does not imply Duoduo release support; no end-to-end acceptance has been completed |
+| Not release-supported | iOS, Windows, macOS, Linux, web | Deferred | Framework support does not imply Anchor Learning release support; no end-to-end acceptance has been completed |
 
 The fixed Tier A device for Leaf 21.5 is `emulator-5554`, Android API 36,
 x86_64, physical size 1080x2400, density 420.
@@ -61,10 +63,10 @@ Stable user-facing error codes:
 
 | Code | Meaning | Recovery |
 | --- | --- | --- |
-| `invalid_file` | Missing, oversized, unreadable, or non-SQLite input | Select an unmodified Duoduo `.db` export |
+| `invalid_file` | Missing, oversized, unreadable, or non-SQLite input | Select an unmodified Anchor Learning `.db` export |
 | `unsupported_schema` | Schema is outside 12-23 | Restore with a compatible app version first, then export again |
 | `integrity_failure` | SQLite integrity check failed | Use another backup; do not retry the same damaged file |
-| `missing_tables` | Required Duoduo tables are absent | Select a complete database backup, not a partial table export |
+| `missing_tables` | Required Anchor Learning tables are absent | Select a complete database backup, not a partial table export |
 | `restore_failure` | Replacement, migration, or final validation failed | Confirm the UI reports automatic rollback; restart and verify current data |
 
 ## Automated Gate
@@ -89,7 +91,7 @@ Evaluate the release decision from explicit, machine-readable evidence:
 
 ```powershell
 & 'D:\tools\flutter\bin\dart.bat' run tool\private_alpha_readiness.dart `
-  --evidence test\fixtures\release\private_alpha_readiness_current.json `
+  --evidence build\validation\private-alpha-readiness.json `
   --format json
 ```
 
@@ -234,31 +236,40 @@ Run the read-only preflight before installing on a physical candidate:
 
 ```powershell
 & 'D:\tools\flutter\bin\dart.bat' run tool\private_alpha_device_preflight.dart `
+  --apk build\app\outputs\flutter-apk\app-arm64-v8a-release.apk `
+  --adb 'C:\Users\zhang\AppData\Local\Android\sdk\platform-tools\adb.exe' `
   --serial <adb-serial> `
-  --expected-sha256 <recorded-apk-sha256>
+  --expected-sha256 74dcfb95cd9c123b51d9b35678ffd0153d23654bf6a5597de1070880d667207b `
+  --format json
 ```
 
 `READY` means the selected device is physical Arm64 on API 24-35 and the APK
 hash matches. The default command does not install or launch anything. After
 reviewing the report, execute the app-only smoke with the same arguments plus
-`--execute`.
+`--execute`. When switching an already-installed debug build to the release
+certificate, export and hash the database first, then perform a full uninstall;
+Android rejects an in-place update when the signing certificates differ.
 
-The execute path is intentionally limited to `adb install -r` for Duoduo,
-force-stopping and launching `com.example.dlg_q`, checking its PID, and reading
+The execute path is intentionally limited to `adb install -r` for Anchor Learning,
+force-stopping and launching `cc.eu.playlab.anchor`, checking its PID, and reading
 logcat for that PID. It does not clear global logcat, inspect another package,
 modify device settings, or create files in shared device storage.
 
 ```powershell
-adb devices -l
-adb install -r build\app\outputs\flutter-apk\app-debug.apk
-adb shell am force-stop com.example.dlg_q
-adb shell am start -W -n com.example.dlg_q/.MainActivity
+& 'D:\tools\flutter\bin\dart.bat' run tool\private_alpha_device_preflight.dart `
+  --apk build\app\outputs\flutter-apk\app-arm64-v8a-release.apk `
+  --adb 'C:\Users\zhang\AppData\Local\Android\sdk\platform-tools\adb.exe' `
+  --serial <adb-serial> `
+  --expected-sha256 74dcfb95cd9c123b51d9b35678ffd0153d23654bf6a5597de1070880d667207b `
+  --format json `
+  --execute
 ```
 
 Pass criteria:
 
 - install succeeds without removing existing user data;
-- launch state is cold and the process remains alive;
+- launch succeeds for the requested Activity and the process remains alive
+  (Android/OEM builds may report `LaunchState: UNKNOWN` even on success);
 - first visible screen matches the stored onboarding state;
 - logcat has no `FATAL EXCEPTION`, `AndroidRuntime: FATAL`, `E/flutter`, ANR,
   SQLite exception, database lock, or uncaught restore error.
@@ -360,34 +371,14 @@ five-task acceptance matrix.
 
 Sources were fetched through `smart-search fetch` on 2026-07-16.
 
-## Leaf 21.5 Recorded Evidence
+## Current Leaf 21.5 Evidence
 
-Recorded on 2026-07-16 against Tier A `emulator-5554`:
-
-- `flutter test --no-pub`: 215 tests passed;
-- `flutter analyze --no-pub --no-fatal-infos`: 0 errors, 0 warnings,
-  34 existing info lints;
-- `git diff --check` and the credential-shaped review passed;
-- Gradle 9.4.1 completed 203 tasks for `android-x64` using the offline command
-  above;
-- `build/app/outputs/flutter-apk/app-debug.apk`: 78,072,121 bytes,
-  SHA-256 `ee166a61343c19b07ad31ca00b8adf3699a2f572006d72ab9ad523c3ff5fa6ab`,
-  v2 debug signature verified;
-- APK identity: `com.example.dlg_q`, version `1.0.0+1`, min SDK 24,
-  target SDK 36, compile SDK 37;
-- overwrite install preserved the schema 23 database; initial cold start was
-  5.841 seconds;
-- Android DocumentsUI completed database export, save-cancel protection,
-  backup-then-delete, direct delete, and restore confirmation;
-- deleting product events left exactly one new `data_deleted` event; restoring
-  refreshed the two saved events without restart and survived a cold restart;
-- the post-restore database reported schema 23 and `integrity_check = ok`;
-- the final app-process log scan contained 66 lines and no Flutter,
-  AndroidRuntime, ANR, SQLite, lock, or restore error match;
-- screenshots and UI hierarchies are retained under `build/validation/leaf21_5_*`.
-
-The pre-install database was restored byte-for-byte after acceptance. Its final
-SHA-256 is `65872231a9a9ad7248368d6e760a07c359f2efd43e42ab5623e3df377904a892`.
+The current release candidate is tracked in `docs/PRODUCTIZATION_RELEASE_PLAN.md`
+and `docs/OPEN_SOURCE_CHECKLIST.md`. Its signed Arm64 APK is bound to SHA-256
+`74dcfb95cd9c123b51d9b35678ffd0153d23654bf6a5597de1070880d667207b`, uses
+package `cc.eu.playlab.anchor`, and has completed the physical-device smoke on
+the OnePlus PGP110 (API 35, Arm64). This evidence does not replace the
+release-day model, controlled-credential, owner, or cohort gates below.
 
 ## Leaf 21.6a Readiness Evidence
 
@@ -503,9 +494,3 @@ The Arm64 Tier B technical gate is complete. A shared public relay remains a
 development credential only; formal participant invitations still require a
 controlled or participant-owned profile with a current App `5/5` report and an
 explicit data-handling owner.
-
-
-
-
-
-

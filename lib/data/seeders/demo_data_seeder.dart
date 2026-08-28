@@ -1,7 +1,11 @@
+import 'package:sqflite/sqflite.dart';
+
 import '../database/database_helper.dart';
 import '../models/source.dart';
 import '../models/source_chunk.dart';
 import '../models/knowledge_point.dart';
+import '../models/knowledge_point_prerequisite.dart';
+import '../models/knowledge_point_source.dart';
 
 /// Demo 数据播种器 - 用于新用户首次启动时自动导入示例内容
 class DemoDataSeeder {
@@ -250,30 +254,41 @@ function reactive(target) {
           .then((db) => db.insert('knowledge_points', kp.toMap()));
     }
 
-    // 4. 创建知识点依赖关系
-    await _db.database.then((db) async {
-      // Watcher 依赖 Dep
-      await db.insert('knowledge_point_prerequisites', {
-        'knowledge_point_id': '${sourceId}_kp_3',
-        'prerequisite_id': '${sourceId}_kp_2',
-        'strength': 0.8,
-      });
-      // Dep 依赖 defineReactive
-      await db.insert('knowledge_point_prerequisites', {
-        'knowledge_point_id': '${sourceId}_kp_2',
-        'prerequisite_id': '${sourceId}_kp_1',
-        'strength': 0.9,
-      });
-    });
+    // 4. 创建知识点依赖关系，使用当前 schema 的稳定模型字段。
+    final prerequisiteRelations = [
+      KnowledgePointPrerequisite(
+        knowledgePointId: '${sourceId}_kp_3',
+        prerequisiteKnowledgePointId: '${sourceId}_kp_2',
+        rationale: 'Watcher 依赖 Dep 完成依赖收集。',
+        createdAt: now,
+      ),
+      KnowledgePointPrerequisite(
+        knowledgePointId: '${sourceId}_kp_2',
+        prerequisiteKnowledgePointId: '${sourceId}_kp_1',
+        rationale: 'Dep 依赖 defineReactive 提供属性拦截。',
+        createdAt: now,
+      ),
+    ];
+    final db = await _db.database;
+    for (final relation in prerequisiteRelations) {
+      await db.insert(
+        'knowledge_point_prerequisites',
+        relation.toMap(),
+      );
+    }
 
-    // 5. 关联 Source 和 Knowledge Points
-    for (final kp in knowledgePoints) {
-      await _db.database.then((db) => db.insert('knowledge_point_sources', {
-            'knowledge_point_id': kp.id,
-            'source_id': sourceId,
-            'relevance_score': 1.0,
-            'created_at': now.toIso8601String(),
-          }));
+    // 5. 将知识点关联到实际 source chunks，而不是已废弃的 source_id 字段。
+    for (var index = 0; index < knowledgePoints.length; index++) {
+      final kp = knowledgePoints[index];
+      final chunk = chunks[index + 1];
+      await db.insert(
+        'knowledge_point_sources',
+        KnowledgePointSource(
+          knowledgePointId: kp.id,
+          sourceChunkId: chunk.id,
+        ).toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
     }
   }
 }

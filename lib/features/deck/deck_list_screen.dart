@@ -94,6 +94,7 @@ class _DeckListScreenState extends ConsumerState<DeckListScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'deck-add-content',
         onPressed: () {
           Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => const IngestionScreen()),

@@ -1,14 +1,14 @@
-import 'package:dlg_q/data/models/grounded_claim.dart';
-import 'package:dlg_q/data/models/interview_turn.dart';
-import 'package:dlg_q/data/models/knowledge_point.dart';
-import 'package:dlg_q/data/models/knowledge_point_source.dart';
-import 'package:dlg_q/data/models/question.dart';
-import 'package:dlg_q/data/models/question_type.dart';
-import 'package:dlg_q/data/models/source.dart';
-import 'package:dlg_q/data/models/source_chunk.dart';
-import 'package:dlg_q/services/agent/agent_session_memory_index.dart';
-import 'package:dlg_q/services/agent/learning_agent_memory_store.dart';
-import 'package:dlg_q/services/agent/project_interview_outcome.dart';
+import 'package:anchor_learning/data/models/grounded_claim.dart';
+import 'package:anchor_learning/data/models/interview_turn.dart';
+import 'package:anchor_learning/data/models/knowledge_point.dart';
+import 'package:anchor_learning/data/models/knowledge_point_source.dart';
+import 'package:anchor_learning/data/models/question.dart';
+import 'package:anchor_learning/data/models/question_type.dart';
+import 'package:anchor_learning/data/models/source.dart';
+import 'package:anchor_learning/data/models/source_chunk.dart';
+import 'package:anchor_learning/services/agent/agent_session_memory_index.dart';
+import 'package:anchor_learning/services/agent/learning_agent_memory_store.dart';
+import 'package:anchor_learning/services/agent/project_interview_outcome.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

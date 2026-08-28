@@ -1,6 +1,6 @@
-import 'package:dlg_q/data/models/question.dart';
-import 'package:dlg_q/data/models/question_type.dart';
-import 'package:dlg_q/services/ingestion/question_bulk_verification_service.dart';
+import 'package:anchor_learning/data/models/question.dart';
+import 'package:anchor_learning/data/models/question_type.dart';
+import 'package:anchor_learning/services/ingestion/question_bulk_verification_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

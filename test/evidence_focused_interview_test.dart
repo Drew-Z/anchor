@@ -1,11 +1,13 @@
 import 'dart:convert';
 
-import 'package:dlg_q/data/models/knowledge_point.dart';
-import 'package:dlg_q/data/models/source_chunk.dart';
-import 'package:dlg_q/services/agent/project_interview_flow_service.dart';
-import 'package:dlg_q/services/ai/tasks/answer_evaluation_task.dart';
-import 'package:dlg_q/services/ai/tasks/interview_question_task.dart';
-import 'package:dlg_q/services/openai_service.dart';
+import 'package:anchor_learning/data/models/knowledge_point.dart';
+import 'package:anchor_learning/data/models/interview_turn.dart';
+import 'package:anchor_learning/data/models/source_chunk.dart';
+import 'package:anchor_learning/services/agent/project_interview_flow_service.dart';
+import 'package:anchor_learning/services/ai/ai_task_result.dart';
+import 'package:anchor_learning/services/ai/tasks/answer_evaluation_task.dart';
+import 'package:anchor_learning/services/ai/tasks/interview_question_task.dart';
+import 'package:anchor_learning/services/openai_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -113,6 +115,40 @@ void main() {
         isNull,
       );
     });
+
+    test('restores a saved follow-up only once for its knowledge point', () {
+      final now = DateTime(2026, 7, 15);
+      final turn = InterviewTurn(
+        id: 'turn-1',
+        sessionId: 'session-1',
+        questionText: '基础问题',
+        userAnswer: '基础回答',
+        aiFeedback: '需要补充边界。',
+        referenceAnswer: '参考回答',
+        knowledgePointId: 'point-1',
+        citationIds: const ['chunk-1'],
+        nextInterviewQuestion: '请补充这个知识点的边界。',
+        createdAt: now,
+      );
+
+      final restored = service.restorePendingFollowUp(
+        turns: [turn],
+        availablePointIds: const {'point-1'},
+        availableCitationIds: const {'chunk-1'},
+      );
+
+      expect(restored, isNotNull);
+      expect(restored!.isFollowUp, isTrue);
+      expect(restored.question, turn.nextInterviewQuestion);
+      expect(
+        service.restorePendingFollowUp(
+          turns: [turn, turn.copyWith(nextInterviewQuestion: '')],
+          availablePointIds: const {'point-1'},
+          availableCitationIds: const {'chunk-1'},
+        ),
+        isNull,
+      );
+    });
   });
 
   test('answer evaluation removes an unsupported follow-up', () async {
@@ -169,6 +205,21 @@ void main() {
     expect(result.requireData.followUpCitationIds, isEmpty);
     expect(result.requireData.citationIds, [chunk.id]);
   });
+
+  test('answer evaluation turns a provider timeout into a retry-safe message',
+      () async {
+    final now = DateTime(2026, 7, 15);
+    final result = await AnswerEvaluationTask(_TimeoutOpenAIService()).run(
+      question: 'How does the project data flow work?',
+      userAnswer: 'The provider passes data to the repository.',
+      knowledgePointIds: const ['point-architecture'],
+      citedChunks: [_chunk('chunk-architecture', now)],
+    );
+
+    expect(result.isSuccess, isFalse);
+    expect(result.errorType, AiTaskErrorType.request);
+    expect(result.errorMessage, 'AI 评估响应超时，请保留回答后重试。');
+  });
 }
 
 KnowledgePoint _point(
@@ -211,5 +262,20 @@ class _StaticOpenAIService extends OpenAIService {
     double? temperature,
   }) async {
     return jsonEncode(response);
+  }
+}
+
+class _TimeoutOpenAIService extends OpenAIService {
+  @override
+  Future<String> chatCompletion({
+    required String systemPrompt,
+    required String userContent,
+    String? imageBase64,
+    double? temperature,
+  }) {
+    throw const AiProviderException(
+      code: 'timeout',
+      message: 'The request took longer than two minutes.',
+    );
   }
 }

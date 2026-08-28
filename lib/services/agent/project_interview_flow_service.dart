@@ -1,3 +1,4 @@
+import '../../data/models/interview_turn.dart';
 import '../../data/models/knowledge_point.dart';
 import '../../data/models/source_chunk.dart';
 import '../ai/tasks/answer_evaluation_task.dart';
@@ -63,6 +64,39 @@ class ProjectInterviewFlowService {
       knowledgePointIds: [pointId],
       citationIds: citationIds,
       difficulty: (currentQuestion.difficulty + 1).clamp(1, 5).toInt(),
+      isFollowUp: true,
+    );
+  }
+
+  InterviewQuestionDraft? restorePendingFollowUp({
+    required List<InterviewTurn> turns,
+    required Set<String> availablePointIds,
+    required Set<String> availableCitationIds,
+  }) {
+    if (turns.isEmpty) return null;
+    final latestTurn = turns.last;
+    final pointId = latestTurn.knowledgePointId;
+    final question = latestTurn.nextInterviewQuestion.trim();
+    if (pointId == null ||
+        pointId.isEmpty ||
+        question.isEmpty ||
+        !availablePointIds.contains(pointId)) {
+      return null;
+    }
+    final pointTurnCount =
+        turns.where((turn) => turn.knowledgePointId == pointId).length;
+    if (pointTurnCount != 1) return null;
+
+    final citationIds = latestTurn.citationIds
+        .where(availableCitationIds.contains)
+        .toSet()
+        .toList(growable: false);
+    if (citationIds.isEmpty) return null;
+    return InterviewQuestionDraft(
+      question: question,
+      knowledgePointIds: [pointId],
+      citationIds: citationIds,
+      difficulty: 2,
       isFollowUp: true,
     );
   }

@@ -1,4 +1,4 @@
-# Duoduo Private Alpha Issue Log
+# Anchor Learning Private Alpha Issue Log
 
 ## Rules
 

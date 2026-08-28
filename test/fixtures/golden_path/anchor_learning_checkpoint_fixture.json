@@ -1,6 +1,6 @@
 {
-  "scenario_id": "duoduo-project-interview-closure-v2",
-  "description": "Import Duoduo source, build a typed project-understanding unit, verify it, interview against it, and schedule a cited weak-point review.",
+  "scenario_id": "anchor-learning-project-interview-closure-v2",
+  "description": "Import Anchor Learning source, build a typed project-understanding unit, verify it, interview against it, and schedule a cited weak-point review.",
   "clock": {
     "source_created_at": "2026-07-14T01:00:00.000Z",
     "session_started_at": "2026-07-14T02:00:00.000Z",
@@ -8,8 +8,8 @@
     "review_at": "2026-07-14T03:00:00.000Z"
   },
   "source": {
-    "id": "duoduo-checkpoint-source",
-    "title": "Duoduo durable tool checkpoint contract",
+    "id": "anchor-learning-checkpoint-source",
+    "title": "Anchor Learning durable tool checkpoint contract",
     "type": "project",
     "trust_level": "source_code"
   },
@@ -19,13 +19,13 @@
   ],
   "deck": {
     "id": "deck-checkpoint-contract",
-    "title": "Duoduo checkpoint contract",
+    "title": "Anchor Learning checkpoint contract",
     "source_text": "Project-source fixture for the durable tool checkpoint contract."
   },
   "question_id": "question-checkpoint-coexistence",
   "session": {
     "id": "interview-checkpoint-contract",
-    "target_id": "duoduo-checkpoint-source_kp_0",
+    "target_id": "anchor-learning-checkpoint-source_kp_0",
     "user_answer": "The state stores the operation id so the session can reuse it when resuming."
   },
   "ai_responses": [
@@ -37,13 +37,13 @@
           {
             "kind": "architecture",
             "title": "Durable tool input identity",
-            "summary": "Duoduo persists an active tool operation together with its input snapshot, then validates that the snapshot still matches the checkpoint routing state before execution can continue.",
+            "summary": "Anchor Learning persists an active tool operation together with its input snapshot, then validates that the snapshot still matches the checkpoint routing state before execution can continue.",
             "tags": ["agent", "checkpoint", "idempotency"],
             "difficulty": 4,
             "interview_relevance": 5,
             "source_chunk_ids": [
-              "duoduo-checkpoint-source_chunk_0",
-              "duoduo-checkpoint-source_chunk_1"
+              "anchor-learning-checkpoint-source_chunk_0",
+              "anchor-learning-checkpoint-source_chunk_1"
             ]
           }
         ]
@@ -55,9 +55,9 @@
       "body": {
         "questions": [
           {
-            "knowledge_point_id": "duoduo-checkpoint-source_kp_0",
+            "knowledge_point_id": "anchor-learning-checkpoint-source_kp_0",
             "type": "multiple_choice",
-            "content": "Which two values must coexist in a Duoduo checkpoint?",
+            "content": "Which two values must coexist in a Anchor Learning checkpoint?",
             "options": [
               "The active tool operation and its input snapshot",
               "The deck id and review interval",
@@ -69,8 +69,8 @@
             "difficulty": 3,
             "source_status": "pending",
             "citation_ids": [
-              "duoduo-checkpoint-source_chunk_0",
-              "duoduo-checkpoint-source_chunk_1"
+              "anchor-learning-checkpoint-source_chunk_0",
+              "anchor-learning-checkpoint-source_chunk_1"
             ]
           }
         ]
@@ -83,8 +83,8 @@
         "status": "verified_candidate",
         "reason": "Both the persisted fields and the coexistence invariant are present in the cited source chunks.",
         "supported_citation_ids": [
-          "duoduo-checkpoint-source_chunk_0",
-          "duoduo-checkpoint-source_chunk_1"
+          "anchor-learning-checkpoint-source_chunk_0",
+          "anchor-learning-checkpoint-source_chunk_1"
         ],
         "missing_citation_ids": []
       }
@@ -95,11 +95,11 @@
       "body": {
         "questions": [
           {
-            "question": "Explain how Duoduo preserves a tool operation's input identity in a checkpoint and which routing mismatches it rejects.",
-            "knowledge_point_ids": ["duoduo-checkpoint-source_kp_0"],
+            "question": "Explain how Anchor Learning preserves a tool operation's input identity in a checkpoint and which routing mismatches it rejects.",
+            "knowledge_point_ids": ["anchor-learning-checkpoint-source_kp_0"],
             "citation_ids": [
-              "duoduo-checkpoint-source_chunk_0",
-              "duoduo-checkpoint-source_chunk_1"
+              "anchor-learning-checkpoint-source_chunk_0",
+              "anchor-learning-checkpoint-source_chunk_1"
             ],
             "difficulty": 4
           }
@@ -115,17 +115,17 @@
         "engineering_score": 1,
         "clarity_score": 3,
         "feedback": "You identified the operation id, but omitted the persisted input snapshot and the checkpoint routing-state comparisons.",
-        "reference_answer": "Duoduo persists active_tool_operation_id and active_tool_input_snapshot together. The checkpoint requires both or neither, and rejects snapshots whose tool, target, focus point, or evidence chunk ids differ from the current routing state.",
+        "reference_answer": "Anchor Learning persists active_tool_operation_id and active_tool_input_snapshot together. The checkpoint requires both or neither, and rejects snapshots whose tool, target, focus point, or evidence chunk ids differ from the current routing state.",
         "follow_up_question": "Which routing fields are compared with the persisted input snapshot?",
-        "follow_up_knowledge_point_id": "duoduo-checkpoint-source_kp_0",
+        "follow_up_knowledge_point_id": "anchor-learning-checkpoint-source_kp_0",
         "follow_up_citation_ids": [
-          "duoduo-checkpoint-source_chunk_0",
-          "duoduo-checkpoint-source_chunk_1"
+          "anchor-learning-checkpoint-source_chunk_0",
+          "anchor-learning-checkpoint-source_chunk_1"
         ],
-        "weak_knowledge_point_ids": ["duoduo-checkpoint-source_kp_0"],
+        "weak_knowledge_point_ids": ["anchor-learning-checkpoint-source_kp_0"],
         "citation_ids": [
-          "duoduo-checkpoint-source_chunk_0",
-          "duoduo-checkpoint-source_chunk_1"
+          "anchor-learning-checkpoint-source_chunk_0",
+          "anchor-learning-checkpoint-source_chunk_1"
         ],
         "claims": [
           {
@@ -133,29 +133,29 @@
             "text": "You identified the operation id, but omitted the persisted input snapshot and the checkpoint routing-state comparisons.",
             "evidence": [
               {
-                "citation_id": "duoduo-checkpoint-source_chunk_0",
+                "citation_id": "anchor-learning-checkpoint-source_chunk_0",
                 "quote": "final activeOperationId = state.activeToolOperationId;"
               },
               {
-                "citation_id": "duoduo-checkpoint-source_chunk_0",
+                "citation_id": "anchor-learning-checkpoint-source_chunk_0",
                 "quote": "final activeToolInput = state.activeToolInputSnapshot;"
               }
             ]
           },
           {
             "section": "reference_answer",
-            "text": "Duoduo persists active_tool_operation_id and active_tool_input_snapshot together. The checkpoint requires both or neither, and rejects snapshots whose tool, target, focus point, or evidence chunk ids differ from the current routing state.",
+            "text": "Anchor Learning persists active_tool_operation_id and active_tool_input_snapshot together. The checkpoint requires both or neither, and rejects snapshots whose tool, target, focus point, or evidence chunk ids differ from the current routing state.",
             "evidence": [
               {
-                "citation_id": "duoduo-checkpoint-source_chunk_0",
+                "citation_id": "anchor-learning-checkpoint-source_chunk_0",
                 "quote": "activeToolInput.toolId != state.selectedToolId"
               },
               {
-                "citation_id": "duoduo-checkpoint-source_chunk_0",
+                "citation_id": "anchor-learning-checkpoint-source_chunk_0",
                 "quote": "activeToolInput.targetId != state.targetId"
               },
               {
-                "citation_id": "duoduo-checkpoint-source_chunk_1",
+                "citation_id": "anchor-learning-checkpoint-source_chunk_1",
                 "quote": "final LearningAgentToolInputSnapshot? activeToolInputSnapshot;"
               }
             ]
@@ -165,7 +165,7 @@
     }
   ],
   "expected": {
-    "knowledge_point_id": "duoduo-checkpoint-source_kp_0",
+    "knowledge_point_id": "anchor-learning-checkpoint-source_kp_0",
     "source_chunk_count": 2,
     "saved_question_count": 1,
     "max_weak_mastery": 45,

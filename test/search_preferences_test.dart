@@ -1,4 +1,4 @@
-import 'package:dlg_q/services/agent/search_preferences.dart';
+import 'package:anchor_learning/services/agent/search_preferences.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

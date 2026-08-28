@@ -137,7 +137,7 @@ class LocalDataBackupService {
     final database = await _databaseHelper.database;
     final createdAt = _clock().toUtc();
     final workingDirectory = await _createWorkingDirectory('backup');
-    final fileName = 'duoduo-backup-v${DatabaseHelper.schemaVersion}-'
+    final fileName = 'anchor-learning-backup-v${DatabaseHelper.schemaVersion}-'
         '${_compactTimestamp(createdAt)}.db';
     final snapshotPath = p.join(workingDirectory.path, fileName);
 
@@ -393,7 +393,7 @@ class LocalDataBackupService {
   Future<Directory> _createWorkingDirectory(String operation) async {
     final root = await _temporaryDirectoryLoader();
     final sequence = _operationSequence++;
-    final name = 'duoduo_${operation}_'
+    final name = 'anchor-learning_${operation}_'
         '${_clock().toUtc().microsecondsSinceEpoch}_$sequence';
     return Directory(p.join(root.path, name)).create(recursive: true);
   }

@@ -1,309 +1,71 @@
-# Anchor Learning (锚学) 开源准备清单
+# Anchor Learning (锚学) 开源与 Private Alpha 清单
 
-本文档记录项目开源前需完成的所有准备工作。
+本文档反映当前仓库事实。开源仓库质量与 Private Alpha 外部验收是两条不同的轨道，不能用文档、fixture 或 Web Demo 代替真实设备、凭据、负责人或参与者证据。
 
----
+## 已完成的仓库质量项
 
-## ✅ 已完成
+- README、FAQ、SECURITY、CONTRIBUTING、CHANGELOG、ROADMAP 和开发/用户指南已提交。
+- Issue 模板和 PR 模板已存在于 `.github/`。
+- Flutter 依赖已升级并完成 `file_picker` 新 API 迁移。
+- `flutter analyze --no-fatal-infos`: 0 errors, 0 warnings（仅 info 级 lint）。
+- `flutter test`: 387/387 通过。
+- `flutter test --coverage`: 本轮功能测试 387/387 通过；覆盖率快照 60.69%（16089/26510）仍为历史记录，不作为 Private Alpha 单独放行条件。
+- `dart format --output=none --set-exit-if-changed lib test`: 通过。
+- Web 单元测试和 Playwright 测试共 17/17 通过；Web 是独立静态 Demo，不作为原生发布验收。
+- Android release 签名改为环境变量注入；缺少签名时只阻止 release task，debug 构建仍可运行。
+- 本地备份、恢复、导出、删除、支持包和隐私控制已有实现与测试。
 
-### 📝 文档完善
+## 当前未完成项
 
-- [x] **README.md**: 项目介绍、特性、快速开始
-- [x] **LICENSE**: MIT 许可证
-- [x] **CONTRIBUTING.md**: 贡献指南和代码规范
-- [x] **CODE_OF_CONDUCT.md**: 社区行为准则
-- [x] **CHANGELOG.md**: 版本变更记录
-- [x] **ROADMAP.md**: 产品路线图
-- [x] **docs/DEV_SETUP.md**: 开发环境配置指南
-- [x] **docs/TESTING.md**: 测试指南
-- [x] **docs/architecture/SYSTEM_OVERVIEW.md**: 系统架构概览
-- [x] **docs/architecture/AI_PIPELINE.md**: AI Pipeline 详细设计
-- [x] **docs/architecture/DATABASE_SCHEMA.md**: 数据库 Schema 设计
-- [x] **docs/guides/QUICK_START.md**: 快速上手指南
-- [x] **docs/guides/IMPORT_YOUR_DOCS.md**: 文档导入指南
-- [x] **docs/guides/CUSTOMIZE_PROMPTS.md**: Prompt 自定义指南
+### 仓库内可继续完成
 
-### 🔧 代码质量
+- [x] 为 Agent 启动 checkpoint 失败/重试、页面销毁后的异步返回、详情页完成/失败/恢复、首页与历史页错误恢复和深层导航补充 widget 覆盖。
+- [x] 覆盖率已提升到 60.69%（16089/26510）；覆盖率不是 Private Alpha 的单独放行条件。
+- [x] 已生成当前 Android Arm64 release APK：`build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`（2026-08-26，26272915 bytes），SHA-256 `74DCFB95CD9C123B51D9B35678FFD0153D23654BF6A5597DE1070880D667207B`，包名 `cc.eu.playlab.anchor`，versionName `1.0.0`，Flutter build number `2005` / Arm64 split APK manifest `versionCode=4005`，Anchor Learning release v2 签名，ABI `arm64-v8a`。
+- [x] 已将推广、交付、架构、研究和 Trellis 文档统一到正式产品名 `Anchor Learning / 锚学`；正式应用标识单独记录在 `docs/PRODUCT_NAMING.md`。
 
-- [x] **代码格式化**: 所有文件已格式化
-- [x] **静态分析**: `flutter analyze` 无错误
-- [x] **pubspec.yaml**: 资源路径修复 (`assets/examples/`)
-- [x] **GitHub Actions CI**: 自动化测试和构建配置
+### 需要真实外部证据的 Private Alpha 门禁
 
-### 🔒 安全检查
+正式 cohort 及其最终决策尚未完成，因此当前必须保持 HOLD；物理设备、正式 APK 模型、凭据治理和运营负责人门禁已完成：
 
-- [x] **.gitignore**: 排除敏感文件 (`.env`, `*.jks`, API keys)
-- [x] **示例配置**: `.env.example` 提供模板
-- [x] **API Key 配置**: 文档中明确说明如何配置
+- [x] Arm64 Android 物理设备安装、冷启动和日志验收（最终 release `2005` APK，OnePlus PGP110，API 35，`74dcfb95…d667207b`，日志错误匹配 0）。
+- [x] participant-owned release 凭据治理已建立，包含配额、撤销、保留和数据处理声明；仓库只记录 opaque `CRED-PRIMARY-2005` 引用。
+- [x] 数据处理负责人及运营角色已明确；仓库只记录 opaque `OPS-ALPHA-2005` 引用，实际记录保存在受限访问的仓库外目录。
+- [x] `1.0.0+2005` 正式 release-day 模型验收（Chat / `grok-4.6`，固定五项 `5/5`，117.3 秒，8325 tokens），记录见 `docs/TECHNICAL_MODEL_ACCEPTANCE_2026-08-26_2005.md`，绑定 APK SHA-256 `74dcfb95…d667207b`。
+- [ ] 正式 A01-A10 十人 cohort 及其观察窗口和最终决策。
 
-### 📦 示例资源
+当前本地证据命令（初始化后的匿名工作区证据）：
 
-- [x] **assets/examples/**: 示例文档和项目
-  - Flutter 官方文档示例
-  - Riverpod 示例项目
-  - Dart 基础示例
+```powershell
+& 'D:\tools\flutter\bin\dart.bat' run tool\private_alpha_readiness.dart `
+  --evidence build\validation\private-alpha-readiness.json `
+  --format json
+```
 
----
+`test/fixtures/release/private_alpha_readiness_current.json` 仅用于 evaluator
+测试，不代表本次设备验收结果。
 
-## 🚧 待完成
+当前真实结果为 `HOLD`，唯一阻塞码为 `cohort_pending`。正式 release APK 的技术模型验收、participant-owned 凭据治理和数据处理责任已经有相互匹配的匿名证据；A01-A10 正式 cohort 仍必须按 D0/D7/D14 真实执行。
 
-### 📝 文档补充
+## 非阻塞推广事项
 
-- [ ] **SECURITY.md**: 安全漏洞报告指南
-  ```markdown
-  # Security Policy
-  
-  ## Reporting a Vulnerability
-  
-  如果你发现安全漏洞,请通过以下方式报告:
-  - 邮件: security@example.com
-  - 不要公开创建 Issue
-  
-  ## Supported Versions
-  
-  | Version | Supported          |
-  | ------- | ------------------ |
-  | 0.1.x   | :white_check_mark: |
-  ```
+视频、截图、博客、社区发布和项目主页属于推广素材，不是当前 Private Alpha 的技术放行门禁。它们可以在发布准备度允许时单独排期，不能被写成“阻塞构建”或“阻塞代码质量”。
 
-- [ ] **FAQ.md**: 常见问题解答
-  - 为什么选择本地优先?
-  - 如何备份数据?
-  - 支持哪些 AI 模型?
-  - 如何贡献翻译?
+## 构建与验证
 
-- [ ] **ARCHITECTURE_DECISIONS.md**: 架构决策记录 (ADR)
-  - 为什么用 Drift 而非 sqflite?
-  - 为什么用 Riverpod 而非 Provider?
-  - 为什么不用向量数据库?
-
-### 🧪 测试覆盖
-
-- [ ] **单元测试**: 核心业务逻辑测试
-  - [ ] AI Tasks (KnowledgeExtractionTask, QuestionGenerationTask)
-  - [ ] SemanticChunker
-  - [ ] QuestionValidator
-  - [ ] MasteryService
-  - [ ] ReviewSchedulerService
-
-- [ ] **集成测试**: 数据库和 Repository 测试
-  - [ ] QuestionRepository
-  - [ ] KnowledgePointRepository
-  - [ ] SourceRepository
-
-- [ ] **Widget 测试**: 关键 UI 组件测试
-  - [ ] QuizCard
-  - [ ] KnowledgePointCard
-  - [ ] AgentSessionLaunchScreen
-
-- [ ] **测试覆盖率**: 达到 70% 以上
-
-### 🔧 代码优化
-
-- [ ] **移除调试代码**: 清理 `print()` 语句
-- [ ] **移除未使用的导入**: 运行 `dart fix --apply`
-- [ ] **优化性能**: Profile 模式测试关键流程
-- [ ] **减少包体积**: 移除未使用的资源和依赖
-
-### 📦 发布准备
-
-- [ ] **版本号**: 确认为 `0.1.0-alpha`
-- [ ] **构建测试**:
-  - [ ] Android APK 构建成功
-  - [ ] iOS 构建成功 (如有 macOS)
-  - [ ] 在真机上测试核心流程
-
-- [ ] **Release Notes**: 编写首个版本的发布说明
-  ```markdown
-  ## v0.1.0-alpha - 2024-01-XX
-  
-  ### 🎉 首个公开预览版
-  
-  **核心功能**:
-  - ✅ 文档导入与语义切分
-  - ✅ AI 自动生成题目 + 防幻觉验证
-  - ✅ 间隔重复复习调度
-  - ✅ Learning Agent 对话式学习
-  - ✅ 知识库问答 + 引用溯源
-  
-  **技术特性**:
-  - 100% 本地存储,隐私优先
-  - 可溯源的知识点和题目
-  - 三层防幻觉机制
-  
-  **已知限制**:
-  - 仅支持 OpenAI API (计划支持更多模型)
-  - UI 仅中文 (计划国际化)
-  - 无云同步 (规划中)
-  ```
-
-### 🌐 社区建设
-
-- [ ] **GitHub 仓库设置**:
-  - [ ] 添加 Topics: `flutter`, `education`, `ai`, `learning`, `spaced-repetition`
-  - [ ] 启用 Discussions
-  - [ ] 创建 Issue 模板
-  - [ ] 创建 PR 模板
-  - [ ] 设置分支保护规则
-
-- [ ] **Issue 模板**:
-  - Bug Report
-  - Feature Request
-  - Documentation Improvement
-
-- [ ] **PR 模板**:
-  ```markdown
-  ## 变更说明
-  
-  <!-- 描述本 PR 的变更内容 -->
-  
-  ## 变更类型
-  
-  - [ ] Bug 修复
-  - [ ] 新功能
-  - [ ] 文档更新
-  - [ ] 代码重构
-  - [ ] 性能优化
-  
-  ## 测试
-  
-  - [ ] 已添加单元测试
-  - [ ] 已添加集成测试
-  - [ ] 已在真机测试
-  
-  ## Checklist
-  
-  - [ ] 代码已格式化 (`dart format .`)
-  - [ ] 通过静态分析 (`flutter analyze`)
-  - [ ] 所有测试通过 (`flutter test`)
-  - [ ] 已更新相关文档
-  ```
-
-### 📢 推广准备
-
-- [ ] **项目主页**: 创建 GitHub Pages 或独立网站
-- [ ] **演示视频**: 录制 3-5 分钟功能演示
-- [ ] **截图**: 准备 5-8 张高质量截图
-- [ ] **博客文章**: 编写技术博客介绍项目
-- [ ] **社交媒体**: 准备推广文案
-
-### 🔍 代码审查
-
-- [ ] **安全审查**: 检查是否有敏感信息泄露
-- [ ] **许可证审查**: 确认所有依赖的许可证兼容
-- [ ] **代码注释**: 核心算法添加详细注释
-- [ ] **API 稳定性**: 标记实验性 API
-
----
-
-## 🚀 发布流程
-
-### 1. 最终检查
-
-```bash
-# 代码质量检查
-flutter analyze
-dart format --output=none --set-exit-if-changed .
-
-# 运行测试
+```powershell
+flutter analyze --no-fatal-infos
 flutter test --coverage
-
-# 构建 APK
-flutter build apk --release
-
-# 构建 iOS (如有)
-flutter build ios --release
+dart format --output=none --set-exit-if-changed lib test
+npm test
 ```
 
-### 2. 打标签
+Android debug 构建需要可用的 Android/Gradle 依赖缓存或网络。release 构建还需要四项 `ANCHOR_SIGNING_*` 环境变量；实际 PKCS#12 keystore 还可通过 `ANCHOR_SIGNING_STORE_TYPE=PKCS12` 显式指定。不得提交 keystore 或凭据。
 
-```bash
-git tag -a v0.1.0-alpha -m "First public alpha release"
-git push origin v0.1.0-alpha
-```
+## 维护规则
 
-### 3. 创建 GitHub Release
+- 文档中的支持平台必须以当前发布清单和真实验收为准；Flutter 框架支持不等于产品发布支持。
+- `.env.example` 仅用于说明环境变量命名，不是应用读取模型凭据的入口；模型凭据在应用内 secure storage 保存。
+- 历史验收记录可以保留，但必须标注日期、APK 身份和是否仍对应当前提交。
 
-- 标题: `v0.1.0-alpha - First Public Preview`
-- 描述: 复制 Release Notes
-- 附件: 
-  - Android APK
-  - 源代码 (自动生成)
-
-### 4. 推广
-
-- [ ] 在 GitHub 上发布
-- [ ] 在 Reddit (r/FlutterDev) 发帖
-- [ ] 在 Twitter/X 发推
-- [ ] 在掘金/知乎发文章
-- [ ] 在 Flutter 社区分享
-
----
-
-## 📊 指标追踪
-
-发布后关注以下指标:
-
-- **GitHub**:
-  - ⭐ Stars
-  - 👁️ Watchers
-  - 🍴 Forks
-  - 🐛 Issues
-  - 🔀 Pull Requests
-
-- **下载量**:
-  - APK 下载次数
-  - GitHub Release 下载量
-
-- **社区反馈**:
-  - 用户反馈 (Issue, Discussion)
-  - 社交媒体讨论
-  - 博客评论
-
----
-
-## 🎯 优先级
-
-### P0 - 必须完成 (阻塞发布)
-
-- [ ] SECURITY.md
-- [ ] 移除调试代码和敏感信息
-- [ ] Android APK 构建测试
-- [ ] GitHub 仓库基本设置
-
-### P1 - 强烈建议 (影响体验)
-
-- [ ] 核心业务逻辑单元测试 (≥60% 覆盖率)
-- [ ] FAQ.md
-- [ ] Issue/PR 模板
-- [ ] 演示视频和截图
-
-### P2 - 可推迟 (逐步完善)
-
-- [ ] Widget 测试
-- [ ] 性能优化
-- [ ] 国际化支持
-- [ ] 项目主页
-
----
-
-## 📝 备注
-
-- **发布时间预估**: 完成 P0 和 P1 任务后 1-2 周
-- **维护计划**: 每周检查 Issue,每月发布小版本更新
-- **长期目标**: 参考 ROADMAP.md
-
----
-
-## 🤝 贡献者
-
-感谢所有为本项目做出贡献的开发者!
-
-- 项目发起人: [@yourname](https://github.com/yourname)
-- 贡献者列表: 见 [Contributors](https://github.com/Drew-Z/anchor/graphs/contributors)
-
----
-
-**最后更新**: 2024-01-XX
-
-**下次审查**: 完成 P0 任务后
+**最后更新**: 2026-08-26

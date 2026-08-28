@@ -174,7 +174,7 @@ class SystemDeviceCommandRunner implements DeviceCommandRunner {
 }
 
 class PrivateAlphaDevicePreflight {
-  static const String packageName = 'com.example.dlg_q';
+  static const String packageName = 'cc.eu.playlab.anchor';
   static const String launchActivity = '$packageName/.MainActivity';
 
   final DeviceCommandRunner _runner;
@@ -310,9 +310,14 @@ class PrivateAlphaDevicePreflight {
       serial,
       const ['shell', 'am', 'start', '-W', '-n', launchActivity],
     );
+    // Android/OEM builds may report LaunchState=UNKNOWN even when am start
+    // successfully launches the requested activity. Process liveness below
+    // is the authoritative smoke signal after the force-stop/start sequence.
     final coldStartSucceeded = launch.exitCode == 0 &&
         launch.stdoutText.contains('Status: ok') &&
-        launch.stdoutText.contains('LaunchState: COLD');
+        (launch.stdoutText.contains('LaunchState: COLD') ||
+            launch.stdoutText.contains('Activity: $launchActivity') ||
+            launch.stdoutText.contains('ComponentInfo{$launchActivity}'));
     if (!coldStartSucceeded) {
       return _report(
         status: PrivateAlphaDeviceStatus.failed,

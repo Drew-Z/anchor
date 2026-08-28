@@ -38,7 +38,7 @@ inferred from OpenAI documentation.
 1. Provenance must be first-class data. W3C PROV defines provenance as
    information about the entities, activities, and people involved in producing
    data, specifically so quality, reliability, and trustworthiness can be
-   assessed. Duoduo therefore needs more than a trust label: it must retain the
+   assessed. Anchor Learning therefore needs more than a trust label: it must retain the
    source identity, publisher, acquisition event, revision, and integrity hash.
 2. Version and content identity are separate. Python publishes official docs by
    explicit version, while Git uses content-addressed objects and commit snapshots.
@@ -53,7 +53,7 @@ inferred from OpenAI documentation.
    snapshots; future web import must separately enforce robots, terms, and access.
 5. Learning relationships need canonical identifiers and typed associations.
    1EdTech CASE uses canonical identifiers plus association types such as
-   `isChildOf` and `precedes`. Duoduo will use explicit prerequisite edges,
+   `isChildOf` and `precedes`. Anchor Learning will use explicit prerequisite edges,
    user review, and cycle rejection instead of hiding order inside free-text tags.
 6. Tutor dialogue should require learners to construct explanations instead of
    only rereading generated prose. The U.S. Institute of Education Sciences
@@ -61,7 +61,7 @@ inferred from OpenAI documentation.
    that interactive construction of explanations can outperform merely reading
    explanations when problems are appropriately challenging. Leaf 18.3 therefore
    moves from layered explanation into an answer-feedback-next-question loop.
-7. “One question at a time” is an auditability constraint chosen by Duoduo, not
+7. “One question at a time” is an auditability constraint chosen by Anchor Learning, not
    a verbatim IES prescription. Keeping one active question lets each saved turn
    bind a specific user answer, feedback, misconception, next question, and set
    of source citations; unsupported turns stop instead of opening another topic.
@@ -70,14 +70,14 @@ inferred from OpenAI documentation.
    through explanation, code-reading, boundary, and implementation exercises,
    followed by a source-grounded retest after an error. The exact four scoring
    dimensions, the 80-point repair threshold, and mandatory human verification
-   are Duoduo product contracts for auditability, not claims copied from IES.
+   are Anchor Learning product contracts for auditability, not claims copied from IES.
 9. Model-provider configuration is a Branch 19 correctness concern, not a
    prerequisite for the local Branch 18 state machine. The current app only
    sends OpenAI-compatible Chat Completions and parses prompt-requested JSON.
    DeepSeek's official documentation now lists `deepseek-v4-flash` and
    `deepseek-v4-pro`, and says the legacy `deepseek-chat` and
    `deepseek-reasoner` aliases will be deprecated on 2026-07-24. Its JSON mode
-   also requires `response_format: {"type":"json_object"}`, which Duoduo does
+   also requires `response_format: {"type":"json_object"}`, which Anchor Learning does
    not yet send. The first live acceptance profile should therefore use a
    low-quota development key and must test structured-output behavior before
    generated content is trusted.
@@ -95,13 +95,13 @@ inferred from OpenAI documentation.
     a versioned fixture while keeping model execution outside the metric service.
 12. Ranked retrieval must be measured at the context depth the product actually
     uses. The Stanford IR text defines top-k precision/recall evaluation and
-    rank-aware measures for search results. Duoduo starts with macro `Recall@k`
+    rank-aware measures for search results. Anchor Learning starts with macro `Recall@k`
     plus mean reciprocal rank so it can distinguish “evidence was retrieved”
     from “evidence appeared early enough to be used.”
 13. A response-level citation count is not enough. The ACL ALCE benchmark scores
     citation recall per statement only when the cited passages fully support that
     statement, and separately identifies unsupported or irrelevant citations.
-    Duoduo's first deterministic approximation uses human-labelled claims,
+    Anchor Learning's first deterministic approximation uses human-labelled claims,
     supporting evidence IDs, citation coverage, and unsupported-claim rate; an
     automatic entailment judge remains a later acceptance option, not ground truth.
 14. NIST AI 600-1 frames measurement, documentation, testing, and monitoring as
@@ -157,14 +157,14 @@ smart-search deep "How should an evidence-grounded programming tutor structure l
 smart-search search "evidence grounded Socratic tutoring one question at a time feedback misconceptions learning science" --validation balanced --extra-sources 5 --timeout 90 --format json
 smart-search fetch "https://ies.ed.gov/ncee/wwc/PracticeGuide/1" --format markdown
 smart-search fetch "https://ies.ed.gov/ncee/WWC/Docs/PracticeGuide/20072004.pdf" --format markdown
-smart-search fetch "https://platform.openai.com/docs/models" --format json --output C:\tmp\smart-search-evidence\20260715-duoduo-models\openai-models-fetch.json
-smart-search fetch "https://api-docs.deepseek.com/quick_start/pricing" --format json --output C:\tmp\smart-search-evidence\20260715-duoduo-models\deepseek-pricing-fetch.json
-smart-search fetch "https://api-docs.deepseek.com/guides/json_mode" --format json --output C:\tmp\smart-search-evidence\20260715-duoduo-models\deepseek-json-fetch.json
-smart-search fetch "https://help.aliyun.com/zh/model-studio/getting-started/models" --format json --output C:\tmp\smart-search-evidence\20260715-duoduo-models\qwen-models-fetch.json
-smart-search fetch "https://platform.openai.com/docs/guides/evaluation-best-practices" --format markdown --output C:\tmp\smart-search-evidence\20260715-duoduo-correctness\05-openai-eval-best-practices.md
-smart-search fetch "https://nlp.stanford.edu/IR-book/html/htmledition/evaluation-of-ranked-retrieval-results-1.html" --format markdown --output C:\tmp\smart-search-evidence\20260715-duoduo-correctness\02-stanford-ranked-retrieval.md
-smart-search fetch "https://aclanthology.org/2023.emnlp-main.398.pdf" --format markdown --output C:\tmp\smart-search-evidence\20260715-duoduo-correctness\06-alce-paper.md
-smart-search fetch "https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.600-1.pdf" --format markdown --output C:\tmp\smart-search-evidence\20260715-duoduo-correctness\07-nist-ai-600-1.md
+smart-search fetch "https://platform.openai.com/docs/models" --format json --output C:\tmp\smart-search-evidence\20260715-anchor-learning-models\openai-models-fetch.json
+smart-search fetch "https://api-docs.deepseek.com/quick_start/pricing" --format json --output C:\tmp\smart-search-evidence\20260715-anchor-learning-models\deepseek-pricing-fetch.json
+smart-search fetch "https://api-docs.deepseek.com/guides/json_mode" --format json --output C:\tmp\smart-search-evidence\20260715-anchor-learning-models\deepseek-json-fetch.json
+smart-search fetch "https://help.aliyun.com/zh/model-studio/getting-started/models" --format json --output C:\tmp\smart-search-evidence\20260715-anchor-learning-models\qwen-models-fetch.json
+smart-search fetch "https://platform.openai.com/docs/guides/evaluation-best-practices" --format markdown --output C:\tmp\smart-search-evidence\20260715-anchor-learning-correctness\05-openai-eval-best-practices.md
+smart-search fetch "https://nlp.stanford.edu/IR-book/html/htmledition/evaluation-of-ranked-retrieval-results-1.html" --format markdown --output C:\tmp\smart-search-evidence\20260715-anchor-learning-correctness\02-stanford-ranked-retrieval.md
+smart-search fetch "https://aclanthology.org/2023.emnlp-main.398.pdf" --format markdown --output C:\tmp\smart-search-evidence\20260715-anchor-learning-correctness\06-alce-paper.md
+smart-search fetch "https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.600-1.pdf" --format markdown --output C:\tmp\smart-search-evidence\20260715-anchor-learning-correctness\07-nist-ai-600-1.md
 ```
 
 Saved evidence directory:
@@ -172,6 +172,6 @@ Saved evidence directory:
 ```text
 C:\tmp\smart-search-evidence\20260715-0128-how-should-a-local-first-programming-learning-ap
 C:\tmp\smart-search-evidence\20260715-0956-how-should-an-evidence-grounded-programming-tuto
-C:\tmp\smart-search-evidence\20260715-duoduo-models
-C:\tmp\smart-search-evidence\20260715-duoduo-correctness
+C:\tmp\smart-search-evidence\20260715-anchor-learning-models
+C:\tmp\smart-search-evidence\20260715-anchor-learning-correctness
 ```

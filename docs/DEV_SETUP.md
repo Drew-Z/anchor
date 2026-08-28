@@ -38,7 +38,7 @@
 
 #### Android 开发
 - Android Studio (推荐)
-- Android SDK (API 21+)
+- Android SDK (API 24+；Flutter 当前 Android 支持边界)
 - Java JDK 11 或更高
 
 #### iOS 开发 (仅 macOS)
@@ -65,24 +65,13 @@ flutter pub get
 
 ### 3. 本地数据层
 
-项目使用 sqflite 持久化本地 SQLite 数据，并通过手写 repository 管理读写；当前分支不依赖 Drift 或 build_runner 生成数据库代码。数据库文件名保留为 `dlg_q.db`，这是兼容既有安装数据的持久化技术标识，不随 Anchor 品牌名迁移。
+项目使用 sqflite 持久化本地 SQLite 数据，并通过手写 repository 管理读写；当前分支不依赖 Drift 或 build_runner 生成数据库代码。正式产品化候选使用 `anchor_learning.db`；数据库升级由当前 schema migration 管理，备份/恢复入口用于用户主动迁移数据。
 
-### 4. 配置 API Keys
+### 4. 配置模型凭据
 
-创建 `.env` 文件 (参考 `.env.example`):
+应用不从 `.env` 自动读取模型凭据。启动 Flutter 应用后，打开 **设置 → AI 配置**，在应用内保存兼容 OpenAI 协议的 API Key、Base URL 和模型名。凭据写入平台 secure storage，不进入项目源码或产品事件。
 
-```bash
-cp .env.example .env
-```
-
-编辑 `.env`,填入你的 OpenAI API Key:
-
-```env
-OPENAI_API_KEY=sk-...
-OPENAI_BASE_URL=https://api.openai.com/v1  # 可选: 自定义 API 端点
-```
-
-> ⚠️ **安全提示**: `.env` 已加入 `.gitignore`,不会被提交到 Git。
+首次运行可以先导入本地文件并检查 coverage；只有模型配置完成且通过 provider acceptance 后，AI 生成流程才会开放。
 
 ---
 
@@ -189,7 +178,7 @@ flutter pub global run devtools
 
 #### 数据库检查
 
-使用 [DB Browser for SQLite](https://sqlitebrowser.org/) 查看本地数据库。实际路径由 sqflite 的 `getDatabasesPath()` 决定，文件名为 `dlg_q.db`；不要依赖文档中写死的应用沙箱绝对路径。
+使用 [DB Browser for SQLite](https://sqlitebrowser.org/) 查看本地数据库。实际路径由 sqflite 的 `getDatabasesPath()` 决定，文件名为 `anchor_learning.db`；不要依赖文档中写死的应用沙箱绝对路径。
 
 ---
 
@@ -205,13 +194,13 @@ flutter pub get
 
 ### 2. SQLite 本地数据异常
 
-先确认设备存储空间和应用沙箱权限，再检查 `DatabaseHelper` 的 schema migration。开发环境如需从空库复现，可卸载调试应用或清除其本地数据；不要直接修改用户已有的 `dlg_q.db`。
+先确认设备存储空间和应用沙箱权限，再检查 `DatabaseHelper` 的 schema migration。开发环境如需从空库复现，可卸载调试应用或清除其本地数据；不要直接修改用户已有的 `anchor_learning.db`。
 
 ### 3. OpenAI API 调用失败
 
 检查:
-- `.env` 文件是否存在且配置正确
-- API Key 是否有效
+- 应用内 AI 配置是否存在且格式正确
+- API Key、Base URL 和模型是否有效
 - 网络连接是否正常
 - 是否设置了代理 (国内用户)
 
@@ -228,21 +217,26 @@ flutter run
 
 ### 5. Android 签名配置 (Release)
 
-创建 `android/key.properties`:
+Release 构建通过环境变量读取签名配置，不读取仓库内的 `key.properties`：
 
-```properties
-storePassword=<your-password>
-keyPassword=<your-password>
-keyAlias=upload
-storeFile=<path-to-keystore.jks>
+```text
+ANCHOR_SIGNING_STORE_FILE   # local path to the keystore file
+ANCHOR_SIGNING_STORE_TYPE   # PKCS12 for the production Anchor keystore
+ANCHOR_SIGNING_STORE_PASSWORD
+ANCHOR_SIGNING_KEY_ALIAS
+ANCHOR_SIGNING_KEY_PASSWORD
 ```
 
-生成 Keystore:
+In CI, store the keystore bytes as base64 in the secret `ANCHOR_SIGNING_KEYSTORE_BASE64`; the workflow decodes it into a temporary file and passes that file through `ANCHOR_SIGNING_STORE_FILE`.
+
+当前生产 keystore 使用 PKCS#12，受控文件位于仓库外（本地为
+`D:\\secure\\anchor\\anchor-release.p12`），不要提交到 Git。若需新建一套
+发布证书，使用与 Gradle 配置一致的类型和别名：
 
 ```bash
-keytool -genkey -v -keystore ~/upload-keystore.jks \
-  -keyalg RSA -keysize 2048 -validity 10000 \
-  -alias upload
+keytool -genkeypair -v -storetype PKCS12 -keystore anchor-release.p12 \
+  -keyalg RSA -keysize 4096 -validity 10000 \
+  -alias anchor-release
 ```
 
 ---

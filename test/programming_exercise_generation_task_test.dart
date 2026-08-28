@@ -2,11 +2,11 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:dlg_q/data/models/knowledge_point.dart';
-import 'package:dlg_q/data/models/programming_exercise.dart';
-import 'package:dlg_q/data/models/source_chunk.dart';
-import 'package:dlg_q/services/ai/tasks/programming_exercise_generation_task.dart';
-import 'package:dlg_q/services/openai_service.dart';
+import 'package:anchor_learning/data/models/knowledge_point.dart';
+import 'package:anchor_learning/data/models/programming_exercise.dart';
+import 'package:anchor_learning/data/models/source_chunk.dart';
+import 'package:anchor_learning/services/ai/tasks/programming_exercise_generation_task.dart';
+import 'package:anchor_learning/services/openai_service.dart';
 
 void main() {
   test('keeps one complete source-grounded exercise per kind', () async {

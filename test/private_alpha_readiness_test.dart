@@ -1,4 +1,4 @@
-import 'package:dlg_q/services/release/private_alpha_readiness.dart';
+import 'package:anchor_learning/services/release/private_alpha_readiness.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

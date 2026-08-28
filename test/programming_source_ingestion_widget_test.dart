@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:dlg_q/features/ingestion/ingestion_screen.dart';
+import 'package:anchor_learning/features/ingestion/ingestion_screen.dart';
 
 void main() {
   testWidgets('preferred programming sources expand required provenance fields',

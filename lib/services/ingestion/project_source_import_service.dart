@@ -304,10 +304,15 @@ class ProjectSourceImportService {
       final relativePath = _normalizeRelativePath(
         p.relative(entity.path, from: root.absolute.path),
       );
+      // Directory scans can observe build/test cache files being removed by a
+      // concurrent tool. Treat a vanished entry as an unscannable file rather
+      // than failing the entire import.
+      final byteLength = await _tryFileLength(entity);
+      if (byteLength == null) continue;
       entries.add(
         ProjectSourceInputFile(
           relativePath: relativePath,
-          byteLength: await entity.length(),
+          byteLength: byteLength,
           readBytes: entity.readAsBytes,
         ),
       );
@@ -329,6 +334,14 @@ class ProjectSourceImportService {
       files: collected.files,
       exclusions: collected.exclusions,
     );
+  }
+
+  Future<int?> _tryFileLength(File file) async {
+    try {
+      return await file.length();
+    } on FileSystemException {
+      return null;
+    }
   }
 
   Future<ProjectSourceSnapshot> scanDirectoryEntries({

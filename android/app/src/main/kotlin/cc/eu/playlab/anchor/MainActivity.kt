@@ -1,4 +1,4 @@
-package com.example.dlg_q
+package cc.eu.playlab.anchor
 
 import android.content.Intent
 import android.net.Uri
@@ -229,7 +229,7 @@ class MainActivity : FlutterActivity() {
 
     companion object {
         private const val PROJECT_DIRECTORY_CHANNEL =
-            "com.example.dlg_q/project_directory"
+            "cc.eu.playlab.anchor/project_directory"
         private const val DIRECTORY_REQUEST_CODE = 7401
         private const val MAX_DIRECTORY_ENTRIES = 10_000
         private const val DEFAULT_MAX_FILE_BYTES = 512 * 1024

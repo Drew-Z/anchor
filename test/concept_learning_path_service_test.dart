@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:dlg_q/data/models/knowledge_point.dart';
-import 'package:dlg_q/data/models/knowledge_point_prerequisite.dart';
-import 'package:dlg_q/services/scheduling/concept_learning_path_service.dart';
+import 'package:anchor_learning/data/models/knowledge_point.dart';
+import 'package:anchor_learning/data/models/knowledge_point_prerequisite.dart';
+import 'package:anchor_learning/services/scheduling/concept_learning_path_service.dart';
 
 void main() {
   const service = ConceptLearningPathService();

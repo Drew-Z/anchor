@@ -142,7 +142,7 @@ class _ProjectInterviewOutcomeScreenState
     setState(() => _isExporting = true);
     try {
       final artifact = ProjectInterviewOutcomeExporter().build(outcome, format);
-      final path = await FilePicker.platform.saveFile(
+      final path = await FilePicker.saveFile(
         dialogTitle: '导出项目面试成果',
         fileName: artifact.fileName,
         type: FileType.custom,

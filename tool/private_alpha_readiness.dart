@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:dlg_q/services/release/private_alpha_readiness.dart';
-import 'package:dlg_q/services/release/private_alpha_readiness_evaluator.dart';
+import 'package:anchor_learning/services/release/private_alpha_readiness.dart';
+import 'package:anchor_learning/services/release/private_alpha_readiness_evaluator.dart';
 
 Future<void> main(List<String> arguments) async {
   try {

@@ -1,4 +1,4 @@
-# 多多学 - 开源推广实施计划
+# 锚学 - 开源推广实施计划
 
 > 基于参考项目 [aicoding-cookbook](https://github.com/lili-luo/aicoding-cookbook) 的最佳实践
 
@@ -149,7 +149,7 @@
   - AI 模型适配器(OpenAI/Anthropic/Ollama Adapter)
 
 **示例插件**(吸引贡献者):
-1. **Anki 导入器**:读取 Anki 卡组,转换为多多学格式
+1. **Anki 导入器**:读取 Anki 卡组,转换为锚学格式
 2. **LeetCode 同步**:自动拉取已做题目,生成回顾卡片
 3. **Obsidian 集成**:监听笔记变化,自动更新知识库
 

@@ -1,4 +1,4 @@
-import 'package:dlg_q/services/privacy/privacy_preferences.dart';
+import 'package:anchor_learning/services/privacy/privacy_preferences.dart';
 
 class DisabledPrivacyPreferencesStore implements PrivacyPreferencesStore {
   const DisabledPrivacyPreferencesStore();

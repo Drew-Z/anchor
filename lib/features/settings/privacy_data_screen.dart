@@ -204,7 +204,7 @@ class _PrivacyDataScreenState extends ConsumerState<PrivacyDataScreen> {
     LocalTextExport artifact, {
     required String dialogTitle,
   }) async {
-    final path = await FilePicker.platform.saveFile(
+    final path = await FilePicker.saveFile(
       dialogTitle: dialogTitle,
       fileName: artifact.fileName,
       type: FileType.custom,
@@ -219,7 +219,7 @@ class _PrivacyDataScreenState extends ConsumerState<PrivacyDataScreen> {
     LocalDataBackupArtifact? artifact;
     try {
       artifact = await ref.read(localDataBackupServiceProvider).createBackup();
-      final path = await FilePicker.platform.saveFile(
+      final path = await FilePicker.saveFile(
         dialogTitle: '导出本地数据备份',
         fileName: artifact.fileName,
         type: FileType.custom,
@@ -248,15 +248,13 @@ class _PrivacyDataScreenState extends ConsumerState<PrivacyDataScreen> {
   }
 
   Future<void> _restoreDatabaseBackup() async {
-    final selection = await FilePicker.platform.pickFiles(
+    final selection = await FilePicker.pickFile(
       dialogTitle: '选择本地数据备份',
       type: FileType.custom,
       allowedExtensions: const ['db'],
-      allowMultiple: false,
-      withData: false,
     );
     if (selection == null || !mounted) return;
-    final sourcePath = selection.files.single.path;
+    final sourcePath = selection.path;
     if (sourcePath == null || sourcePath.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('无法读取所选备份文件')),

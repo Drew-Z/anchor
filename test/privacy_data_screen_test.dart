@@ -1,9 +1,13 @@
-import 'package:dlg_q/data/database/database_helper.dart';
-import 'package:dlg_q/core/providers/providers.dart';
-import 'package:dlg_q/features/settings/privacy_data_screen.dart';
-import 'package:dlg_q/services/privacy/local_data_backup_service.dart';
-import 'package:dlg_q/services/privacy/privacy_preferences.dart';
+import 'dart:typed_data';
+
+import 'package:anchor_learning/data/database/database_helper.dart';
+import 'package:anchor_learning/core/providers/providers.dart';
+import 'package:anchor_learning/features/settings/privacy_data_screen.dart';
+import 'package:anchor_learning/services/privacy/local_data_backup_service.dart';
+import 'package:anchor_learning/services/privacy/privacy_preferences.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:file_picker_platform_interface/file_picker_platform_interface.dart';
+import 'package:cross_file/cross_file.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -41,7 +45,10 @@ void main() {
   testWidgets('restore requires confirmation and refreshes database state',
       (tester) async {
     final backupService = _FakeLocalDataBackupService();
-    FilePicker.platform = _FakeFilePicker('C:/fixtures/duoduo-backup.db');
+    final originalPicker = FilePickerPlatform.instance;
+    FilePickerPlatform.instance =
+        _FakeFilePickerPlatform('C:/fixtures/anchor-learning-backup.db');
+    addTearDown(() => FilePickerPlatform.instance = originalPicker);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -73,7 +80,7 @@ void main() {
 
     expect(
       backupService.restoreSourcePath,
-      'C:/fixtures/duoduo-backup.db',
+      'C:/fixtures/anchor-learning-backup.db',
     );
     expect(find.text('本地数据恢复完成'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -157,30 +164,52 @@ void main() {
   });
 }
 
-class _FakeFilePicker extends FilePicker {
+class _FakeFilePickerPlatform extends FilePickerPlatform {
   final String selectedPath;
 
-  _FakeFilePicker(this.selectedPath);
+  _FakeFilePickerPlatform(this.selectedPath);
 
   @override
-  Future<FilePickerResult?> pickFiles({
+  Future<PlatformFile?> pickFile({
     String? dialogTitle,
     String? initialDirectory,
     FileType type = FileType.any,
     List<String>? allowedExtensions,
     Function(FilePickerStatus)? onFileLoading,
-    bool allowCompression = false,
     int compressionQuality = 0,
-    bool allowMultiple = false,
-    bool withData = false,
-    bool withReadStream = false,
-    bool lockParentWindow = false,
-    bool readSequential = false,
-  }) async {
-    return FilePickerResult([
-      PlatformFile(name: 'duoduo-backup.db', size: 1024, path: selectedPath),
-    ]);
-  }
+    AndroidOptions androidOptions = const AndroidOptions(),
+    WindowsOptions windowsOptions = const WindowsOptions(),
+    LinuxOptions linuxOptions = const LinuxOptions(),
+    WebOptions webOptions = const WebOptions(),
+  }) async =>
+      _FakePlatformFile(selectedPath);
+}
+
+base class _FakePlatformFile extends PlatformFile {
+  final String selectedPath;
+
+  _FakePlatformFile(this.selectedPath);
+
+  @override
+  String get name => selectedPath.split(RegExp(r'[/\\]')).last;
+
+  @override
+  Uri get uri => Uri.file(selectedPath);
+
+  @override
+  String? get path => selectedPath;
+
+  @override
+  XFile get xFile => XFile(selectedPath);
+
+  @override
+  Future<int> length() async => 1024;
+
+  @override
+  Future<Uint8List> readAsBytes() async => Uint8List(0);
+
+  @override
+  Stream<Uint8List> readAsByteStream() => const Stream.empty();
 }
 
 class _FakeLocalDataBackupService extends LocalDataBackupService {

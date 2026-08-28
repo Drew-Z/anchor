@@ -1,8 +1,8 @@
 import 'dart:io';
 
-import 'package:dlg_q/data/database/database_helper.dart';
-import 'package:dlg_q/data/models/deck.dart';
-import 'package:dlg_q/services/privacy/local_data_backup_service.dart';
+import 'package:anchor_learning/data/database/database_helper.dart';
+import 'package:anchor_learning/data/models/deck.dart';
+import 'package:anchor_learning/services/privacy/local_data_backup_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -14,7 +14,7 @@ void main() {
 
   setUp(() async {
     temporaryDirectory =
-        await Directory.systemTemp.createTemp('duoduo_backup_test_');
+        await Directory.systemTemp.createTemp('anchor-learning_backup_test_');
   });
 
   tearDown(() async {
@@ -46,7 +46,7 @@ void main() {
     final service = serviceFor(helper);
 
     final artifact = await service.createBackup();
-    expect(artifact.fileName, startsWith('duoduo-backup-v23-'));
+    expect(artifact.fileName, startsWith('anchor-learning-backup-v23-'));
     expect(artifact.validation.schemaVersion, DatabaseHelper.schemaVersion);
     expect(artifact.validation.foreignKeyViolationCount, 0);
     expect(await File(artifact.filePath).exists(), isTrue);

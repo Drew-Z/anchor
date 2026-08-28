@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:dlg_q/data/models/source.dart';
-import 'package:dlg_q/services/ingestion/programming_source_import_service.dart';
+import 'package:anchor_learning/data/models/source.dart';
+import 'package:anchor_learning/services/ingestion/programming_source_import_service.dart';
 
 void main() {
   const service = ProgrammingSourceImportService();

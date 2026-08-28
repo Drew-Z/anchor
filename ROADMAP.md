@@ -25,7 +25,8 @@
 - ✅ SQLite 本地数据库
 - ✅ OpenAI API 集成
 - ✅ Citation Verification 防幻觉
-- ✅ 跨平台支持(Android/iOS/macOS)
+- ✅ Android Private Alpha 主路径与独立 Web 静态 Demo
+- ⏳ iOS、macOS、Windows、Linux：尚未完成端到端发布验收
 
 ---
 
@@ -39,7 +40,7 @@
   - [ ] 贡献指南
 - 🔨 Demo 和示例
   - [ ] 录制演示视频
-  - [ ] 准备示例数据集
+  - [x] 准备独立 Web Demo 示例数据集
   - [ ] 添加屏幕截图
 - 🔨 代码质量提升
   - [ ] 核心模块单元测试
@@ -120,7 +121,7 @@
 ### 平台扩展
 - [ ] **Web 版本**
   - 浏览器内运行
-  - 云同步功能
+  - 云同步功能（待用户需求验证）
   - 多设备协同
   - 优先级: 高 | 难度: 高
 
@@ -215,7 +216,7 @@
 
 - **功能请求**: [Feature Requests](https://github.com/Drew-Z/anchor/issues/new?template=feature_request.md)
 - **讨论**: [GitHub Discussions](https://github.com/Drew-Z/anchor/discussions)
-- **邮件**: your-email@example.com
+- **反馈**: [GitHub Issues](https://github.com/Drew-Z/anchor/issues)
 
 ---
 

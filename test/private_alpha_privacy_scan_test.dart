@@ -1,12 +1,12 @@
 import 'dart:io';
 
-import 'package:dlg_q/services/release/private_alpha_privacy_scan.dart';
+import 'package:anchor_learning/services/release/private_alpha_privacy_scan.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
 void main() {
   test('clean artifacts pass without findings', () async {
-    final root = await Directory.systemTemp.createTemp('duoduo-scan-');
+    final root = await Directory.systemTemp.createTemp('anchor-learning-scan-');
     addTearDown(() => root.delete(recursive: true));
     await File(p.join(root.path, 'release.json')).writeAsString(
       '{"status":"HOLD","endpoint":"https://example.com/v1"}',
@@ -25,7 +25,7 @@ void main() {
 
   test('reports categories and relative paths without retaining secrets',
       () async {
-    final root = await Directory.systemTemp.createTemp('duoduo-scan-');
+    final root = await Directory.systemTemp.createTemp('anchor-learning-scan-');
     addTearDown(() => root.delete(recursive: true));
     final token = List.filled(36, 'x').join();
     final jwtPart = List.filled(16, 'a').join();
@@ -67,7 +67,7 @@ void main() {
 
   test('deduplicates repeated matches and flags sensitive file names',
       () async {
-    final root = await Directory.systemTemp.createTemp('duoduo-scan-');
+    final root = await Directory.systemTemp.createTemp('anchor-learning-scan-');
     addTearDown(() => root.delete(recursive: true));
     final token = List.filled(30, 'z').join();
     await File(p.join(root.path, 'repeated.txt')).writeAsString(
@@ -105,7 +105,7 @@ void main() {
 
   test('contains path failures without exposing resolved absolute paths',
       () async {
-    final root = await Directory.systemTemp.createTemp('duoduo-scan-');
+    final root = await Directory.systemTemp.createTemp('anchor-learning-scan-');
     addTearDown(() => root.delete(recursive: true));
 
     final result = await const PrivateAlphaPrivacyScanner().scan(

@@ -248,7 +248,12 @@ class AgentHomeScreen extends ConsumerWidget {
             agentMemoryAsync.when(
               data: (memory) {
                 if (memory.sessions.isEmpty) {
-                  return const _EmptyAgentSessionHistory();
+                  return _EmptyAgentSessionHistory(
+                    onOpenHistory: () => _openAgentSessionHistory(
+                      context,
+                      ref,
+                    ),
+                  );
                 }
                 return Column(
                   children: [
@@ -610,7 +615,7 @@ class AgentHomeScreen extends ConsumerWidget {
     final isUnknownOutcome =
         request.reason == LearningAgentUserDecisionReason.toolOutcomeUnknown;
 
-    final noteController = TextEditingController();
+    var decisionNote = '';
     final action = await showDialog<LearningAgentUserDecisionAction>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -671,7 +676,7 @@ class AgentHomeScreen extends ConsumerWidget {
               ],
               const SizedBox(height: 16),
               TextField(
-                controller: noteController,
+                onChanged: (value) => decisionNote = value,
                 maxLines: 3,
                 decoration: const InputDecoration(
                   labelText: '决策备注（可选）',
@@ -712,8 +717,6 @@ class AgentHomeScreen extends ConsumerWidget {
         ],
       ),
     );
-    final note = noteController.text;
-    noteController.dispose();
     if (action == null || !context.mounted) return;
 
     final runtime = ref.read(learningAgentRuntimeProvider);
@@ -721,7 +724,7 @@ class AgentHomeScreen extends ConsumerWidget {
       final result = await runtime.resolveUserDecision(
         checkpoint,
         action: action,
-        note: note,
+        note: decisionNote,
       );
       if (!context.mounted) return;
       ref.invalidate(learningAgentActiveCheckpointListProvider);
@@ -1012,6 +1015,7 @@ class AgentHomeScreen extends ConsumerWidget {
   void _refreshPlanInputs(WidgetRef ref) {
     final goal = ref.read(learningAgentGoalProvider);
     invalidateLearningAgentPlanInputProviders(ref, goal);
+    ref.invalidate(learningAgentWorkspaceProvider(goal));
   }
 
   void _refreshAgentSessionInputs(WidgetRef ref) {
@@ -3016,7 +3020,9 @@ class _EmptyHistory extends StatelessWidget {
 }
 
 class _EmptyAgentSessionHistory extends StatelessWidget {
-  const _EmptyAgentSessionHistory();
+  final VoidCallback onOpenHistory;
+
+  const _EmptyAgentSessionHistory({required this.onOpenHistory});
 
   @override
   Widget build(BuildContext context) {
@@ -3028,13 +3034,36 @@ class _EmptyAgentSessionHistory extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.border, width: 2),
       ),
-      child: const Text(
-        '完成一次 Agent Session 后，这里会出现目标、成功标准和复盘摘要',
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textSecondary,
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '完成一次 Agent Session 后，这里会出现目标、成功标准和复盘摘要',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: onOpenHistory,
+            icon: const Icon(Icons.history),
+            label: const Text(
+              '查看 Agent Session 历史',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.greenDark,
+              side: const BorderSide(color: AppColors.green),
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              minimumSize: const Size(double.infinity, 44),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

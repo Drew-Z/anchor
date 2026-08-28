@@ -1,5 +1,5 @@
-import 'package:dlg_q/data/models/grounded_claim.dart';
-import 'package:dlg_q/services/agent/knowledge_answer_session_summary.dart';
+import 'package:anchor_learning/data/models/grounded_claim.dart';
+import 'package:anchor_learning/services/agent/knowledge_answer_session_summary.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

@@ -50,6 +50,10 @@ jobs:
       - name: Run tests
         run: flutter test --coverage
 
+      - name: Enforce minimum line coverage
+        run: |
+          awk -F: '/^LF:/{found += $2} /^LH:/{hit += $2} END { if (found == 0 || hit / found < 0.50) { printf "Coverage %.2f%% is below 50%%\n", 100 * hit / found; exit 1 } printf "Coverage %.2f%%\n", 100 * hit / found }' coverage/lcov.info
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -83,7 +87,7 @@ jobs:
         run: npm test
 
   build-android:
-    name: Build Android APK
+    name: Build Android Debug APK
     runs-on: ubuntu-latest
     needs: [analyze, test, web]
     steps:
@@ -100,10 +104,70 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Build APK
+      - name: Build debug APK smoke artifact
+        run: flutter build apk --debug
+
+      - name: Upload debug APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+
+  prepare-android-release:
+    name: Check Android Signing Secrets
+    runs-on: ubuntu-latest
+    outputs:
+      available: ${{ steps.check.outputs.available }}
+    steps:
+      - id: check
+        env:
+          STORE_FILE: ${{ secrets.ANCHOR_SIGNING_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANCHOR_SIGNING_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANCHOR_SIGNING_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANCHOR_SIGNING_KEY_PASSWORD }}
+        run: |
+          if [ -n "$STORE_FILE" ] && [ -n "$STORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASSWORD" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "Android release signing secrets are not configured; skipping signed release build."
+          fi
+
+  build-android-release:
+    name: Build Signed Android Release APK
+    if: ${{ needs.prepare-android-release.outputs.available == 'true' }}
+    runs-on: ubuntu-latest
+    needs: [analyze, test, web, prepare-android-release]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.8'
+          channel: 'stable'
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Restore signing keystore
+        env:
+          ANCHOR_SIGNING_KEYSTORE_BASE64: ${{ secrets.ANCHOR_SIGNING_KEYSTORE_BASE64 }}
+        run: |
+          printf '%s' "$ANCHOR_SIGNING_KEYSTORE_BASE64" | base64 --decode > anchor-release.p12
+
+      - name: Build signed release APK
+        env:
+          ANCHOR_SIGNING_STORE_FILE: ${{ github.workspace }}/anchor-release.p12
+          ANCHOR_SIGNING_STORE_TYPE: PKCS12
+          ANCHOR_SIGNING_STORE_PASSWORD: ${{ secrets.ANCHOR_SIGNING_STORE_PASSWORD }}
+          ANCHOR_SIGNING_KEY_ALIAS: ${{ secrets.ANCHOR_SIGNING_KEY_ALIAS }}
+          ANCHOR_SIGNING_KEY_PASSWORD: ${{ secrets.ANCHOR_SIGNING_KEY_PASSWORD }}
         run: flutter build apk --release
 
-      - name: Upload APK artifact
+      - name: Upload signed release APK
         uses: actions/upload-artifact@v4
         with:
           name: release-apk

@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:dlg_q/services/ingestion/project_source_import_service.dart';
+import 'package:anchor_learning/services/ingestion/project_source_import_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
@@ -12,7 +12,7 @@ void main() {
 
     setUp(() async {
       tempDirectory = await Directory.systemTemp.createTemp(
-        'duoduo-project-import-',
+        'anchor-learning-project-import-',
       );
     });
 

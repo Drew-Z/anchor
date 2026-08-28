@@ -1,11 +1,11 @@
 {
-    "name": "多多学",
-    "short_name": "多多学",
+    "name": "Anchor Learning",
+    "short_name": "锚学",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Anchor your knowledge with traceable, source-grounded learning.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -241,14 +241,12 @@ class LearningAgentTraceRecorder {
     List<LearningAgentTraceEvent> initialEvents = const [],
     LearningAgentState? initialState,
   })  : _events = List<LearningAgentTraceEvent>.from(initialEvents),
-        _state = initialState == null
-            ? null
-            : initialState.copyWith(
-                traceEventIds: _mergedTraceEventIds(
-                  initialState.traceEventIds,
-                  initialEvents,
-                ),
-              );
+        _state = initialState?.copyWith(
+          traceEventIds: _mergedTraceEventIds(
+            initialState.traceEventIds,
+            initialEvents,
+          ),
+        );
 
   List<LearningAgentTraceEvent> get events {
     return List<LearningAgentTraceEvent>.unmodifiable(_events);

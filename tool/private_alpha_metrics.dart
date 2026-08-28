@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:dlg_q/services/privacy/private_alpha_metrics.dart';
+import 'package:anchor_learning/services/privacy/private_alpha_metrics.dart';
 
 Future<void> main(List<String> arguments) async {
   try {

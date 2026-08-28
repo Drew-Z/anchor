@@ -1,250 +1,40 @@
-# 开源推广完成总结
+# Anchor Learning 当前开源准备状态
 
-> 项目已做好开源推广准备 🎉
+本文档只记录当前事实，不把推广素材或历史提交当作当前发布证据。
 
----
+## 已完成
 
-## ✅ 已完成的工作
+- 核心用户、架构、开发和贡献文档已存在。
+- Android、Web、隐私数据和 AI profile 测试已纳入自动化验证。
+- 当前 Flutter 测试 387/387 通过；覆盖率快照仍为历史的 60.69%（16089/26510），不是本轮发布门禁。
+- Web 测试 17/17 通过。
+- Android release 签名门禁已配置为环境变量注入，debug 不依赖 release keystore。
 
-### 1. 完整的文档体系 ✨
-- **用户指南** (3 篇)
-  - 快速开始 - 5 分钟上手
-  - 导入文档 - 最佳实践
-  - 自定义 Prompts - 调整 AI 行为
+## 当前状态
 
-- **架构文档** (3 篇)
-  - 系统概览 - 三层防线架构
-  - 数据模型 - ER 图和表结构
-  - AI Pipeline - 每个 AI Task 的设计
+Private Alpha 仍为 `HOLD`。当前真实 readiness 只剩一项外部证据：
 
-- **项目管理文档** (6 篇)
-  - README.md - 项目首页
-  - CONTRIBUTING.md - 贡献指南
-  - ROADMAP.md - 开发路线图
-  - CHANGELOG.md - 版本历史
-  - LICENSE - MIT 许可
+1. A01-A10 正式 cohort、观察窗口和最终决策。
 
-- **新增优化文档** (4 篇)
-  - READING_GUIDE.md - 按角色提供阅读路径
-  - DRIFT_LOG.md - 透明化文档-代码漂移
-  - BLOG_POST.md - 技术博客草稿
-  - PROMOTION_CHECKLIST.md - 详细推广计划
+物理设备验收、正式 `2005` release-day 五项技术验收、participant-owned 凭据治理和数据处理负责人记录已经完成。正式 cohort 不能用模拟器、fixture、旧 APK 或 Web Demo 替代。
 
-### 2. 示例数据集 🎯
-已准备 3 个开箱即用的学习材料:
-- Flutter Widget 基础 (~12 个知识点)
-- Git 命令速查手册 (~15 个知识点)  
-- JavaScript 异步编程 (~10 个知识点)
+## 构建说明
 
-位置: `assets/examples/`
+当前代码和 Gradle 配置已通过分析、测试和正式 release 构建。最新 Arm64 release APK 位于
+`build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`（2026-08-26，26,272,915 bytes），
+SHA-256 为 `74dcfb95cd9c123b51d9b35678ffd0153d23654bf6a5597de1070880d667207b`，包名
+`cc.eu.playlab.anchor`，versionName `1.0.0`，Flutter build number `2005` / Arm64 split APK
+manifest `versionCode=4005`，使用 Anchor Learning release v2 签名，仅包含 `arm64-v8a` ABI。
+该 APK 已完成 OnePlus PGP110 物理设备安装、冷启动、进程存活、日志验收，以及 Chat / `grok-4.6` 的正式 release-day `5/5` 技术验收。脱敏报告见 `docs/TECHNICAL_MODEL_ACCEPTANCE_2026-08-26_2005.md`；治理记录使用 opaque `CRED-PRIMARY-2005` 和 `OPS-ALPHA-2005` 引用，仍不替代 cohort 证据。
 
-### 3. GitHub 配置 🔧
-- ✅ 用户名已更新为 `bill`
-- ✅ 所有链接已修正
-- ✅ Issue/PR 模板已配置
-- ✅ 29 个提交已就绪推送
+## 推广素材
 
-### 4. 推广素材准备 📝
-- ✅ 技术博客草稿 (docs/BLOG_POST.md)
-- ✅ 详细推广计划 (docs/PROMOTION_CHECKLIST.md)
-- ✅ README 已优化(添加 Demo 视频占位符)
+Demo 视频、截图、博客和社区发布是非阻塞推广事项。它们可以提高使用和传播效果，但不改变 readiness 状态，也不能替代设备、凭据、负责人或 cohort 门禁。
 
----
+## 下一步
 
-## 📋 下一步行动 (按优先级)
+- 按 `docs/PRIVATE_ALPHA_EXTERNAL_EVIDENCE_HANDOFF.md` 执行 A01-A10 正式 cohort；该文件只是交接清单，不是参与者证据本身。
+- 在真实外部条件满足后，只更新 `build/validation/private-alpha-readiness.json` 中的匿名绑定，再运行 readiness CLI；`test/fixtures/release/private_alpha_readiness_current.json` 仅用于测试。
+- 继续维护发布文档中的构建身份、APK SHA-256、支持平台和凭据处理声明；产品文档统一使用 `Anchor Learning / 锚学`，正式应用标识见 `docs/PRODUCT_NAMING.md`。
 
-### 🔴 高优先级 - 本周完成
-
-#### 1. 录制 Demo 视频 (最关键)
-```bash
-时长: 3-5 分钟
-工具: OBS Studio (免费)
-脚本: docs/PROMOTION_CHECKLIST.md 中有详细脚本
-场景:
-  - 导入文档 → AI 分析 → 答题 → 溯源原文
-  - 展示 Agent 辅导功能
-```
-
-**为什么重要**: 视频比文字有 10 倍的传播效果
-
-#### 2. 截图 4-6 张
-```bash
-需要场景:
-□ 导入界面
-□ 题目练习界面  
-□ 答题解析页(展示"查看来源"按钮)
-□ Agent 辅导界面
-□ 知识点列表
-□ 设置页面
-
-保存位置: docs/images/screenshots/
-```
-
-#### 3. 发布到中文社区
-```bash
-推荐顺序:
-1. 掘金 (技术受众最多)
-   标题: "开源 | 用 Flutter + AI 打造可溯源的学习助手"
-   
-2. V2EX (/share 节点)
-   标题: "[开源] 把你的文档和代码变成练习题,支持来源溯源"
-   
-3. 知乎 (技术专栏)
-   使用 docs/BLOG_POST.md 作为详细内容
-```
-
-**内容模板**: docs/BLOG_POST.md 提炼为 300-500 字摘要
-
-### 🟡 中优先级 - 下周完成
-
-#### 4. 发布技术博客
-- 润色 docs/BLOG_POST.md
-- 发布到个人博客 (https://biau.playlab.eu.cc)
-- 同步到掘金/思否/Medium
-
-#### 5. 国际社区推广
-- Reddit (r/FlutterDev, r/opensource)
-- Hacker News (Show HN)
-- Product Hunt (需准备 Logo)
-
-### 🟢 低优先级 - 后续优化
-
-#### 6. 补充单元测试
-- ContentAnalyzer
-- CitationVerificationTask
-- QuestionValidatorTask
-
-#### 7. 配置 CI/CD
-- GitHub Actions 自动构建
-- 代码质量检查
-
----
-
-## 📊 当前项目状态
-
-### Git 状态
-```bash
-分支: main
-未推送提交: 29 个
-未提交文件: 0 个 (全部已提交)
-```
-
-### 文档完整度
-- 用户文档: ✅ 100%
-- 架构文档: ✅ 100%  
-- 贡献指南: ✅ 100%
-- 示例数据: ✅ 100%
-- 视觉素材: ⏳ 0% (Demo 视频/截图)
-
-### 推广准备度
-- 文档: ✅ 已完成
-- 示例: ✅ 已完成
-- 视频: ❌ 待录制 (阻塞发布)
-- 截图: ❌ 待制作
-- 社区文案: ✅ 已准备
-
----
-
-## 🎯 里程碑目标
-
-### Week 1 - 初始发布
-- [ ] 录制 Demo 视频
-- [ ] 制作截图
-- [ ] 发布到掘金/V2EX
-- [ ] 获得 50+ Stars
-
-### Week 2-3 - 扩散传播
-- [ ] 发布技术博客
-- [ ] 国际社区推广
-- [ ] 获得 100+ Stars
-
-### Month 1-3 - 质量提升
-- [ ] 补充测试
-- [ ] 实现 PDF 导入
-- [ ] 获得 500+ Stars
-
----
-
-## 🛠️ 立即可做的 3 件事
-
-### 1. 推送代码到 GitHub
-```bash
-git push origin main
-```
-
-### 2. 创建第一个 Release
-```bash
-# 在 GitHub 网页操作:
-# Releases → Create a new release
-# Tag: v0.1.0
-# Title: Anchor Learning (锚学) v0.1.0 - 首次公开发布
-# 描述: 从 CHANGELOG.md 复制
-```
-
-### 3. 录制 Demo 视频
-参考 docs/PROMOTION_CHECKLIST.md 中的详细脚本
-
----
-
-## 💡 关键洞察
-
-### 从 docs-to-book 学到的
-1. **重叙述而非搬运** - 文档按认知逻辑组织,不按文件目录
-2. **透明化漂移** - DRIFT_LOG.md 记录文档与代码不一致
-3. **阅读路径** - READING_GUIDE.md 按角色推荐路径
-
-### 推广的核心卖点
-1. **可溯源** - 每道题都能追溯到源文档
-2. **防幻觉** - 三层防线架构
-3. **隐私优先** - 本地存储
-
----
-
-## 📞 需要帮助?
-
-### 录制视频卡住了?
-- 工具推荐: OBS Studio (免费)
-- 脚本已准备: docs/PROMOTION_CHECKLIST.md
-- 不会剪辑? 使用 DaVinci Resolve 免费版
-
-### 不知道如何写社区文案?
-- 技术详情: docs/BLOG_POST.md
-- 提炼为 300 字摘要即可
-- 突出"可溯源"和"防幻觉"
-
-### GitHub 推送报错?
-```bash
-# 如果是新仓库,首次推送:
-git remote add origin https://github.com/Drew-Z/anchor.git
-git push -u origin main
-
-# 如果远程已有内容:
-git pull origin main --rebase
-git push origin main
-```
-
----
-
-## 🎉 总结
-
-你的项目已经完成了 **80% 的开源推广准备**!
-
-**已完成**:
-- ✅ 完整文档体系
-- ✅ 示例数据集
-- ✅ 推广计划
-- ✅ 技术博客草稿
-
-**还缺**:
-- ⏳ Demo 视频 (最关键)
-- ⏳ 应用截图
-
-**建议**: 先录制 Demo 视频,然后立即发布到掘金/V2EX,获取第一批用户反馈,再根据反馈迭代。
-
----
-
-**维护者**: bill  
-**完成时间**: 2026-07-26  
-**下次行动**: 录制 Demo 视频
-
-🚀 **准备好了,去推广吧!**
+**最后更新**: 2026-08-26

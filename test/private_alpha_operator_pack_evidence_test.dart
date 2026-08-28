@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
-import 'package:dlg_q/services/release/private_alpha_operator_pack_evidence.dart';
+import 'package:anchor_learning/services/release/private_alpha_operator_pack_evidence.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
@@ -18,7 +18,8 @@ void main() {
 
   test('custom pack verifies headings and exact blank-template hashes',
       () async {
-    final root = await Directory.systemTemp.createTemp('duoduo-operator-');
+    final root =
+        await Directory.systemTemp.createTemp('anchor-learning-operator-');
     addTearDown(() => root.delete(recursive: true));
     const content = '# Template\n## Required\n';
     final file = File(p.join(root.path, 'template.md'));
@@ -41,7 +42,8 @@ void main() {
   });
 
   test('blocks missing roles, policies, sections and template drift', () async {
-    final root = await Directory.systemTemp.createTemp('duoduo-operator-');
+    final root =
+        await Directory.systemTemp.createTemp('anchor-learning-operator-');
     addTearDown(() => root.delete(recursive: true));
     await File(p.join(root.path, 'template.md')).writeAsString('# Template\n');
     const verifier = PrivateAlphaOperatorPackVerifier(

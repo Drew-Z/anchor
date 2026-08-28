@@ -15,10 +15,7 @@
    - 点击 "Report a vulnerability"
    - 填写详细信息
 
-2. **邮件报告**:
-   - 发送至: security@example.com
-   - 主题: `[Security] Anchor Learning Vulnerability Report`
-   - 包含详细的漏洞描述、复现步骤和影响范围
+2. **其他私密渠道**: 如果无法使用 Security Advisories，请联系仓库维护者并要求私密处理。不要把密钥或完整用户数据贴入公开 Issue。
 
 ### 报告内容应包含
 
@@ -152,7 +149,7 @@
 
 ## 联系方式
 
-- **安全问题**: security@example.com
+- **安全问题**: [GitHub Security Advisories](https://github.com/Drew-Z/anchor/security/advisories)
 - **一般问题**: [GitHub Issues](https://github.com/Drew-Z/anchor/issues)
 - **功能讨论**: [GitHub Discussions](https://github.com/Drew-Z/anchor/discussions)
 

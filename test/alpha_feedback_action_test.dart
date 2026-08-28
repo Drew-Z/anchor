@@ -1,7 +1,7 @@
-import 'package:dlg_q/core/providers/providers.dart';
-import 'package:dlg_q/services/privacy/alpha_feedback_service.dart';
-import 'package:dlg_q/services/privacy/support_bundle_service.dart';
-import 'package:dlg_q/shared/widgets/alpha_feedback_action.dart';
+import 'package:anchor_learning/core/providers/providers.dart';
+import 'package:anchor_learning/services/privacy/alpha_feedback_service.dart';
+import 'package:anchor_learning/services/privacy/support_bundle_service.dart';
+import 'package:anchor_learning/shared/widgets/alpha_feedback_action.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
