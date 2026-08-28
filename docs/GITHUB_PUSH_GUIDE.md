@@ -1,6 +1,6 @@
 # GitHub 推送指南
 
-Anchor 的权威仓库是 `https://github.com/Drew-Z/anchor`，本地目录是 `D:/workspace4Cursor/learn/anchor`。
+Anchor Learning / 锚学的权威仓库是 `https://github.com/Drew-Z/anchor`，本地目录是 `D:/workspace4Cursor/learn/anchor`。
 
 ## 检查当前状态
 
