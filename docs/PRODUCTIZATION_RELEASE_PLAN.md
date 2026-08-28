@@ -2,7 +2,7 @@
 
 更新于 2026-08-28。本文件把 Private Alpha 进入小规模发布前仍需完成的工作收敛在一个地方；它不是对外发布承诺，也不替代 readiness evaluator。
 
-本轮本地门禁已完成：Flutter 全量测试 `385/385`、静态分析 0 errors/0 warnings、格式检查、Web 测试和 `git diff --check` 均通过。正式标识候选 `1.0.0+2005` 已使用 Anchor Learning release 签名，在 OnePlus PGP110（API 35，Arm64）完成真机 smoke，并在联网后完成唯一一次正式 release-day Chat / `grok-4.6` 五项 `5/5` 技术验收。报告见 `docs/TECHNICAL_MODEL_ACCEPTANCE_2026-08-26_2005.md`，绑定 Arm64 APK SHA-256 `74dcfb95…d667207b`。participant-owned 凭据治理和数据处理负责人记录已使用 opaque 引用绑定 readiness；当前 evaluator 仍为 `HOLD`：A01-A10 cohort 尚未完成，8 月 26 日的模型和设备证据也已超出 24 小时发布窗口，需临近最终发布时重跑。
+本轮本地门禁已完成：Flutter 全量测试 `386/386`、静态分析 0 errors/0 warnings、格式检查、Web 测试和 `git diff --check` 均通过。正式标识候选 `1.0.0+2005` 已使用 Anchor Learning release 签名，在 OnePlus PGP110（API 35，Arm64）完成真机 smoke，并在联网后完成唯一一次正式 release-day Chat / `grok-4.6` 五项 `5/5` 技术验收。报告见 `docs/TECHNICAL_MODEL_ACCEPTANCE_2026-08-26_2005.md`，绑定 Arm64 APK SHA-256 `74dcfb95…d667207b`。participant-owned 凭据治理和数据处理负责人记录已使用 opaque 引用绑定 readiness；当前 evaluator 仍为 `HOLD`：A01-A10 cohort 尚未完成，8 月 26 日的模型和设备证据也已超出 24 小时发布窗口，需临近最终发布时重跑。
 
 ## 当前候选版本
 

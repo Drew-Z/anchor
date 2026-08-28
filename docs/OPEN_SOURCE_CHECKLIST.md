@@ -8,8 +8,8 @@
 - Issue 模板和 PR 模板已存在于 `.github/`。
 - Flutter 依赖已升级并完成 `file_picker` 新 API 迁移。
 - `flutter analyze --no-fatal-infos`: 0 errors, 0 warnings（仅 info 级 lint）。
-- `flutter test`: 385/385 通过。
-- `flutter test --coverage`: 本轮功能测试 385/385 通过；覆盖率快照 60.84%（16274/26751）仍不作为 Private Alpha 单独放行条件。
+- `flutter test`: 386/386 通过。
+- `flutter test --coverage`: 本轮功能测试 386/386 通过；覆盖率快照 60.84%（16274/26751）仍不作为 Private Alpha 单独放行条件。
 - `dart format --output=none --set-exit-if-changed lib test`: 通过。
 - Web 单元测试和 Playwright 测试共 17/17 通过；Web 是独立静态 Demo，不作为原生发布验收。
 - Android release 签名改为环境变量注入；缺少签名时只阻止 release task，debug 构建仍可运行。
