@@ -11,7 +11,7 @@
 - Demo 提供 Flutter、Git、JavaScript 三套内置数据，共 12 道单选、多选和判断题。
 - 每道 Demo 题包含答案解释、稳定 locator、来源摘录和明确标注的预置导师提示。
 - Cloudflare Pages 发布目录统一为 `web/landing`，官网与 `/app/` 随同一次静态部署发布。
-- 当前工作区 Flutter 全量测试为 `387/387`；静态分析已通过（0 errors、0 warnings，保留既有 info lints）。
+- 当前工作区 Flutter 全量测试为 `385/385`；静态分析已通过（0 errors、0 warnings，保留既有 info lints）。
 
 ## 交付边界
 
