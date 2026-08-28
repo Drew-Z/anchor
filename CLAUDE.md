@@ -17,7 +17,7 @@ Anchor Learning is a local-first, source-grounded learning agent. The Android ap
 
 - Use the canonical product name `Anchor Learning / 锚学`. Do not reintroduce the former project or brand names in current product, GitHub, release, or marketing material.
 - Current Android identity is `cc.eu.playlab.anchor`, database name is `anchor_learning.db`, and the candidate version is `1.0.0+2005`.
-- Private Alpha readiness is currently `HOLD` with the remaining `cohort_pending` gate. Do not change it to `GO` based on fixtures, emulator runs, old APKs, Web Demo checks, or documentation-only evidence.
+- Private Alpha readiness is currently `HOLD` with three blockers: `cohort_pending`, `release_day_acceptance_primary_stale`, and `physical_device_evidence_stale`. Do not change it to `GO` based on fixtures, emulator runs, old APKs, Web Demo checks, or documentation-only evidence.
 - Real-device validation, release signing, model acceptance, credential handling, and final readiness decisions are release-owned activities. Do not alter signing material or expose credentials.
 - Never read, print, commit, or paste API keys, bearer tokens, keystores, passwords, private source paths, or participant answers. Use opaque references in evidence.
 - Do not claim a public APK is available from the website. Keep the browser demo and native app boundary explicit.
