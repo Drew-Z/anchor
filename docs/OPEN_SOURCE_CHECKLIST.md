@@ -45,7 +45,12 @@
 `test/fixtures/release/private_alpha_readiness_current.json` 仅用于 evaluator
 测试，不代表本次设备验收结果。
 
-当前真实结果为 `HOLD`，唯一阻塞码为 `cohort_pending`。正式 release APK 的技术模型验收、participant-owned 凭据治理和数据处理责任已经有相互匹配的匿名证据；A01-A10 正式 cohort 仍必须按 D0/D7/D14 真实执行。
+当前 evaluator 真实结果为 `HOLD`，阻塞码为 `cohort_pending`、
+`release_day_acceptance_primary_stale` 和 `physical_device_evidence_stale`。
+2026-08-26 的模型与设备报告仍绑定同一正式 APK、profile 和凭据范围，但已超出
+24 小时发布窗口；临近最终 Alpha 发布时必须在同一候选上重新完成这两项真实验收。
+participant-owned 凭据治理和数据处理责任已有相互匹配的匿名证据；A01-A10 正式
+cohort 仍必须按 D0/D7/D14 真实执行。
 
 ## 非阻塞推广事项
 

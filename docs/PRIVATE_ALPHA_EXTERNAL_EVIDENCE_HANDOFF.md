@@ -16,7 +16,13 @@ repository.
   `a8cfa8bca5eb59e87a45da8e63dd60244493a5392d451a4c15c7db8206ece4c4`
 - Current technical credential scope: `participantOwned`
 - Readiness status: `HOLD`
-- Current blocker: `cohort_pending`
+- Current blockers: `cohort_pending`, `release_day_acceptance_primary_stale`,
+  `physical_device_evidence_stale`
+
+The 2026-08-26 model and physical-device reports remain the identity-bound
+technical records for candidate `1.0.0+2005`, but they are outside the
+24-hour release window. Re-run both real checks only when the cohort is ready
+for final release evaluation; do not refresh timestamps without new evidence.
 
 ## 1. Controlled Credential
 

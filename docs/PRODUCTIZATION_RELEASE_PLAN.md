@@ -1,8 +1,8 @@
 # Anchor Learning 产品化发布候选计划
 
-更新于 2026-08-26。本文件把 Private Alpha 进入小规模发布前仍需完成的工作收敛在一个地方；它不是对外发布承诺，也不替代 readiness evaluator。
+更新于 2026-08-28。本文件把 Private Alpha 进入小规模发布前仍需完成的工作收敛在一个地方；它不是对外发布承诺，也不替代 readiness evaluator。
 
-本轮本地门禁已完成：Flutter 全量测试 `385/385`、静态分析 0 errors/0 warnings、格式检查、Web 测试和 `git diff --check` 均通过。正式标识候选 `1.0.0+2005` 已使用 Anchor Learning release 签名，在 OnePlus PGP110（API 35，Arm64）完成真机 smoke，并在联网后完成唯一一次正式 release-day Chat / `grok-4.6` 五项 `5/5` 技术验收。报告见 `docs/TECHNICAL_MODEL_ACCEPTANCE_2026-08-26_2005.md`，绑定 Arm64 APK SHA-256 `74dcfb95…d667207b`。participant-owned 凭据治理和数据处理负责人记录已使用 opaque 引用绑定 readiness；当前仅剩 A01-A10 cohort 证据。
+本轮本地门禁已完成：Flutter 全量测试 `385/385`、静态分析 0 errors/0 warnings、格式检查、Web 测试和 `git diff --check` 均通过。正式标识候选 `1.0.0+2005` 已使用 Anchor Learning release 签名，在 OnePlus PGP110（API 35，Arm64）完成真机 smoke，并在联网后完成唯一一次正式 release-day Chat / `grok-4.6` 五项 `5/5` 技术验收。报告见 `docs/TECHNICAL_MODEL_ACCEPTANCE_2026-08-26_2005.md`，绑定 Arm64 APK SHA-256 `74dcfb95…d667207b`。participant-owned 凭据治理和数据处理负责人记录已使用 opaque 引用绑定 readiness；当前 evaluator 仍为 `HOLD`：A01-A10 cohort 尚未完成，8 月 26 日的模型和设备证据也已超出 24 小时发布窗口，需临近最终发布时重跑。
 
 ## 当前候选版本
 
@@ -69,6 +69,6 @@ $env:ANCHOR_SIGNING_KEY_PASSWORD = '<controlled-secret>'
 2. 同参数加 `--execute`，完成覆盖安装、冷启动、进程存活和 PID 过滤日志检查。
 3. 在 App 内完成导入/来源追溯、Agent 成功/失败/重试/恢复、备份/恢复/数据删除和反馈导出；正式 release-day 模型五项验收已绑定当前 APK，后续只有 APK、模型 profile 或发布配置变化时才重跑。
 4. 清理设备临时文件，恢复安装前数据库并核对 SHA-256、schema 23、`integrity_check=ok`。
-5. 将不含密钥、回答、源码和私有路径的报告写入受控证据位置，再运行 readiness evaluator；当前报告为 `HOLD`，唯一阻塞码为 `cohort_pending`。
+5. 将不含密钥、回答、源码和私有路径的报告写入受控证据位置，再运行 readiness evaluator；当前报告为 `HOLD`，阻塞码为 `cohort_pending`、`release_day_acceptance_primary_stale` 和 `physical_device_evidence_stale`。模型和设备验收只需在最终发布窗口重跑，不要求开发期间重复执行。
 
 在 10 人 cohort、D0/D7/D14 观察窗口和最终 `GO` 决策齐备前，Private Alpha readiness 必须保持 `HOLD`。
