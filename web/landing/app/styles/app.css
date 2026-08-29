@@ -2,6 +2,12 @@
   box-sizing: border-box;
 }
 
+/*
+ * Theme tokens. `:root` carries the light palette; `[data-theme="dark"]` overrides
+ * the same names. Every colour used by this stylesheet lives here so a theme switch
+ * cannot leave a hardcoded literal behind. The app sets `data-theme` on <html>;
+ * inline styles are unavailable because the deployed CSP uses `style-src 'self'`.
+ */
 :root {
   color-scheme: light;
   --ink: #0b1210;
@@ -12,18 +18,72 @@
   --text: #15201c;
   --text-muted: #5a6861;
   --text-inverse: #f7faf6;
+  --chrome-text: #c4d0ca;
   --green: #11845c;
+  --green-deep: #0d6e4d;
   --green-bright: #3ddc97;
   --green-soft: #dff5ea;
+  --accent-text: #11845c;
+  --accent-ink: #0a5c3f;
+  --accent-line: #81bda5;
+  --accent-line-strong: #7aa992;
+  --accent-line-soft: #a6c6b8;
+  --accent-wash: #f0faf5;
+  --accent-wash-card: #f4fbf7;
+  --accent-wash-panel: #f6fbf8;
+  --on-accent: #ffffff;
+  --on-bright: #052217;
   --yellow: #f4c95d;
+  --evidence-soft: #fffdf4;
+  --evidence-wash: #fdf3d8;
+  --evidence-text: #6b5a21;
+  --evidence-quote: #51491f;
   --coral: #d85e4d;
+  --coral-deep: #bf4a3a;
   --coral-soft: #fde8e4;
+  --danger-text: #7c2f22;
+  --on-danger: #ffffff;
   --line: #ccd5d0;
   --line-dark: #2c4139;
+  --track: #dde3df;
   --radius: 8px;
   --header-height: 64px;
   --sidebar-width: 286px;
   --tabbar-height: 58px;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #05100c;
+  --ink-raised: #0e1c17;
+  --paper: #0f1613;
+  --panel: #17221e;
+  --panel-muted: #1c2723;
+  --text: #e8efea;
+  --text-muted: #a6b5ae;
+  --green: #1b9d70;
+  --green-deep: #24b881;
+  --green-soft: #133429;
+  --accent-text: #57d3a1;
+  --accent-ink: #8ce6bb;
+  --accent-line: #2f6d57;
+  --accent-line-strong: #3d7f66;
+  --accent-line-soft: #2c5f4d;
+  --accent-wash: #10241d;
+  --accent-wash-card: #11241e;
+  --accent-wash-panel: #12261f;
+  --on-accent: #04150f;
+  --evidence-soft: #2a2413;
+  --evidence-wash: #33290f;
+  --evidence-text: #e6cf94;
+  --evidence-quote: #ded4b0;
+  --coral: #e8705f;
+  --coral-deep: #f08877;
+  --coral-soft: #3a1f1a;
+  --danger-text: #ffb3a3;
+  --line: #2c3b35;
+  --line-dark: #24352e;
+  --track: #253630;
 }
 
 html,
@@ -153,7 +213,7 @@ h3 {
   min-height: 36px;
   align-items: center;
   gap: 7px;
-  color: #c4d0ca;
+  color: var(--chrome-text);
   font-size: 13px;
   font-weight: 700;
   text-decoration: none;
@@ -177,14 +237,14 @@ h3 {
 .locale-switch button {
   border: 0;
   background: transparent;
-  color: #c4d0ca;
+  color: var(--chrome-text);
   font-size: 12px;
   font-weight: 800;
 }
 
 .locale-switch button[aria-pressed="true"] {
   background: var(--green-bright);
-  color: #052217;
+  color: var(--on-bright);
 }
 
 .icon-button {
@@ -267,9 +327,9 @@ h3 {
 }
 
 .nav-link[aria-current="page"] {
-  border-color: #81bda5;
+  border-color: var(--accent-line);
   background: var(--green-soft);
-  color: #0a5c3f;
+  color: var(--accent-ink);
 }
 
 .nav-link span {
@@ -295,7 +355,7 @@ h3 {
 
 .eyebrow {
   margin-bottom: 0;
-  color: var(--green);
+  color: var(--accent-text);
   font-size: 11px;
   font-weight: 900;
   text-transform: uppercase;
@@ -333,7 +393,7 @@ h3 {
 }
 
 .dataset-button[aria-current="page"] {
-  border-color: #81bda5;
+  border-color: var(--accent-line);
   background: var(--green-soft);
 }
 
@@ -491,7 +551,7 @@ h3 {
 .dataset-choice footer {
   display: flex;
   justify-content: space-between;
-  color: var(--green);
+  color: var(--accent-text);
   font-size: 12px;
   font-weight: 750;
 }
@@ -536,7 +596,7 @@ h3 {
   height: 6px;
   overflow: hidden;
   border-radius: 3px;
-  background: #dde3df;
+  background: var(--track);
 }
 
 .progress-bar {
@@ -618,7 +678,7 @@ h3 {
 }
 
 .answer-option:hover {
-  border-color: #7aa992;
+  border-color: var(--accent-line-strong);
 }
 
 .answer-option:has(input:checked) {
@@ -669,11 +729,11 @@ h3 {
 
 .button-primary {
   background: var(--green);
-  color: #ffffff;
+  color: var(--on-accent);
 }
 
 .button-primary:hover {
-  background: #0d6e4d;
+  background: var(--green-deep);
 }
 
 .button-secondary {
@@ -683,8 +743,8 @@ h3 {
 }
 
 .button-secondary:hover {
-  border-color: var(--green);
-  color: var(--green);
+  border-color: var(--accent-text);
+  color: var(--accent-text);
 }
 
 .button:disabled {
@@ -714,7 +774,7 @@ h3 {
   justify-content: center;
   border-radius: 50%;
   background: var(--green-soft);
-  color: var(--green);
+  color: var(--accent-ink);
   font-weight: 900;
 }
 
@@ -746,7 +806,7 @@ h3 {
 
 .citation-item {
   border-left: 3px solid var(--yellow);
-  background: #fffdf4;
+  background: var(--evidence-soft);
   padding: 14px 16px;
 }
 
@@ -756,7 +816,7 @@ h3 {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 7px;
-  color: #6b5a21;
+  color: var(--evidence-text);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 11px;
   font-weight: 800;
@@ -764,7 +824,7 @@ h3 {
 
 .citation-item blockquote {
   margin: 0;
-  color: #51491f;
+  color: var(--evidence-quote);
   font-size: 13px;
 }
 
@@ -775,9 +835,9 @@ h3 {
 .tutor-panel {
   margin-top: 12px;
   padding: 18px;
-  border: 1px solid #a6c6b8;
+  border: 1px solid var(--accent-line-soft);
   border-radius: var(--radius);
-  background: #f0faf5;
+  background: var(--accent-wash);
 }
 
 .tutor-disclosure {
@@ -813,7 +873,7 @@ h3 {
 }
 
 .completion-score strong {
-  color: var(--green);
+  color: var(--accent-text);
   font-size: 64px;
 }
 
@@ -861,7 +921,7 @@ h3 {
 }
 
 .tab-link[aria-current="page"] {
-  color: var(--green);
+  color: var(--accent-text);
 }
 
 .view-heading {
@@ -895,7 +955,7 @@ h3 {
 }
 
 .view-breadcrumb a:hover {
-  color: var(--green);
+  color: var(--accent-text);
 }
 
 .shell-scope {
@@ -936,12 +996,12 @@ h3 {
 
 .scope-local {
   background: var(--green-soft);
-  color: #0a5c3f;
+  color: var(--accent-ink);
 }
 
 .scope-android {
-  background: #fdf3d8;
-  color: #6b5a21;
+  background: var(--evidence-wash);
+  color: var(--evidence-text);
 }
 
 .stat-grid {
@@ -996,8 +1056,8 @@ h3 {
 }
 
 .shell-card-accent {
-  border-color: #a6c6b8;
-  background: #f4fbf7;
+  border-color: var(--accent-line-soft);
+  background: var(--accent-wash-card);
 }
 
 .shell-card h2 {
@@ -1092,7 +1152,7 @@ h3 {
 }
 
 .plan-row:hover {
-  border-color: #81bda5;
+  border-color: var(--accent-line);
   background: var(--green-soft);
 }
 
@@ -1125,7 +1185,7 @@ h3 {
 }
 
 .plan-status.is-done {
-  color: var(--green);
+  color: var(--accent-text);
 }
 
 .plan-arrow {
@@ -1154,7 +1214,7 @@ h3 {
 
 .source-group-link {
   margin-left: auto;
-  color: var(--green);
+  color: var(--accent-text);
   font-size: 12px;
   font-weight: 750;
   white-space: nowrap;
@@ -1162,7 +1222,7 @@ h3 {
 
 .citation-question {
   margin: 10px 0 0;
-  color: #6b5a21;
+  color: var(--evidence-text);
   font-size: 12px;
 }
 
@@ -1229,7 +1289,7 @@ h3 {
 
 .import-drop:hover,
 .import-drop.is-dragging {
-  border-color: var(--green);
+  border-color: var(--accent-text);
   background: var(--green-soft);
 }
 
@@ -1261,7 +1321,7 @@ h3 {
 .import-drop-label .nav-icon {
   width: 24px;
   height: 24px;
-  color: var(--green);
+  color: var(--accent-text);
 }
 
 .import-drop-label strong {
@@ -1287,7 +1347,7 @@ h3 {
   border-left: 3px solid var(--coral);
   background: var(--coral-soft);
   padding: 12px 14px;
-  color: #7c2f22;
+  color: var(--danger-text);
   font-size: 13px;
   font-weight: 600;
 }
@@ -1320,9 +1380,9 @@ h3 {
 .local-library {
   margin-bottom: 26px;
   padding: 20px;
-  border: 1px solid #a6c6b8;
+  border: 1px solid var(--accent-line-soft);
   border-radius: var(--radius);
-  background: #f6fbf8;
+  background: var(--accent-wash-panel);
 }
 
 .local-library:focus {
@@ -1452,7 +1512,7 @@ h3 {
 
 .local-confirm-body {
   margin: 5px 0 0;
-  color: #7c2f22;
+  color: var(--danger-text);
   font-size: 13px;
 }
 
@@ -1463,11 +1523,11 @@ h3 {
 .button-danger {
   border-color: var(--coral);
   background: var(--coral);
-  color: #ffffff;
+  color: var(--on-danger);
 }
 
 .button-danger:hover {
-  background: #bf4a3a;
+  background: var(--coral-deep);
 }
 
 .local-no-ai {
@@ -1570,7 +1630,7 @@ h3 {
 }
 
 .agent-option:hover {
-  border-color: #7aa992;
+  border-color: var(--accent-line-strong);
 }
 
 .agent-option:has(input:checked) {
@@ -1626,7 +1686,7 @@ h3 {
 }
 
 .agent-focus code {
-  color: #6b5a21;
+  color: var(--evidence-text);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 11px;
   overflow-wrap: anywhere;
@@ -1643,9 +1703,9 @@ h3 {
 .agent-hints {
   margin-top: 20px;
   padding: 16px 18px;
-  border: 1px solid #a6c6b8;
+  border: 1px solid var(--accent-line-soft);
   border-radius: var(--radius);
-  background: #f0faf5;
+  background: var(--accent-wash);
 }
 
 .agent-hints-head {
@@ -1728,7 +1788,7 @@ h3 {
   padding: 9px 12px;
   border-left: 3px solid var(--coral);
   background: var(--coral-soft);
-  color: #7c2f22;
+  color: var(--danger-text);
   font-size: 13px;
 }
 
@@ -1792,6 +1852,251 @@ h3 {
   color: var(--text-muted);
   font-size: 11px;
   font-weight: 800;
+}
+
+/* Profile and privacy: stored-state inventory, backup, theme, scoped deletions */
+
+.theme-switch {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 38px;
+  margin-top: 4px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--panel);
+}
+
+.theme-switch button {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.theme-switch button:hover {
+  color: var(--accent-text);
+}
+
+.theme-switch button[aria-pressed="true"] {
+  background: var(--green-soft);
+  color: var(--accent-ink);
+}
+
+.theme-switch .nav-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.storage-table {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 0;
+}
+
+.storage-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 4px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+}
+
+.storage-row strong {
+  min-width: 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.storage-size {
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.storage-row span:last-child:not(.storage-size) {
+  grid-column: 1 / -1;
+  color: var(--text-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.storage-key {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.storage-total {
+  margin: 12px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.backup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+/* The restore control is a real file input styled as a button-sized label. */
+.restore-picker {
+  position: relative;
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 18px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.restore-picker:hover {
+  border-color: var(--accent-text);
+  color: var(--accent-text);
+}
+
+.restore-picker:focus-within {
+  outline: 3px solid var(--yellow);
+  outline-offset: 3px;
+}
+
+.restore-picker input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.restore-review {
+  margin-top: 16px;
+  padding: 16px 18px;
+  border: 1px solid var(--accent-line-soft);
+  border-radius: var(--radius);
+  background: var(--accent-wash);
+}
+
+.restore-review:focus {
+  outline: none;
+}
+
+.restore-review h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+
+.restore-review-lead {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.restore-warning {
+  margin: 12px 0 0;
+  border-left: 3px solid var(--coral);
+  background: var(--coral-soft);
+  padding: 10px 12px;
+  color: var(--danger-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.restore-sections {
+  margin: 12px 0 0;
+  padding-left: 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.restore-sections li {
+  overflow-wrap: anywhere;
+}
+
+.privacy-actions {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0 0;
+}
+
+.privacy-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+}
+
+.privacy-row strong {
+  min-width: 0;
+  font-size: 14px;
+}
+
+.privacy-row p {
+  grid-column: 1;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.privacy-row .button {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  white-space: nowrap;
+}
+
+.privacy-row-danger {
+  border-color: var(--accent-line-soft);
+}
+
+.privacy-confirm {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+  border: 1px solid var(--coral);
+  border-radius: 7px;
+  background: var(--coral-soft);
+  padding: 12px 14px;
+}
+
+.privacy-confirm:focus {
+  outline: none;
+}
+
+.privacy-confirm p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--danger-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.privacy-confirm .card-actions {
+  margin-top: 10px;
 }
 
 .visually-hidden {
@@ -2070,6 +2375,29 @@ h3 {
   .agent-panel > .card-actions .button,
   .agent-hints > .button {
     width: 100%;
+  }
+
+  /* Privacy and backup controls stack so long bilingual labels never force a sideways scroll. */
+  .privacy-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .privacy-row .button,
+  .privacy-confirm .card-actions .button,
+  .backup-actions .button,
+  .backup-actions .restore-picker,
+  .theme-switch {
+    grid-column: 1;
+    grid-row: auto;
+    width: 100%;
+  }
+
+  .storage-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .storage-size {
+    grid-column: 1;
   }
 
   .agent-recap-list {

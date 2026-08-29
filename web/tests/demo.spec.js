@@ -11,8 +11,10 @@ import {
 } from '../landing/app/scripts/data.js';
 import {
   AGENT_SESSION_STORAGE_KEY,
+  ANCHOR_STORAGE_KEYS,
   LOCAL_LIBRARY_STORAGE_KEY,
   PROGRESS_STORAGE_KEY,
+  THEME_STORAGE_KEY,
 } from '../landing/app/scripts/app.js';
 
 const expectedOrigin = new URL(process.env.ANCHOR_BASE_URL ?? 'http://127.0.0.1:4173').origin;
@@ -53,6 +55,46 @@ async function startAgentSession(page, datasetId) {
   await page.locator(`[data-agent-dataset="${datasetId}"]`).check();
   await page.locator('[data-agent-start-session]').click();
   await expect(page.locator('[data-agent-turn]')).toBeVisible();
+}
+
+/** Feeds one in-memory backup file to the restore picker. */
+async function pickBackup(page, { name = 'anchor-demo-backup.json', text, mimeType = 'application/json' }) {
+  await page.locator('[data-restore-input]').setInputFiles({ name, mimeType, buffer: Buffer.from(text, 'utf8') });
+}
+
+/** All Anchor keys, so a test can assert exactly which ones a control touched. */
+function storedKeys(page) {
+  return page.evaluate((keys) => Object.fromEntries(keys.map((key) => [key, localStorage.getItem(key)])), ANCHOR_STORAGE_KEYS);
+}
+
+/** Builds real local state through the UI: one submitted answer, one import, one agent session. */
+async function seedLocalState(page) {
+  await page.goto('/app/#/decks/flutter');
+  await page.locator('input[value="state"]').check();
+  await page.locator('[data-submit]').click();
+
+  await page.goto('/app/#/import');
+  await pickFile(page);
+  await page.locator('[data-import-confirm]').click();
+  await expect(page.locator('[data-import-saved]')).toBeVisible();
+
+  await startAgentSession(page, 'flutter');
+  await page.locator('[data-agent-reflection]').fill('A reflection worth keeping.');
+  await expect(page.locator('[data-agent-advance]')).not.toHaveAttribute('aria-disabled', 'true');
+}
+
+/** Clicks Export and returns the saved file's name and parsed contents. */
+async function exportBackup(page) {
+  const download = await Promise.all([
+    page.waitForEvent('download'),
+    page.locator('[data-backup-export]').click(),
+  ]).then(([event]) => event);
+
+  const stream = await download.createReadStream();
+  const chunks = [];
+  for await (const chunk of stream) chunks.push(chunk);
+  const text = Buffer.concat(chunks).toString('utf8');
+  return { name: download.suggestedFilename(), text, record: JSON.parse(text) };
 }
 
 const SHELL_SURFACES = [
@@ -176,8 +218,12 @@ test('all bundled datasets complete with citations, tutor disclosure, recovery, 
   await page.locator('input[value="snapshot"]').check();
   await page.locator('[data-submit]').click();
   await page.locator('[data-nav-route="profile"]').click();
-  await expect(page.locator('.shell-card [data-reset-progress]')).toBeVisible();
-  await page.locator('.shell-card [data-reset-progress]').click();
+  // The profile control confirms first; the sidebar's own reset stays immediate.
+  const profileReset = page.locator('[data-privacy-reset="progress"]');
+  await expect(profileReset).toBeEnabled();
+  await profileReset.click();
+  expect(await page.evaluate((key) => localStorage.getItem(key), PROGRESS_STORAGE_KEY)).not.toBeNull();
+  await page.locator('[data-privacy-confirm-action="progress"]').click();
   await expect(page.locator('#app-announcer')).toHaveText('Local demo progress was reset.');
   expect(await page.evaluate((key) => localStorage.getItem(key), PROGRESS_STORAGE_KEY)).toBeNull();
 });
@@ -1012,3 +1058,417 @@ for (const viewport of [
     expect(screenshot.byteLength).toBeGreaterThan(10_000);
   });
 }
+
+test('the profile lists every Anchor key it holds and measures what is stored', async ({ page }) => {
+  await page.goto('/app/#/profile');
+  const rows = page.locator('[data-storage-row]');
+  await expect(rows).toHaveCount(ANCHOR_STORAGE_KEYS.length);
+  for (const key of ANCHOR_STORAGE_KEYS) {
+    await expect(page.locator(`[data-storage-row="${key}"]`)).toContainText(key);
+  }
+  await expect(page.locator(`[data-storage-row="${PROGRESS_STORAGE_KEY}"]`)).toContainText(SHELL_TEXT.profile.inventoryEmpty.en);
+  await expect(page.locator('[data-backup-export]')).toBeDisabled();
+  await expect(page.locator('[data-backup-empty]')).toBeVisible();
+
+  await seedLocalState(page);
+  await page.goto('/app/#/profile');
+  await expect(page.locator(`[data-storage-row="${PROGRESS_STORAGE_KEY}"]`)).not.toContainText(SHELL_TEXT.profile.inventoryEmpty.en);
+  await expect(page.locator(`[data-storage-row="${PROGRESS_STORAGE_KEY}"]`)).toContainText('1 submitted answers');
+  await expect(page.locator(`[data-storage-row="${LOCAL_LIBRARY_STORAGE_KEY}"]`)).toContainText('1 sources, 3 sections');
+  await expect(page.locator(`[data-storage-row="${AGENT_SESSION_STORAGE_KEY}"]`)).toContainText('1 reflections written');
+  await expect(page.locator('.storage-total')).toContainText('stored keys');
+  await expect(page.locator('[data-backup-export]')).toBeEnabled();
+});
+
+test('a backup exports the three local sections and no credentials', async ({ page }) => {
+  const offOriginRequests = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).origin !== expectedOrigin) offOriginRequests.push(request.url());
+  });
+
+  // A key some other feature might have left on this origin. It must not reach the file.
+  await page.addInitScript(() => localStorage.setItem('anchor.unrelated.token', 'sk-live-must-not-be-exported'));
+  await seedLocalState(page);
+  await page.goto('/app/#/profile');
+
+  const { name, text, record } = await exportBackup(page);
+  expect(name).toMatch(/^anchor-demo-backup-\d{4}-\d{2}-\d{2}\.json$/);
+  expect(record.format).toBe('anchor.demo.backup');
+  expect(record.version).toBe(1);
+  expect(Object.keys(record).sort()).toEqual(['agent', 'exportedAt', 'format', 'library', 'progress', 'version']);
+  expect(record.progress.datasets.flutter.submitted['flutter-state-owner']).toBe(true);
+  expect(record.library.sources[0].name).toBe('anchor-notes.md');
+  expect(Object.values(record.agent.reflections)).toContain('A reflection worth keeping.');
+  expect(text).not.toContain('sk-live-must-not-be-exported');
+  expect(text).not.toContain('anchor.unrelated.token');
+
+  await expect(page.locator('#app-announcer')).toContainText(`Backup exported as ${name}`);
+  expect(offOriginRequests).toEqual([]);
+});
+
+test('a restore is reviewed before it replaces anything, and cancelling changes nothing', async ({ page }) => {
+  await seedLocalState(page);
+  await page.goto('/app/#/profile');
+  const { text: backupText } = await exportBackup(page);
+
+  // Wipe local state, then restore the file that was just saved.
+  await page.locator('[data-privacy-reset="all"]').click();
+  await page.locator('[data-privacy-confirm-action="all"]').click();
+  await expect(page.locator('#app-announcer')).toHaveText(SHELL_TEXT.profile.clearAllDone.en);
+  expect(await storedSourceNames(page)).toBeNull();
+
+  await pickBackup(page, { text: backupText, name: 'my-anchor-backup.json' });
+  const review = page.locator('[data-restore-review]');
+  await expect(review).toBeVisible();
+  await expect(review).toBeFocused();
+  await expect(review.locator('[data-restore-name]')).toHaveText('my-anchor-backup.json');
+  await expect(review).toContainText('Schema version');
+  await expect(review).toContainText('v1');
+  await expect(review).toContainText('UTC');
+  await expect(review.locator('.restore-sections li')).toHaveCount(3);
+  await expect(review).toContainText('Quiz progress — 1 submitted answers');
+  await expect(review).toContainText('Imported sources — 1 sources, 3 sections');
+  await expect(review).toContainText('Guided Agent session — 1 reflections');
+  await expect(review).toContainText(SHELL_TEXT.profile.restoreWarning.en);
+  await expect(page.locator('#app-announcer')).toContainText('my-anchor-backup.json');
+
+  // Nothing has been written yet.
+  expect(await storedSourceNames(page)).toBeNull();
+  expect(await page.evaluate((key) => localStorage.getItem(key), PROGRESS_STORAGE_KEY)).toBeNull();
+
+  await page.locator('[data-restore-cancel]').click();
+  await expect(review).toHaveCount(0);
+  await expect(page.locator('#app-announcer')).toHaveText(SHELL_TEXT.profile.restoreCancelled.en);
+  expect(await storedSourceNames(page)).toBeNull();
+  expect(await page.evaluate((key) => localStorage.getItem(key), PROGRESS_STORAGE_KEY)).toBeNull();
+
+  // Confirming does replace, and the restored state survives a reload on every surface.
+  await pickBackup(page, { text: backupText, name: 'my-anchor-backup.json' });
+  await page.locator('[data-restore-confirm]').click();
+  await expect(page.locator('#app-announcer')).toHaveText('Local data replaced from my-anchor-backup.json.');
+  await expect(page.locator('[data-restore-review]')).toHaveCount(0);
+  expect(await storedSourceNames(page)).toEqual(['anchor-notes.md']);
+
+  await page.reload();
+  await expect(page.locator(`[data-storage-row="${PROGRESS_STORAGE_KEY}"]`)).toContainText('1 submitted answers');
+  await page.goto('/app/#/library');
+  await expect(page.locator('#local-library')).toContainText('anchor-notes.md');
+  await page.goto('/app/#/agent');
+  await expect(page.locator('[data-agent-turn]')).toBeVisible();
+  await expect(page.locator('[data-agent-reflection]')).toHaveValue('A reflection worth keeping.');
+  await page.goto('/app/#/decks/flutter');
+  await expect(page.locator('.feedback-status')).toContainText('Supported by the source');
+});
+
+test('a malformed, foreign, oversized, or hostile backup is refused without touching local state', async ({ page }) => {
+  const pageErrors = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+
+  await seedLocalState(page);
+  await page.goto('/app/#/profile');
+  const before = await storedKeys(page);
+
+  const rejections = [
+    { label: 'wrong extension', file: { name: 'backup.md', text: '# not json', mimeType: 'text/markdown' }, message: SHELL_TEXT.profile.restoreErrorType.en },
+    { label: 'not json', file: { name: 'backup.json', text: '{ broken' }, message: SHELL_TEXT.profile.restoreErrorJson.en },
+    { label: 'foreign json', file: { name: 'backup.json', text: JSON.stringify({ app: 'somethingelse', data: [1, 2] }) }, message: SHELL_TEXT.profile.restoreErrorFormat.en },
+    { label: 'json array', file: { name: 'backup.json', text: '[{"format":"anchor.demo.backup","version":1}]' }, message: SHELL_TEXT.profile.restoreErrorFormat.en },
+    { label: 'future version', file: { name: 'backup.json', text: JSON.stringify({ format: 'anchor.demo.backup', version: 2, progress: {} }) }, message: SHELL_TEXT.profile.restoreErrorVersion.en },
+    { label: 'no sections', file: { name: 'backup.json', text: JSON.stringify({ format: 'anchor.demo.backup', version: 1 }) }, message: SHELL_TEXT.profile.restoreErrorShape.en },
+    { label: 'oversized', file: { name: 'backup.json', text: `{"format":"anchor.demo.backup","version":1,"pad":"${'x'.repeat(1_100_000)}"}` }, message: 'has to stay under' },
+  ];
+
+  for (const rejection of rejections) {
+    await pickBackup(page, rejection.file);
+    const error = page.locator('[data-restore-error]');
+    await expect(error, rejection.label).toBeVisible();
+    await expect(error, rejection.label).toContainText(rejection.message);
+    await expect(page.locator('[data-restore-review]'), rejection.label).toHaveCount(0);
+    expect(await storedKeys(page), rejection.label).toEqual(before);
+  }
+
+  expect(pageErrors).toEqual([]);
+});
+
+test('hostile text inside a backup is rendered as text and normalized on restore', async ({ page }) => {
+  const pageErrors = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+
+  await page.goto('/app/#/profile');
+  const hostile = JSON.stringify({
+    format: 'anchor.demo.backup',
+    version: 1,
+    exportedAt: Date.now(),
+    progress: { version: 1, activeDatasetId: '<script>window.__pwned=1</script>', datasets: { flutter: { currentIndex: 9999, answers: { 'flutter-state-owner': ['state', 'injected'] }, submitted: { 'flutter-state-owner': true } } } },
+    library: {
+      version: 1,
+      sources: [{
+        id: 'hostile',
+        name: '<img src=x onerror="window.__pwned=1">',
+        bytes: 40,
+        importedAt: Date.now(),
+        sections: [{ id: 's1', kind: 'heading', heading: '<b>bold heading</b>', excerpt: '<script>window.__pwned=1</script>', line: 1 }],
+      }],
+    },
+    agent: { version: 1, datasetId: 'flutter', turnIndex: 0, reflections: {}, hints: {} },
+    stowaway: { please: '<script>window.__pwned=1</script>' },
+  });
+
+  await pickBackup(page, { text: hostile, name: '<img src=x onerror="window.__pwned=1">.json' });
+  const review = page.locator('[data-restore-review]');
+  await expect(review).toBeVisible();
+  // The markup arrives as visible text, not as nodes.
+  await expect(review.locator('[data-restore-name]')).toHaveText('<img src=x onerror="window.__pwned=1">.json');
+  expect(await review.locator('img, script, b').count()).toBe(0);
+  expect(await page.evaluate(() => window.__pwned)).toBeUndefined();
+
+  await page.locator('[data-restore-confirm]').click();
+  await expect(page.locator('#app-announcer')).toContainText('Local data replaced');
+  expect(await page.evaluate(() => window.__pwned)).toBeUndefined();
+
+  await page.goto('/app/#/library');
+  await expect(page.locator('#local-library')).toContainText('<img src=x onerror="window.__pwned=1">');
+  expect(await page.locator('#local-library img, #local-library script').count()).toBe(0);
+  await page.locator('[data-toggle-source="hostile"]').click();
+  await expect(page.locator('.local-section-heading').first()).toHaveText('<b>bold heading</b>');
+  expect(await page.locator('.local-section b, .local-section script').count()).toBe(0);
+  expect(await page.evaluate(() => window.__pwned)).toBeUndefined();
+
+  // Unknown sections are never restorable, and the clamped index landed inside the dataset.
+  const restored = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), PROGRESS_STORAGE_KEY);
+  expect(restored.stowaway).toBeUndefined();
+  expect(restored.activeDatasetId).toBeNull();
+  expect(restored.datasets.flutter.currentIndex).toBe(3);
+  expect(restored.datasets.flutter.answers['flutter-state-owner']).toEqual(['state']);
+  expect(pageErrors).toEqual([]);
+});
+
+test('each delete control is confirmed on its own and never takes the other keys with it', async ({ page }) => {
+  const scopes = [
+    { action: 'progress', removes: PROGRESS_STORAGE_KEY, keeps: [LOCAL_LIBRARY_STORAGE_KEY, AGENT_SESSION_STORAGE_KEY], done: SHELL_TEXT.profile.resetDone.en },
+    { action: 'agent', removes: AGENT_SESSION_STORAGE_KEY, keeps: [PROGRESS_STORAGE_KEY, LOCAL_LIBRARY_STORAGE_KEY], done: SHELL_TEXT.profile.agentResetDone.en },
+    { action: 'library', removes: LOCAL_LIBRARY_STORAGE_KEY, keeps: [PROGRESS_STORAGE_KEY, AGENT_SESSION_STORAGE_KEY], done: SHELL_TEXT.profile.libraryResetDone.en },
+  ];
+
+  for (const scope of scopes) {
+    // Each pass starts from a clean browser so one scope's deletion cannot mask the next one's seed.
+    // The reload matters: clearing storage alone would leave the previous session live in memory.
+    await page.goto('/app/#/profile');
+    await page.evaluate((keys) => keys.forEach((key) => localStorage.removeItem(key)), ANCHOR_STORAGE_KEYS);
+    await page.reload();
+    await seedLocalState(page);
+    await page.goto('/app/#/profile');
+    const before = await storedKeys(page);
+    for (const key of [scope.removes, ...scope.keeps]) expect(before[key], `${scope.action} seed ${key}`).not.toBeNull();
+
+    // Opening the confirmation deletes nothing, and backing out leaves everything in place.
+    await page.locator(`[data-privacy-reset="${scope.action}"]`).click();
+    const confirm = page.locator(`[data-privacy-confirm="${scope.action}"]`);
+    await expect(confirm).toBeVisible();
+    await expect(confirm).toBeFocused();
+    expect(await storedKeys(page), `${scope.action} pending`).toEqual(before);
+
+    await page.locator('[data-privacy-cancel]').click();
+    await expect(confirm).toHaveCount(0);
+    await expect(page.locator(`[data-privacy-reset="${scope.action}"]`)).toBeFocused();
+    expect(await storedKeys(page), `${scope.action} cancelled`).toEqual(before);
+
+    await page.locator(`[data-privacy-reset="${scope.action}"]`).click();
+    await page.locator(`[data-privacy-confirm-action="${scope.action}"]`).click();
+    await expect(page.locator('#app-announcer')).toHaveText(scope.done);
+
+    const after = await storedKeys(page);
+    expect(after[scope.removes], `${scope.action} removed`).toBeNull();
+    for (const key of scope.keeps) expect(after[key], `${scope.action} kept ${key}`).toEqual(before[key]);
+  }
+});
+
+test('clear-all removes every Anchor key and leaves other keys on this origin alone', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('unrelated.site.setting', 'keep me');
+    localStorage.setItem('anchor-landing-note', 'keep me too');
+  });
+  await seedLocalState(page);
+  await page.goto('/app/#/profile');
+  await page.locator('[data-set-theme="dark"]').click();
+  // The locale key is only written once a learner picks a language, so click through to create it.
+  await page.locator('[data-locale="zh"]').click();
+  await page.locator('[data-locale="en"]').click();
+
+  const before = await storedKeys(page);
+  for (const key of ANCHOR_STORAGE_KEYS) expect(before[key], key).not.toBeNull();
+
+  await page.locator('[data-privacy-reset="all"]').click();
+  await expect(page.locator('[data-privacy-confirm="all"]')).toContainText('cannot be undone');
+  expect(await storedKeys(page)).toEqual(before);
+
+  await page.locator('[data-privacy-confirm-action="all"]').click();
+  await expect(page.locator('#app-announcer')).toHaveText(SHELL_TEXT.profile.clearAllDone.en);
+
+  const after = await storedKeys(page);
+  for (const key of ANCHOR_STORAGE_KEYS) expect(after[key], key).toBeNull();
+  expect(await page.evaluate(() => localStorage.getItem('unrelated.site.setting'))).toBe('keep me');
+  expect(await page.evaluate(() => localStorage.getItem('anchor-landing-note'))).toBe('keep me too');
+
+  // Every surface comes back empty rather than broken.
+  await expect(page.locator('[data-backup-export]')).toBeDisabled();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await page.goto('/app/#/library');
+  await expect(page.locator('#app-content')).toContainText(SHELL_TEXT.localLibrary.empty.en);
+  await page.goto('/app/#/agent');
+  await expect(page.locator('[data-agent-start-session]')).toBeVisible();
+  await page.goto('/app/#/decks');
+  await expect(page.locator('.welcome-view')).toBeVisible();
+});
+
+test('the theme choice is announced, persists, and repaints the shell', async ({ page }) => {
+  await page.goto('/app/#/profile');
+  const html = page.locator('html');
+  const light = page.locator('[data-set-theme="light"]');
+  const dark = page.locator('[data-set-theme="dark"]');
+
+  await expect(page.locator('.theme-switch')).toHaveAttribute('aria-label', SHELL_TEXT.profile.themeLabel.en);
+  await expect(html).toHaveAttribute('data-theme', 'light');
+  await expect(light).toHaveAttribute('aria-pressed', 'true');
+  await expect(dark).toHaveAttribute('aria-pressed', 'false');
+
+  const lightPaper = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+
+  await dark.click();
+  await expect(html).toHaveAttribute('data-theme', 'dark');
+  await expect(dark).toHaveAttribute('aria-pressed', 'true');
+  await expect(light).toHaveAttribute('aria-pressed', 'false');
+  await expect(dark).toBeFocused();
+  await expect(page.locator('#app-announcer')).toHaveText(SHELL_TEXT.profile.themeAnnounceDark.en);
+
+  const darkPaper = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  expect(darkPaper).not.toBe(lightPaper);
+  expect(await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), THEME_STORAGE_KEY)).toEqual({ version: 1, theme: 'dark' });
+
+  // Survives a reload, and applies to every surface rather than only the profile.
+  await page.reload();
+  await expect(html).toHaveAttribute('data-theme', 'dark');
+  expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(darkPaper);
+  await page.goto('/app/#/decks/flutter');
+  await expect(html).toHaveAttribute('data-theme', 'dark');
+  await page.goto('/');
+  // The marketing page does not read the app's theme key; the demo owns that surface only.
+  await page.goto('/app/#/profile');
+  await expect(html).toHaveAttribute('data-theme', 'dark');
+
+  await page.locator('[data-set-theme="light"]').click();
+  await expect(html).toHaveAttribute('data-theme', 'light');
+  await expect(page.locator('#app-announcer')).toHaveText(SHELL_TEXT.profile.themeAnnounceLight.en);
+  expect(await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), THEME_STORAGE_KEY)).toEqual({ version: 1, theme: 'light' });
+  await page.reload();
+  await expect(html).toHaveAttribute('data-theme', 'light');
+});
+
+test('the system hint only decides the first visit, and a stale theme key is ignored', async ({ browser }) => {
+  const context = await browser.newContext({ colorScheme: 'dark' });
+  const page = await context.newPage();
+  await page.goto('/app/#/profile');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(page.locator('[data-set-theme="dark"]')).toHaveAttribute('aria-pressed', 'true');
+  // Not written yet: the hint is followed without claiming to be the learner's choice.
+  expect(await page.evaluate((key) => localStorage.getItem(key), THEME_STORAGE_KEY)).toBeNull();
+
+  // A deliberate light choice outranks the dark system hint from then on.
+  await page.locator('[data-set-theme="light"]').click();
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+
+  for (const stale of ['{broken', '"sepia"', JSON.stringify({ version: 99, theme: 'dark' }), JSON.stringify({ theme: 'dark' }), 'null']) {
+    await page.evaluate(([key, value]) => localStorage.setItem(key, value), [THEME_STORAGE_KEY, stale]);
+    await page.reload();
+    // Falls back to the system hint rather than applying an unknown palette or throwing.
+    await expect(page.locator('html'), stale).toHaveAttribute('data-theme', 'dark');
+    await expect(page.locator('#app-content h1')).toBeVisible();
+  }
+
+  // A hand-written bare string is still honoured.
+  await page.evaluate(([key]) => localStorage.setItem(key, '"light"'), [THEME_STORAGE_KEY]);
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await context.close();
+});
+
+test('the profile reads in both languages and fits a 390px screen in either theme', async ({ page }) => {
+  const offOriginRequests = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).origin !== expectedOrigin) offOriginRequests.push(request.url());
+  });
+  const overflow = () => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await seedLocalState(page);
+  await page.goto('/app/#/profile');
+
+  for (const theme of ['light', 'dark']) {
+    await page.locator(`[data-set-theme="${theme}"]`).click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+    expect(await overflow(), `${theme} profile`).toBeLessThanOrEqual(0);
+
+    // Open confirmations and the restore review add the widest content on this surface.
+    await page.locator('[data-privacy-reset="all"]').click();
+    await expect(page.locator('[data-privacy-confirm="all"]')).toBeVisible();
+    expect(await overflow(), `${theme} confirm`).toBeLessThanOrEqual(0);
+    await page.locator('[data-privacy-cancel]').click();
+  }
+
+  const { text: backupText } = await exportBackup(page);
+  await pickBackup(page, { text: backupText, name: 'a-fairly-long-backup-file-name-from-another-device.json' });
+  await expect(page.locator('[data-restore-review]')).toBeVisible();
+  expect(await overflow(), 'restore review at 390px').toBeLessThanOrEqual(0);
+
+  // Bilingual copy, still without overflow.
+  await page.locator('[data-locale="zh"]').click();
+  await expect(page.locator('#app-content')).toContainText(SHELL_TEXT.profile.inventoryTitle.zh);
+  await expect(page.locator('#app-content')).toContainText(SHELL_TEXT.profile.backupTitle.zh);
+  await expect(page.locator('#app-content')).toContainText(SHELL_TEXT.profile.restoreTitle.zh);
+  await expect(page.locator('#app-content')).toContainText(SHELL_TEXT.profile.controlsTitle.zh);
+  await expect(page.locator('#app-content')).toContainText(SHELL_TEXT.profile.themeBody.zh);
+  await expect(page.locator('[data-set-theme="dark"]')).toContainText(SHELL_TEXT.profile.themeDark.zh);
+  await expect(page.locator('[data-privacy-reset="library"]')).toHaveText(SHELL_TEXT.profile.libraryResetAction.zh);
+  await expect(page.locator('.theme-switch')).toHaveAttribute('aria-label', SHELL_TEXT.profile.themeLabel.zh);
+  expect(await overflow(), 'zh profile at 390px').toBeLessThanOrEqual(0);
+
+  await page.locator('[data-privacy-reset="progress"]').click();
+  await expect(page.locator('[data-privacy-confirm="progress"]')).toContainText(SHELL_TEXT.profile.resetConfirm.zh);
+  expect(await overflow(), 'zh confirm at 390px').toBeLessThanOrEqual(0);
+  await page.locator('[data-privacy-confirm-action="progress"]').click();
+  await expect(page.locator('#app-announcer')).toHaveText(SHELL_TEXT.profile.resetDone.zh);
+
+  // Desktop keeps the same surface intact.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.locator('[data-locale="en"]').click();
+  await expect(page.locator('.privacy-actions .privacy-row')).toHaveCount(4);
+  await expect(page.locator('[data-backup-export]')).toBeEnabled();
+  expect(await overflow(), 'desktop profile').toBeLessThanOrEqual(0);
+  expect(offOriginRequests).toEqual([]);
+});
+
+test('a restore left half-finished never leaks into another surface', async ({ page }) => {
+  await seedLocalState(page);
+  await page.goto('/app/#/profile');
+  const { text: backupText } = await exportBackup(page);
+
+  await pickBackup(page, { text: backupText });
+  await expect(page.locator('[data-restore-review]')).toBeVisible();
+  await page.locator('[data-privacy-reset="library"]').click();
+  await expect(page.locator('[data-privacy-confirm="library"]')).toBeVisible();
+
+  // Leaving the surface abandons both the draft and the pending confirmation.
+  await page.goto('/app/#/library');
+  await page.goto('/app/#/profile');
+  await expect(page.locator('[data-restore-review]')).toHaveCount(0);
+  await expect(page.locator('[data-privacy-confirm="library"]')).toHaveCount(0);
+  expect(await storedSourceNames(page)).toEqual(['anchor-notes.md']);
+
+  // A rejected pick clears an earlier error once a good file follows it.
+  await pickBackup(page, { name: 'wrong.txt', text: 'nope', mimeType: 'text/plain' });
+  await expect(page.locator('[data-restore-error]')).toBeVisible();
+  await pickBackup(page, { text: backupText });
+  await expect(page.locator('[data-restore-error]')).toHaveCount(0);
+  await expect(page.locator('[data-restore-review]')).toBeVisible();
+});

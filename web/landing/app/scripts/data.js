@@ -30,6 +30,35 @@ export const AGENT_SESSION_LIMITS = {
   maxReflectionChars: 600,
 };
 
+/**
+ * Envelope written by the Profile backup export.
+ *
+ * `format` is checked before `version` so a JSON file from somewhere else is rejected as the wrong
+ * kind of document rather than as an incompatible Anchor backup. `version` covers the envelope only;
+ * each section still carries the schema version of the key it came from.
+ */
+export const BACKUP_FORMAT = 'anchor.demo.backup';
+export const BACKUP_VERSION = 1;
+
+/**
+ * Ceilings for a restore candidate. A backup holds the three demo keys, and their own caps bound it
+ * to well under 300 KB, so 1 MB rejects a hostile or unrelated file before it is parsed while leaving
+ * a wide margin for a legitimate export.
+ */
+export const BACKUP_LIMITS = {
+  maxBytes: 1_048_576,
+  extensions: ['.json'],
+};
+
+/** Sections a backup may carry, in the order the review panel lists them. */
+export const BACKUP_SECTIONS = ['progress', 'library', 'agent'];
+
+/** Themes the app can apply. `system` is not a value: the resolved choice is always one of these. */
+export const THEMES = ['light', 'dark'];
+
+/** Storage schema for the persisted theme choice. Bumped independently of the data keys. */
+export const THEME_VERSION = 1;
+
 const localized = (en, zh) => ({ en, zh });
 
 export const DATASETS = [
@@ -628,25 +657,142 @@ export const SHELL_TEXT = {
       'Answers and the current question index are kept in localStorage so a reload resumes the same place.',
       '答案和当前题号保存在 localStorage 中，重新加载后会回到同一位置。',
     ),
+    inventoryTitle: localized('What this browser is holding', '此浏览器保存了哪些数据'),
+    inventoryBody: localized(
+      'Every key Anchor writes on this origin, with its measured size. Nothing else on this page is read, and nothing leaves the browser.',
+      '这里列出 Anchor 在此来源写入的每个键及其实测大小。本页不会读取其他数据，也不会把任何内容发送出去。',
+    ),
+    inventoryEmpty: localized('Not written yet', '尚未写入'),
+    inventoryProgress: localized('Quiz progress', '答题进度'),
+    inventoryLibrary: localized('Imported sources', '导入的资料'),
+    inventoryAgent: localized('Guided Agent session', '引导式 Agent 会话'),
+    inventoryTheme: localized('Theme preference', '主题偏好'),
+    inventoryLocale: localized('Language preference', '语言偏好'),
+    inventoryTotal: localized('{size} across {keys} stored keys.', '共 {keys} 个已存储的键，合计 {size}。'),
+    inventoryAnswers: localized('{count} submitted answers', '{count} 个已提交答案'),
+    inventorySources: localized('{count} sources, {sections} sections', '{count} 个来源，{sections} 个小节'),
+    inventoryReflections: localized('{count} reflections written', '已写下 {count} 条回顾'),
     accountTitle: localized('No account involved', '不涉及账号'),
     accountBody: localized(
       'There is no sign-in, no profile sync, and no server holding your answers.',
       '这里没有登录、没有资料同步，也没有服务端保存你的答案。',
     ),
+    themeTitle: localized('Appearance', '外观'),
+    themeBody: localized(
+      'Choose a light or dark theme. The choice is stored in this browser and applied on the next visit; before you choose, Anchor follows your system setting.',
+      '可以选择浅色或深色主题。选择会保存在此浏览器并在下次访问时应用；在你做出选择前，Anchor 会跟随系统设置。',
+    ),
+    themeLabel: localized('Theme', '主题'),
+    themeLight: localized('Light', '浅色'),
+    themeDark: localized('Dark', '深色'),
+    themeAnnounceLight: localized('Light theme applied.', '已应用浅色主题。'),
+    themeAnnounceDark: localized('Dark theme applied.', '已应用深色主题。'),
     languageTitle: localized('Language', '语言'),
     languageBody: localized(
       'Switch between English and 中文 with the toggle in the header. The choice is remembered locally.',
       '使用页眉的切换按钮在 English 与中文之间切换，选择会保存在本地。',
     ),
-    resetTitle: localized('Reset local progress', '重置本地进度'),
-    resetBody: localized(
-      'Clears answers and scores for all bundled datasets in this browser.',
-      '清除此浏览器中所有内置数据集的答案与得分。',
+    backupTitle: localized('Backup this browser', '备份此浏览器'),
+    backupBody: localized(
+      'Export a JSON file holding your quiz progress, imported sources, and guided session. The file is written by your browser to your own download folder — it is never uploaded, and it contains no keys, tokens, or account details.',
+      '可以导出一个 JSON 文件，包含你的答题进度、导入的资料与引导式会话。该文件由浏览器写入你自己的下载目录，不会被上传，也不包含任何密钥、令牌或账号信息。',
     ),
+    backupExport: localized('Export backup', '导出备份'),
+    backupExportEmpty: localized(
+      'Nothing is stored yet, so an export would be empty. Answer a question or import a file first.',
+      '目前尚无数据，导出会是空的。请先答一道题或导入一个文件。',
+    ),
+    backupExported: localized('Backup exported as {name}.', '备份已导出为 {name}。'),
+    backupExportFailed: localized(
+      'This browser blocked the download. Check its download settings and try again.',
+      '浏览器阻止了此次下载。请检查下载设置后重试。',
+    ),
+    restoreTitle: localized('Restore from a backup file', '从备份文件恢复'),
+    restoreBody: localized(
+      'Choose a backup you exported earlier. Anchor checks it and shows you what it contains; nothing is replaced until you confirm.',
+      '选择你此前导出的备份文件。Anchor 会先校验并展示其中的内容，在你确认之前不会替换任何数据。',
+    ),
+    restorePick: localized('Choose backup file', '选择备份文件'),
+    restoreReviewTitle: localized('Review before replacing', '替换前请先确认'),
+    restoreReviewLead: localized(
+      'Checked in this browser. Confirm to replace the local state below, or cancel to keep what you have now.',
+      '已在此浏览器中完成校验。确认后将替换下列本地数据，取消则保留当前内容。',
+    ),
+    restoreFile: localized('File', '文件'),
+    restoreSize: localized('Size', '大小'),
+    restoreSchema: localized('Schema version', '架构版本'),
+    restoreExportedAt: localized('Exported', '导出时间'),
+    restoreExportedUnknown: localized('Not recorded', '未记录'),
+    restoreIncludes: localized('Included in this backup', '此备份包含的内容'),
+    restoreSectionProgress: localized('Quiz progress — {count} submitted answers', '答题进度 — {count} 个已提交答案'),
+    restoreSectionLibrary: localized('Imported sources — {count} sources, {sections} sections', '导入的资料 — {count} 个来源，{sections} 个小节'),
+    restoreSectionAgent: localized('Guided Agent session — {count} reflections', '引导式 Agent 会话 — {count} 条回顾'),
+    restoreDropped: localized(
+      'Anchor could not read these sections and will clear them instead of restoring them: {sections}.',
+      'Anchor 无法读取以下部分，将清除而不是恢复它们：{sections}。',
+    ),
+    restoreWarning: localized(
+      'Replacing overwrites the quiz progress, imported sources, and guided session already in this browser. This cannot be undone.',
+      '替换会覆盖此浏览器中现有的答题进度、导入资料与引导式会话，且无法撤销。',
+    ),
+    restoreConfirm: localized('Replace local data', '替换本地数据'),
+    restoreCancel: localized('Cancel', '取消'),
+    restoreReady: localized('Backup {name} checked. Review it, then confirm to replace local data.', '备份 {name} 已校验。请查看后确认替换本地数据。'),
+    restoreDone: localized('Local data replaced from {name}.', '已从 {name} 替换本地数据。'),
+    restoreCancelled: localized('Restore cancelled. Nothing was changed.', '已取消恢复，未更改任何内容。'),
+    restoreErrorType: localized('Choose a .json backup file exported from this demo.', '请选择由本演示导出的 .json 备份文件。'),
+    restoreErrorEmpty: localized('That file is empty.', '该文件是空的。'),
+    restoreErrorSize: localized('That file is {size}. A backup has to stay under {kb} KB.', '该文件为 {size}，备份必须小于 {kb} KB。'),
+    restoreErrorJson: localized('That file is not valid JSON.', '该文件不是有效的 JSON。'),
+    restoreErrorFormat: localized('That JSON file is not an Anchor backup.', '该 JSON 文件不是 Anchor 备份。'),
+    restoreErrorVersion: localized('That backup was written by a different version of this demo and cannot be restored.', '该备份由本演示的其他版本写入，无法恢复。'),
+    restoreErrorShape: localized('That backup has no sections this build can restore.', '该备份不包含此版本可恢复的内容。'),
+    restoreErrorRead: localized('This browser could not read that file.', '浏览器无法读取该文件。'),
+    controlsTitle: localized('Delete local data', '删除本地数据'),
+    controlsBody: localized(
+      'Each action is scoped and confirmed separately, so clearing one thing never takes the others with it.',
+      '每项操作都有独立范围并单独确认，清除其中一项不会影响其他内容。',
+    ),
+    resetTitle: localized('Reset quiz progress', '重置答题进度'),
+    resetBody: localized(
+      'Clears answers and scores for all bundled datasets. Imported sources and the guided session are kept.',
+      '清除所有内置数据集的答案与得分。导入的资料与引导式会话会保留。',
+    ),
+    resetConfirm: localized('Reset quiz progress in this browser? Imported sources and the guided session stay.', '要重置此浏览器中的答题进度吗？导入的资料与引导式会话将保留。'),
+    resetAction: localized('Reset progress', '重置进度'),
+    resetDone: localized('Local demo progress was reset.', '本地演示进度已重置。'),
+    agentResetTitle: localized('Clear the guided Agent session', '清除引导式 Agent 会话'),
+    agentResetBody: localized(
+      'Deletes the scripted session and the reflections you wrote in it. Quiz progress and imported sources are kept.',
+      '删除脚本化会话以及你在其中写下的回顾。答题进度与导入的资料会保留。',
+    ),
+    agentResetConfirm: localized('Delete the guided session and its reflections? Quiz progress and imported sources stay.', '要删除引导式会话及其回顾吗？答题进度与导入的资料将保留。'),
+    agentResetAction: localized('Clear session', '清除会话'),
+    agentResetDone: localized('Guided Agent session cleared.', '引导式 Agent 会话已清除。'),
+    libraryResetTitle: localized('Delete imported sources', '删除导入的资料'),
+    libraryResetBody: localized(
+      'Removes every file you read into this browser. Quiz progress and the guided session are kept.',
+      '移除你读入此浏览器的所有文件。答题进度与引导式会话会保留。',
+    ),
+    libraryResetConfirm: localized('Delete all imported sources from this browser? Quiz progress and the guided session stay.', '要从此浏览器删除所有导入的资料吗？答题进度与引导式会话将保留。'),
+    libraryResetAction: localized('Delete sources', '删除资料'),
+    libraryResetDone: localized('Imported sources deleted.', '导入的资料已删除。'),
+    clearAllTitle: localized('Clear all Anchor data in this browser', '清除此浏览器中的全部 Anchor 数据'),
+    clearAllBody: localized(
+      'Removes every key listed above — progress, imported sources, the guided session, and your theme and language choices. Only Anchor keys are touched; other sites and other data on this origin are left alone.',
+      '移除上方列出的所有键：进度、导入的资料、引导式会话，以及你的主题与语言选择。仅涉及 Anchor 的键，不会影响其他网站或此来源的其他数据。',
+    ),
+    clearAllConfirm: localized('Delete every Anchor key in this browser, including your theme and language choices? This cannot be undone.', '要删除此浏览器中所有 Anchor 的键（含主题与语言选择）吗？此操作无法撤销。'),
+    clearAllAction: localized('Clear all local data', '清除全部本地数据'),
+    clearAllDone: localized('All Anchor data in this browser was cleared.', '此浏览器中的全部 Anchor 数据已清除。'),
+    keepAction: localized('Keep it', '保留'),
     nativeTitle: localized('Part of the Android app', '属于 Android 应用'),
     nativeStreak: localized('Streaks, badges, and achievement history', '连续学习、成就徽章与历史记录'),
     nativeSettings: localized('Model configuration and app settings', '模型配置与应用设置'),
-    nativeBackup: localized('Local backup export and restore', '本地备份导出与恢复'),
+    nativeBackup: localized(
+      'Backup and restore of the full learning database, including schedules and generated questions',
+      '完整学习数据库的备份与恢复，包含复习计划与生成的题目',
+    ),
   },
 
   sources: {
@@ -1134,6 +1280,197 @@ export function formatImportedAt(timestamp) {
   if (!Number.isFinite(value) || value <= 0) return '';
   const iso = new Date(value).toISOString();
   return `${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC`;
+}
+
+/** UTF-8 byte length, so a size check matches what the browser actually stored or read. */
+export function byteLength(value) {
+  const text = String(value ?? '');
+  if (typeof TextEncoder === 'function') return new TextEncoder().encode(text).length;
+  return text.length;
+}
+
+/**
+ * The only theme values this build applies. Anything else — a stale name, a tampered key, `system` —
+ * returns `null` so the caller falls back to the platform hint instead of writing an unknown class.
+ */
+export function normalizeTheme(candidate) {
+  if (typeof candidate === 'string' && THEMES.includes(candidate)) return candidate;
+  if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) {
+    if (candidate.version !== THEME_VERSION) return null;
+    return typeof candidate.theme === 'string' && THEMES.includes(candidate.theme) ? candidate.theme : null;
+  }
+  return null;
+}
+
+/** Record written to the theme key. Versioned so a later palette change can reject this shape. */
+export function createThemeRecord(theme) {
+  return { version: THEME_VERSION, theme: normalizeTheme(theme) ?? 'light' };
+}
+
+/**
+ * `prefers-color-scheme` is an initial fallback only. Once the learner has chosen, the stored value
+ * wins even if the platform later disagrees — otherwise a system change would silently override them.
+ */
+export function resolveTheme(stored, prefersDark = false) {
+  return normalizeTheme(stored) ?? (prefersDark ? 'dark' : 'light');
+}
+
+/* Backup: assembling an export, and validating a candidate before anything is replaced. */
+
+/** Keys each section may contribute. Anything else in a tampered record is dropped, not copied. */
+const BACKUP_SECTION_KEYS = {
+  progress: ['version', 'activeDatasetId', 'datasets'],
+  library: ['version', 'sources'],
+  agent: ['version', 'datasetId', 'turnIndex', 'completed', 'reflections', 'hints', 'startedAt'],
+};
+
+function pickKeys(source, keys) {
+  if (!source || typeof source !== 'object' || Array.isArray(source)) return null;
+  const picked = {};
+  for (const key of keys) {
+    if (Object.hasOwn(source, key)) picked[key] = source[key];
+  }
+  return picked;
+}
+
+/** Answers the learner has actually submitted, plus the sections and reflections a backup carries. */
+export function backupCounts(sections = {}) {
+  let answers = 0;
+  const datasets = sections.progress?.datasets;
+  if (datasets && typeof datasets === 'object') {
+    for (const entry of Object.values(datasets)) {
+      const submitted = entry?.submitted;
+      if (!submitted || typeof submitted !== 'object') continue;
+      answers += Object.values(submitted).filter((value) => value === true).length;
+    }
+  }
+
+  const sources = Array.isArray(sections.library?.sources) ? sections.library.sources : [];
+  const reflections = sections.agent?.reflections;
+  return {
+    answers,
+    sources: sources.length,
+    sections: sources.reduce((total, source) => total + (Array.isArray(source?.sections) ? source.sections.length : 0), 0),
+    reflections: reflections && typeof reflections === 'object'
+      ? Object.values(reflections).filter((value) => typeof value === 'string' && value.trim()).length
+      : 0,
+    agentDatasetId: typeof sections.agent?.datasetId === 'string' ? sections.agent.datasetId : null,
+  };
+}
+
+/**
+ * Builds the export envelope from already-normalized state.
+ *
+ * Only the three demo keys are copied, field by field through `BACKUP_SECTION_KEYS`, so no unrelated
+ * `localStorage` entry, credential, or stray property can reach the file even if a caller passes a
+ * tampered record. An absent section is omitted rather than written as `null`.
+ */
+export function createBackup({ progress = null, library = null, agent = null, exportedAt = 0 } = {}) {
+  const backup = { format: BACKUP_FORMAT, version: BACKUP_VERSION };
+  const stamp = Number(exportedAt);
+  if (Number.isFinite(stamp) && stamp > 0) backup.exportedAt = Math.round(stamp);
+
+  const picked = {
+    progress: pickKeys(progress, BACKUP_SECTION_KEYS.progress),
+    library: pickKeys(library, BACKUP_SECTION_KEYS.library),
+    agent: pickKeys(agent, BACKUP_SECTION_KEYS.agent),
+  };
+  for (const section of BACKUP_SECTIONS) {
+    if (picked[section]) backup[section] = picked[section];
+  }
+  return backup;
+}
+
+/** `anchor-demo-backup-YYYY-MM-DD.json`, UTC so the name matches the stamp inside the file. */
+export function backupFileName(exportedAt = 0) {
+  const value = Number(exportedAt);
+  if (!Number.isFinite(value) || value <= 0) return 'anchor-demo-backup.json';
+  return `anchor-demo-backup-${new Date(value).toISOString().slice(0, 10)}.json`;
+}
+
+/** Cheap pre-read rejection: a candidate too large to be one of our exports never reaches JSON.parse. */
+export function validateBackupCandidate(file, { limits = BACKUP_LIMITS } = {}) {
+  const name = String(file?.name ?? '');
+  const size = Number(file?.size);
+  if (!limits.extensions.some((extension) => name.toLowerCase().endsWith(extension))) {
+    return { ok: false, reason: 'type', name };
+  }
+  if (!Number.isFinite(size) || size <= 0) return { ok: false, reason: 'empty', name };
+  if (size > limits.maxBytes) return { ok: false, reason: 'size', name, bytes: size };
+  return { ok: true, name, bytes: size };
+}
+
+/**
+ * Parses and validates backup text into a restore draft. Never throws and never touches storage: the
+ * caller decides whether to apply `draft.sections`, so a rejected or cancelled file leaves state alone.
+ *
+ * Each section is normalized with the same function that guards its live key, so an incompatible inner
+ * version or a hostile payload degrades to that key's empty value instead of being trusted. Sections
+ * the file declared but which normalized to nothing are reported in `dropped` for the review panel.
+ */
+export function readBackup(text, {
+  limits = BACKUP_LIMITS,
+  normalizeProgress: normalizeProgressSection,
+  normalizeLibrary = normalizeLocalLibrary,
+  normalizeAgent = normalizeAgentSession,
+  name = '',
+} = {}) {
+  const bytes = byteLength(text);
+  if (!bytes) return { ok: false, reason: 'empty', name };
+  if (bytes > limits.maxBytes) return { ok: false, reason: 'size', name, bytes };
+
+  let parsed;
+  try {
+    parsed = JSON.parse(String(text));
+  } catch {
+    return { ok: false, reason: 'json', name, bytes };
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return { ok: false, reason: 'format', name, bytes };
+  }
+  if (parsed.format !== BACKUP_FORMAT) return { ok: false, reason: 'format', name, bytes };
+  if (parsed.version !== BACKUP_VERSION) {
+    return { ok: false, reason: 'version', name, bytes, version: parsed.version ?? null };
+  }
+
+  const declared = BACKUP_SECTIONS.filter((section) => {
+    const value = parsed[section];
+    return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+  });
+  if (!declared.length) return { ok: false, reason: 'shape', name, bytes };
+
+  const sections = {};
+  const dropped = [];
+  if (declared.includes('progress')) {
+    const progress = typeof normalizeProgressSection === 'function'
+      ? normalizeProgressSection(parsed.progress)
+      : null;
+    if (progress) sections.progress = progress;
+    else dropped.push('progress');
+  }
+  if (declared.includes('library')) {
+    const library = normalizeLibrary(parsed.library);
+    sections.library = library;
+    if (!library.sources.length) dropped.push('library');
+  }
+  if (declared.includes('agent')) {
+    const agent = normalizeAgent(parsed.agent);
+    if (agent) sections.agent = agent;
+    else dropped.push('agent');
+  }
+
+  const exportedAt = Number(parsed.exportedAt);
+  return {
+    ok: true,
+    name,
+    bytes,
+    version: BACKUP_VERSION,
+    exportedAt: Number.isFinite(exportedAt) && exportedAt > 0 ? Math.round(exportedAt) : 0,
+    declared,
+    dropped,
+    sections,
+    counts: backupCounts(sections),
+  };
 }
 
 export function validateDatasets(datasets = DATASETS) {

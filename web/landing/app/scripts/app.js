@@ -1,20 +1,33 @@
-import { getLocale, initializeLocale, setLocale, translate } from '../../scripts/i18n.js?v=20260829-1';
+import {
+  STORAGE_KEY as LOCALE_STORAGE_KEY,
+  getLocale,
+  initializeLocale,
+  setLocale,
+  translate,
+} from '../../scripts/i18n.js?v=20260829-1';
 import {
   AGENT_SESSION_LIMITS,
+  BACKUP_LIMITS,
+  BACKUP_VERSION,
   DATA_VERSION,
   DATASETS,
   LOCAL_IMPORT_LIMITS,
   SHELL_TEXT,
   agentProgressFill,
   agentReflectionCount,
+  backupCounts,
+  backupFileName,
   buildAgentScript,
+  byteLength,
   clampReflection,
   collectSources,
   countQuestions,
   countSources,
   createAgentSession,
+  createBackup,
   createEmptyLibrary,
   createLocalSource,
+  createThemeRecord,
   formatBytes,
   formatCount,
   formatImportedAt,
@@ -22,8 +35,12 @@ import {
   looksBinary,
   normalizeAgentSession,
   normalizeLocalLibrary,
+  normalizeTheme,
+  readBackup,
+  resolveTheme,
   sectionLocator,
   textFor,
+  validateBackupCandidate,
   validateDatasets,
   validateImportCandidate,
 } from './data.js';
@@ -41,6 +58,25 @@ export const LOCAL_LIBRARY_STORAGE_KEY = 'anchor.demo.library.v1';
  * reflections, so neither the quiz reset nor the library reset may take it with them.
  */
 export const AGENT_SESSION_STORAGE_KEY = 'anchor.demo.agent.v1';
+
+/**
+ * The theme choice is a display preference, so it gets a fourth key rather than riding along with
+ * learning data: restoring a backup must not repaint the app, and resetting progress must not
+ * change the palette.
+ */
+export const THEME_STORAGE_KEY = 'anchor.demo.theme.v1';
+
+/**
+ * Every key this origin owns, which is exactly what "clear all local data" is allowed to remove.
+ * Anything else in `localStorage` belongs to another surface and is never read, exported, or deleted.
+ */
+export const ANCHOR_STORAGE_KEYS = [
+  PROGRESS_STORAGE_KEY,
+  LOCAL_LIBRARY_STORAGE_KEY,
+  AGENT_SESSION_STORAGE_KEY,
+  THEME_STORAGE_KEY,
+  LOCALE_STORAGE_KEY,
+];
 
 export function createInitialProgress() {
   return { version: DATA_VERSION, activeDatasetId: null, datasets: {} };
@@ -182,6 +218,58 @@ function clearStoredAgentSession(storage = globalThis.localStorage) {
   }
 }
 
+/** Returns null when nothing usable is stored, which is the "follow the platform hint" state. */
+function loadTheme(storage = globalThis.localStorage) {
+  try {
+    const value = storage?.getItem(THEME_STORAGE_KEY);
+    if (!value) return null;
+    // A bare `light`/`dark` string is accepted so a hand-set key still works; both go through the
+    // same allow-list, so an unknown value is discarded rather than applied.
+    try {
+      return normalizeTheme(JSON.parse(value));
+    } catch {
+      return normalizeTheme(value);
+    }
+  } catch {
+    return null;
+  }
+}
+
+function saveTheme(theme, storage = globalThis.localStorage) {
+  try {
+    storage?.setItem(THEME_STORAGE_KEY, JSON.stringify(createThemeRecord(theme)));
+  } catch {
+    // The palette still applies to this session without the persisted preference.
+  }
+}
+
+/**
+ * Removes only the listed Anchor keys. Deliberately not `localStorage.clear()`: this origin also
+ * serves the marketing site, and no surface may delete a key it does not own.
+ */
+function removeStoredKeys(keys, storage = globalThis.localStorage) {
+  let removed = 0;
+  for (const key of keys) {
+    try {
+      if (storage?.getItem(key) !== null) removed += 1;
+      storage?.removeItem(key);
+    } catch {
+      // Reset remains effective for the active session.
+    }
+  }
+  return removed;
+}
+
+/** Measured size of one stored key, or null when it is absent. */
+function storedKeySize(key, storage = globalThis.localStorage) {
+  try {
+    const value = storage?.getItem(key);
+    return value === null || value === undefined ? null : byteLength(value);
+  } catch {
+    return null;
+  }
+}
+
 if (typeof document !== 'undefined') {
   const content = document.querySelector('#app-content');
   const datasetList = document.querySelector('#dataset-list');
@@ -198,6 +286,22 @@ if (typeof document !== 'undefined') {
   let agentSession = loadAgentSession();
   let route = parseRoute(window.location.hash);
   const openTutorQuestions = new Set();
+
+  // Theme state. `storedTheme` stays null until the learner chooses, so the platform hint keeps
+  // applying; once set, the stored value wins even if the system preference later changes.
+  let storedTheme = loadTheme();
+
+  /**
+   * Restore is review-first, like import: choosing a file only builds an in-memory draft. Nothing is
+   * written until the learner confirms, so cancelling or reloading leaves stored state untouched.
+   */
+  let restoreDraft = null;
+  let restoreError = null;
+  let restoreToken = 0;
+
+  // A privacy action opens a confirmation instead of deleting immediately. One at a time, by name.
+  let privacyPending = null;
+  let backupNotice = null;
 
   // Agent view state that is deliberately not persisted: the dataset radio choice before a session
   // exists, the "write something first" nudge, and a half-open reset confirmation.
@@ -267,6 +371,27 @@ if (typeof document !== 'undefined') {
     window.requestAnimationFrame(() => {
       announcer.textContent = message;
     });
+  }
+
+  function prefersDarkScheme() {
+    try {
+      return window.matchMedia?.('(prefers-color-scheme: dark)').matches === true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** The theme actually on screen: the learner's stored choice, else the platform hint. */
+  function activeTheme() {
+    return resolveTheme(storedTheme, prefersDarkScheme());
+  }
+
+  /**
+   * Applies the palette through a root data attribute. The deployed CSP sets `style-src 'self'`, so
+   * the switch has to be an attribute the stylesheet keys off rather than an inline style.
+   */
+  function applyTheme() {
+    document.documentElement.dataset.theme = activeTheme();
   }
 
   function setSidebarOpen(open) {
@@ -868,9 +993,179 @@ if (typeof document !== 'undefined') {
       </section>`;
   }
 
+  /** Live counts for the current in-memory state, in the same shape a backup reports. */
+  function localCounts() {
+    return backupCounts({ progress, library, agent: agentSession });
+  }
+
+  /**
+   * One row per Anchor-owned key, with the measured stored size. Absent keys are listed too, so the
+   * learner can see the full set of names this origin may write rather than only what exists today.
+   */
+  function storageInventory() {
+    const text = SHELL_TEXT.profile;
+    const counts = localCounts();
+    return [
+      {
+        key: PROGRESS_STORAGE_KEY,
+        label: text.inventoryProgress,
+        detail: formatCount(shell(text.inventoryAnswers), { count: counts.answers }),
+      },
+      {
+        key: LOCAL_LIBRARY_STORAGE_KEY,
+        label: text.inventoryLibrary,
+        detail: formatCount(shell(text.inventorySources), { count: counts.sources, sections: counts.sections }),
+      },
+      {
+        key: AGENT_SESSION_STORAGE_KEY,
+        label: text.inventoryAgent,
+        detail: formatCount(shell(text.inventoryReflections), { count: counts.reflections }),
+      },
+      { key: THEME_STORAGE_KEY, label: text.inventoryTheme, detail: shell(text[activeTheme() === 'dark' ? 'themeDark' : 'themeLight']) },
+      { key: LOCALE_STORAGE_KEY, label: text.inventoryLocale, detail: locale() === 'zh' ? '中文' : 'English' },
+    ].map((entry) => ({ ...entry, bytes: storedKeySize(entry.key) }));
+  }
+
+  function renderStorageInventory() {
+    const text = SHELL_TEXT.profile;
+    const rows = storageInventory();
+    const stored = rows.filter((row) => row.bytes !== null);
+    const total = stored.reduce((sum, row) => sum + row.bytes, 0);
+
+    return `
+      <div class="storage-table">
+        ${rows.map((row) => `
+          <div class="storage-row" data-storage-row="${escapeHtml(row.key)}">
+            <strong>${escapeHtml(shell(row.label))}</strong>
+            <span class="storage-size">${escapeHtml(row.bytes === null ? shell(text.inventoryEmpty) : formatBytes(row.bytes))}</span>
+            <span>${escapeHtml(row.detail)}</span>
+            <p class="storage-key"><code>${escapeHtml(row.key)}</code></p>
+          </div>`).join('')}
+      </div>
+      <p class="storage-total">${escapeHtml(formatCount(shell(text.inventoryTotal), { size: formatBytes(total), keys: stored.length }))}</p>`;
+  }
+
+  function themeIcon(theme) {
+    const paths = theme === 'dark'
+      ? '<path d="M14.5 11.5A5.5 5.5 0 0 1 8.5 5.5a5.5 5.5 0 1 0 6 6Z"/>'
+      : '<circle cx="10" cy="10" r="3.4"/><path d="M10 3v1.6M10 15.4V17M3 10h1.6M15.4 10H17M5.2 5.2l1.1 1.1M13.7 13.7l1.1 1.1M14.8 5.2l-1.1 1.1M6.3 13.7l-1.1 1.1"/>';
+    return `<svg class="nav-icon" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" focusable="false">${paths}</svg>`;
+  }
+
+  /** Two explicit buttons rather than a single toggle, so the current theme is announced as a state. */
+  function renderThemeSwitch() {
+    const text = SHELL_TEXT.profile;
+    const current = activeTheme();
+    return `
+      <div class="theme-switch" role="group" aria-label="${escapeHtml(shell(text.themeLabel))}">
+        ${['light', 'dark'].map((theme) => `
+          <button type="button" data-set-theme="${theme}" aria-pressed="${current === theme ? 'true' : 'false'}">
+            ${themeIcon(theme)}
+            <span>${escapeHtml(shell(text[theme === 'dark' ? 'themeDark' : 'themeLight']))}</span>
+          </button>`).join('')}
+      </div>`;
+  }
+
+  /** Turns the current `restoreError` into localized copy. Returns '' when there is nothing to report. */
+  function restoreErrorMessage() {
+    if (!restoreError) return '';
+    const text = SHELL_TEXT.profile;
+    switch (restoreError.reason) {
+      case 'size':
+        return formatCount(shell(text.restoreErrorSize), {
+          size: formatBytes(restoreError.bytes ?? 0),
+          kb: Math.round(BACKUP_LIMITS.maxBytes / 1024),
+        });
+      case 'empty':
+        return shell(text.restoreErrorEmpty);
+      case 'json':
+        return shell(text.restoreErrorJson);
+      case 'format':
+        return shell(text.restoreErrorFormat);
+      case 'version':
+        return shell(text.restoreErrorVersion);
+      case 'shape':
+        return shell(text.restoreErrorShape);
+      case 'read':
+        return shell(text.restoreErrorRead);
+      default:
+        return shell(text.restoreErrorType);
+    }
+  }
+
+  /**
+   * The review panel. Every value here comes from the draft the validator produced, and each one is
+   * escaped: a backup is untrusted input, so its file name and contents are never treated as markup.
+   */
+  function renderRestoreReview() {
+    if (!restoreDraft) return '';
+    const text = SHELL_TEXT.profile;
+    const { counts } = restoreDraft;
+    const sectionLabels = {
+      progress: formatCount(shell(text.restoreSectionProgress), { count: counts.answers }),
+      library: formatCount(shell(text.restoreSectionLibrary), { count: counts.sources, sections: counts.sections }),
+      agent: formatCount(shell(text.restoreSectionAgent), { count: counts.reflections }),
+    };
+    const droppedNames = restoreDraft.dropped.map((section) => shell(SHELL_TEXT.profile[
+      section === 'progress' ? 'inventoryProgress' : section === 'library' ? 'inventoryLibrary' : 'inventoryAgent'
+    ]));
+
+    return `
+      <div class="restore-review" data-restore-review tabindex="-1">
+        <h3>${escapeHtml(shell(text.restoreReviewTitle))}</h3>
+        <p class="restore-review-lead">${escapeHtml(shell(text.restoreReviewLead))}</p>
+
+        <dl class="import-meta">
+          <div><dt>${escapeHtml(shell(text.restoreFile))}</dt><dd data-restore-name>${escapeHtml(restoreDraft.name)}</dd></div>
+          <div><dt>${escapeHtml(shell(text.restoreSize))}</dt><dd>${escapeHtml(formatBytes(restoreDraft.bytes))}</dd></div>
+          <div><dt>${escapeHtml(shell(text.restoreSchema))}</dt><dd>v${escapeHtml(String(restoreDraft.version))}</dd></div>
+          <div><dt>${escapeHtml(shell(text.restoreExportedAt))}</dt><dd>${escapeHtml(formatImportedAt(restoreDraft.exportedAt) || shell(text.restoreExportedUnknown))}</dd></div>
+        </dl>
+
+        <p class="restore-review-lead">${escapeHtml(shell(text.restoreIncludes))}</p>
+        <ul class="restore-sections">
+          ${restoreDraft.declared.map((section) => `<li>${escapeHtml(sectionLabels[section])}</li>`).join('')}
+        </ul>
+
+        ${restoreDraft.dropped.length ? `
+          <p class="restore-warning">${escapeHtml(formatCount(shell(text.restoreDropped), { sections: droppedNames.join(', ') }))}</p>` : ''}
+
+        <p class="restore-warning">${escapeHtml(shell(text.restoreWarning))}</p>
+
+        <div class="card-actions">
+          <button class="button button-danger" type="button" data-restore-confirm>${escapeHtml(shell(text.restoreConfirm))}</button>
+          <button class="button button-secondary" type="button" data-restore-cancel>${escapeHtml(shell(text.restoreCancel))}</button>
+        </div>
+      </div>`;
+  }
+
+  /** One scoped destructive action: a description, a trigger, and its own inline confirmation. */
+  function renderPrivacyRow({ action, title, body, actionLabel, confirm, disabled = false, danger = false }) {
+    const text = SHELL_TEXT.profile;
+    const pending = privacyPending === action;
+    return `
+      <div class="privacy-row${danger ? ' privacy-row-danger' : ''}">
+        <strong>${escapeHtml(shell(title))}</strong>
+        <button class="button ${danger ? 'button-secondary' : 'button-secondary'}" type="button" data-privacy-reset="${action}"${disabled ? ' disabled' : ''}>${escapeHtml(shell(actionLabel))}</button>
+        <p>${escapeHtml(shell(body))}</p>
+        ${pending ? `
+          <div class="privacy-confirm" data-privacy-confirm="${action}" tabindex="-1">
+            <p>${escapeHtml(shell(confirm))}</p>
+            <div class="card-actions">
+              <button class="button button-danger" type="button" data-privacy-confirm-action="${action}">${escapeHtml(shell(actionLabel))}</button>
+              <button class="button button-secondary" type="button" data-privacy-cancel>${escapeHtml(shell(text.keepAction))}</button>
+            </div>
+          </div>` : ''}
+      </div>`;
+  }
+
   function renderProfile() {
     const text = SHELL_TEXT.profile;
     const summary = progressSummary();
+    const counts = localCounts();
+    const hasAnything = counts.answers > 0 || counts.sources > 0 || Boolean(agentSession);
+    const restoreProblem = restoreErrorMessage();
+
     content.innerHTML = `
       <section class="shell-view" data-view="profile">
         ${viewHeading(shell(text.eyebrow), shell(text.title), shell(text.body))}
@@ -883,22 +1178,89 @@ if (typeof document !== 'undefined') {
 
         <div class="shell-cards">
           <article class="shell-card">
-            <div class="shell-card-head"><h2>${escapeHtml(shell(text.storageTitle))}</h2>${badge('local')}</div>
-            <p>${escapeHtml(shell(text.storageBody))}</p>
+            <div class="shell-card-head"><h2>${escapeHtml(shell(text.inventoryTitle))}</h2>${badge('local')}</div>
+            <p>${escapeHtml(shell(text.inventoryBody))}</p>
+            ${renderStorageInventory()}
           </article>
+
           <article class="shell-card">
-            <div class="shell-card-head"><h2>${escapeHtml(shell(text.accountTitle))}</h2>${badge('local')}</div>
-            <p>${escapeHtml(shell(text.accountBody))}</p>
+            <div class="shell-card-head"><h2>${escapeHtml(shell(text.backupTitle))}</h2>${badge('local')}</div>
+            <p>${escapeHtml(shell(text.backupBody))}</p>
+            <div class="backup-actions">
+              <button class="button button-primary" type="button" data-backup-export${hasAnything ? '' : ' disabled'}>${escapeHtml(shell(text.backupExport))}</button>
+            </div>
+            ${hasAnything ? '' : `<p class="import-limits" data-backup-empty>${escapeHtml(shell(text.backupExportEmpty))}</p>`}
+            ${backupNotice ? `<p class="import-error" data-backup-notice>${escapeHtml(backupNotice)}</p>` : ''}
           </article>
+
+          <article class="shell-card">
+            <div class="shell-card-head"><h2>${escapeHtml(shell(text.restoreTitle))}</h2>${badge('local')}</div>
+            <p>${escapeHtml(shell(text.restoreBody))}</p>
+            <div class="backup-actions">
+              <label class="restore-picker">
+                <span>${escapeHtml(shell(text.restorePick))}</span>
+                <input type="file" accept="${BACKUP_LIMITS.extensions.join(',')},application/json" data-restore-input>
+              </label>
+            </div>
+            ${restoreProblem ? `<p class="import-error" data-restore-error>${escapeHtml(restoreProblem)}</p>` : ''}
+            ${renderRestoreReview()}
+          </article>
+
+          <article class="shell-card">
+            <h2>${escapeHtml(shell(text.themeTitle))}</h2>
+            <p>${escapeHtml(shell(text.themeBody))}</p>
+            ${renderThemeSwitch()}
+          </article>
+
           <article class="shell-card">
             <h2>${escapeHtml(shell(text.languageTitle))}</h2>
             <p>${escapeHtml(shell(text.languageBody))}</p>
           </article>
+
           <article class="shell-card">
-            <h2>${escapeHtml(shell(text.resetTitle))}</h2>
-            <p>${escapeHtml(shell(text.resetBody))}</p>
-            <button class="button button-secondary" type="button" data-reset-progress>${escapeHtml(translate('app.reset'))}</button>
+            <div class="shell-card-head"><h2>${escapeHtml(shell(text.accountTitle))}</h2>${badge('local')}</div>
+            <p>${escapeHtml(shell(text.accountBody))}</p>
           </article>
+
+          <article class="shell-card">
+            <div class="shell-card-head"><h2>${escapeHtml(shell(text.controlsTitle))}</h2>${badge('local')}</div>
+            <p>${escapeHtml(shell(text.controlsBody))}</p>
+            <div class="privacy-actions">
+              ${renderPrivacyRow({
+                action: 'progress',
+                title: text.resetTitle,
+                body: text.resetBody,
+                actionLabel: text.resetAction,
+                confirm: text.resetConfirm,
+                disabled: counts.answers === 0,
+              })}
+              ${renderPrivacyRow({
+                action: 'agent',
+                title: text.agentResetTitle,
+                body: text.agentResetBody,
+                actionLabel: text.agentResetAction,
+                confirm: text.agentResetConfirm,
+                disabled: !agentSession,
+              })}
+              ${renderPrivacyRow({
+                action: 'library',
+                title: text.libraryResetTitle,
+                body: text.libraryResetBody,
+                actionLabel: text.libraryResetAction,
+                confirm: text.libraryResetConfirm,
+                disabled: counts.sources === 0,
+              })}
+              ${renderPrivacyRow({
+                action: 'all',
+                title: text.clearAllTitle,
+                body: text.clearAllBody,
+                actionLabel: text.clearAllAction,
+                confirm: text.clearAllConfirm,
+                danger: true,
+              })}
+            </div>
+          </article>
+
           <article class="shell-card">
             <div class="shell-card-head"><h2>${escapeHtml(shell(text.nativeTitle))}</h2>${badge('android')}</div>
             ${scopeList([text.nativeStreak, text.nativeSettings, text.nativeBackup])}
@@ -1283,6 +1645,246 @@ if (typeof document !== 'undefined') {
     });
   }
 
+  /**
+   * Writes the backup to the learner's own download folder using a Blob and an object URL. There is no
+   * upload path here by design: the deployed CSP sets `connect-src 'none'`, so a backup can only ever
+   * travel as a file the browser saves locally.
+   */
+  function exportBackup() {
+    const record = createBackup({ progress, library, agent: agentSession, exportedAt: Date.now() });
+    const name = backupFileName(record.exportedAt);
+    let url = null;
+    try {
+      const blob = new Blob([`${JSON.stringify(record, null, 2)}\n`], { type: 'application/json' });
+      url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = name;
+      link.rel = 'noopener';
+      link.hidden = true;
+      document.body.append(link);
+      link.click();
+      link.remove();
+    } catch {
+      backupNotice = shell(SHELL_TEXT.profile.backupExportFailed);
+      rerender({ focus: '[data-backup-export]' });
+      return;
+    } finally {
+      // Revoked on a later task so the download has already been handed off to the browser.
+      if (url) setTimeout(() => URL.revokeObjectURL(url), 0);
+    }
+
+    backupNotice = null;
+    rerender({
+      focus: '[data-backup-export]',
+      message: formatCount(shell(SHELL_TEXT.profile.backupExported), { name }),
+    });
+  }
+
+  function restoreFailed(reason, bytes) {
+    restoreDraft = null;
+    restoreError = { reason, bytes };
+    rerender({ focus: '[data-restore-error]' });
+  }
+
+  /**
+   * Checks a chosen file and turns it into an in-memory review draft. Storage is never written here:
+   * a malformed, oversized, foreign, or hostile file can only ever produce an error message, and even a
+   * valid one waits for an explicit confirmation.
+   */
+  async function handleBackupSelection(file) {
+    if (!file) return;
+    backupNotice = null;
+    const check = validateBackupCandidate(file);
+    if (!check.ok) {
+      restoreFailed(check.reason, check.bytes);
+      return;
+    }
+
+    // Same race guard as the importer: only the newest pick may publish a draft.
+    restoreToken += 1;
+    const token = restoreToken;
+    let text;
+    try {
+      text = await file.text();
+    } catch {
+      if (token === restoreToken) restoreFailed('read', file.size);
+      return;
+    }
+    if (token !== restoreToken) return;
+
+    const result = readBackup(text, { name: file.name, normalizeProgress });
+    if (!result.ok) {
+      restoreFailed(result.reason, result.bytes ?? file.size);
+      return;
+    }
+
+    restoreError = null;
+    restoreDraft = result;
+    rerender({
+      focus: '[data-restore-review]',
+      message: formatCount(shell(SHELL_TEXT.profile.restoreReady), { name: result.name }),
+    });
+  }
+
+  /** Replaces local state from the reviewed draft. Only the three data keys are written. */
+  function confirmRestore() {
+    if (!restoreDraft) return;
+    const draft = restoreDraft;
+    const { sections } = draft;
+
+    // Sections the backup declared but Anchor could not read are cleared rather than left half-merged,
+    // so the result always matches what the review panel promised.
+    if (draft.declared.includes('progress')) {
+      progress = sections.progress ?? createInitialProgress();
+      if (sections.progress) saveProgress(progress);
+      else removeStoredKeys([PROGRESS_STORAGE_KEY]);
+      openTutorQuestions.clear();
+    }
+    if (draft.declared.includes('library')) {
+      library = sections.library ?? createEmptyLibrary();
+      if (sections.library) saveLibrary(library);
+      else removeStoredKeys([LOCAL_LIBRARY_STORAGE_KEY]);
+      expandedSources.clear();
+      importDraft = null;
+      importSaved = null;
+      importError = null;
+    }
+    if (draft.declared.includes('agent')) {
+      agentSession = sections.agent ?? null;
+      if (agentSession) saveAgentSession(agentSession);
+      else clearStoredAgentSession();
+      agentDatasetChoice = getDataset(agentSession?.datasetId) ? agentSession.datasetId : null;
+      agentClearPending = false;
+      agentReflectionNudge = false;
+    }
+
+    restoreDraft = null;
+    restoreError = null;
+    restoreToken += 1;
+    rerender({
+      focus: '[data-restore-input]',
+      message: formatCount(shell(SHELL_TEXT.profile.restoreDone), { name: draft.name }),
+    });
+  }
+
+  /** Carries out one confirmed privacy action. Each branch touches only the keys it names. */
+  function runPrivacyAction(action) {
+    const text = SHELL_TEXT.profile;
+    privacyPending = null;
+
+    if (action === 'progress') {
+      progress = createInitialProgress();
+      openTutorQuestions.clear();
+      removeStoredKeys([PROGRESS_STORAGE_KEY]);
+      rerender({ focus: '[data-privacy-reset="progress"]', message: shell(text.resetDone) });
+      return true;
+    }
+
+    if (action === 'agent') {
+      agentSession = null;
+      agentDatasetChoice = null;
+      agentClearPending = false;
+      agentReflectionNudge = false;
+      clearStoredAgentSession();
+      rerender({ focus: '[data-privacy-reset="agent"]', message: shell(text.agentResetDone) });
+      return true;
+    }
+
+    if (action === 'library') {
+      library = createEmptyLibrary();
+      expandedSources.clear();
+      importDraft = null;
+      importSaved = null;
+      importError = null;
+      removeStoredKeys([LOCAL_LIBRARY_STORAGE_KEY]);
+      rerender({ focus: '[data-privacy-reset="library"]', message: shell(text.libraryResetDone) });
+      return true;
+    }
+
+    if (action === 'all') {
+      progress = createInitialProgress();
+      library = createEmptyLibrary();
+      agentSession = null;
+      agentDatasetChoice = null;
+      agentClearPending = false;
+      agentReflectionNudge = false;
+      openTutorQuestions.clear();
+      expandedSources.clear();
+      importDraft = null;
+      importSaved = null;
+      importError = null;
+      restoreDraft = null;
+      restoreError = null;
+      storedTheme = null;
+      // Named keys only. This origin also serves the marketing site, so `localStorage.clear()` would
+      // reach past Anchor's own data.
+      removeStoredKeys(ANCHOR_STORAGE_KEYS);
+      applyTheme();
+      rerender({ focus: '[data-privacy-reset="all"]', message: shell(text.clearAllDone) });
+      return true;
+    }
+    return false;
+  }
+
+  /** Handles the profile surface's theme, backup, restore, and privacy controls. */
+  function handleProfileClick(event) {
+    const themeButton = event.target.closest('[data-set-theme]');
+    if (themeButton) {
+      const next = normalizeTheme(themeButton.dataset.setTheme);
+      if (!next) return true;
+      storedTheme = next;
+      saveTheme(next);
+      applyTheme();
+      rerender({
+        focus: `[data-set-theme="${next}"]`,
+        message: shell(SHELL_TEXT.profile[next === 'dark' ? 'themeAnnounceDark' : 'themeAnnounceLight']),
+      });
+      return true;
+    }
+
+    if (event.target.closest('[data-backup-export]')) {
+      exportBackup();
+      return true;
+    }
+
+    if (event.target.closest('[data-restore-confirm]')) {
+      confirmRestore();
+      return true;
+    }
+
+    if (event.target.closest('[data-restore-cancel]')) {
+      restoreDraft = null;
+      restoreError = null;
+      restoreToken += 1;
+      rerender({
+        focus: '[data-restore-input]',
+        message: shell(SHELL_TEXT.profile.restoreCancelled),
+      });
+      return true;
+    }
+
+    const confirmAction = event.target.closest('[data-privacy-confirm-action]');
+    if (confirmAction) return runPrivacyAction(confirmAction.dataset.privacyConfirmAction);
+
+    if (event.target.closest('[data-privacy-cancel]')) {
+      const action = privacyPending;
+      privacyPending = null;
+      // Focus goes back to the trigger the learner opened, not to the first row on the card.
+      rerender({ focus: action ? `[data-privacy-reset="${action}"]` : '[data-privacy-reset]' });
+      return true;
+    }
+
+    const trigger = event.target.closest('[data-privacy-reset]');
+    if (trigger) {
+      // Nothing is deleted on this click. The row grows its own confirmation and focus moves into it.
+      privacyPending = trigger.dataset.privacyReset;
+      rerender({ focus: `[data-privacy-confirm="${privacyPending}"]` });
+      return true;
+    }
+    return false;
+  }
+
   /** Handles the import surface's own controls. Returns true when the click was consumed. */
   function handleImportClick(event) {
     if (event.target.closest('[data-import-confirm]')) {
@@ -1549,6 +2151,14 @@ if (typeof document !== 'undefined') {
       return;
     }
 
+    const backupInput = event.target.closest('[data-restore-input]');
+    if (backupInput) {
+      const file = backupInput.files?.[0] ?? null;
+      backupInput.value = '';
+      handleBackupSelection(file);
+      return;
+    }
+
     const input = event.target.closest('input[name="answer"]');
     const context = currentContext();
     if (!input || !context || context.state.submitted[context.question.id]) return;
@@ -1589,7 +2199,7 @@ if (typeof document !== 'undefined') {
       return;
     }
 
-    if (handleImportClick(event) || handleLocalLibraryClick(event) || handleAgentClick(event)) return;
+    if (handleProfileClick(event) || handleImportClick(event) || handleLocalLibraryClick(event) || handleAgentClick(event)) return;
 
     const context = currentContext();
     if (event.target.closest('[data-submit]') && context) {
@@ -1677,6 +2287,11 @@ if (typeof document !== 'undefined') {
     importError = null;
     agentClearPending = false;
     agentReflectionNudge = false;
+    privacyPending = null;
+    restoreDraft = null;
+    restoreError = null;
+    restoreToken += 1;
+    backupNotice = null;
     render();
     content?.focus();
   });
@@ -1690,6 +2305,8 @@ if (typeof document !== 'undefined') {
     progress = createInitialProgress();
   }
 
+  // Applied before the first paint so a stored dark choice does not flash the light palette.
+  applyTheme();
   initializeLocale();
   render();
 }

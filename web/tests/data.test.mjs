@@ -3,16 +3,26 @@ import assert from 'node:assert/strict';
 import {
   AGENT_SESSION_LIMITS,
   AGENT_SESSION_VERSION,
+  BACKUP_FORMAT,
+  BACKUP_LIMITS,
+  BACKUP_SECTIONS,
+  BACKUP_VERSION,
   DATASETS,
   LOCAL_IMPORT_LIMITS,
   LIBRARY_VERSION,
+  THEME_VERSION,
   agentProgressFill,
   agentReflectionCount,
+  backupCounts,
+  backupFileName,
   buildAgentScript,
+  byteLength,
   clampReflection,
   createAgentSession,
+  createBackup,
   createEmptyLibrary,
   createLocalSource,
+  createThemeRecord,
   extractSections,
   formatBytes,
   formatImportedAt,
@@ -20,8 +30,12 @@ import {
   looksBinary,
   normalizeAgentSession,
   normalizeLocalLibrary,
+  normalizeTheme,
+  readBackup,
+  resolveTheme,
   sectionLocator,
   truncateExcerpt,
+  validateBackupCandidate,
   validateDatasets,
   validateImportCandidate,
 } from '../landing/app/scripts/data.js';
@@ -327,4 +341,264 @@ test('reflections are capped for storage and progress reports as a decile', () =
   assert.equal(agentProgressFill(-3, 4), 0);
   assert.equal(agentProgressFill(1, 0), 0);
   assert.equal(agentReflectionCount(null, script), 0);
+});
+
+/* ------------------------------------------------------------------ *
+ * Backup, restore, and theme: pure helpers behind the Profile surface.
+ * ------------------------------------------------------------------ */
+
+/** A populated, already-normalized state to back up. */
+function sampleState() {
+  const dataset = getDataset('flutter');
+  const script = buildAgentScript(dataset);
+  const first = dataset.questions[0];
+  const progress = normalizeProgress({
+    version: 1,
+    activeDatasetId: dataset.id,
+    datasets: {
+      [dataset.id]: {
+        currentIndex: 1,
+        completed: false,
+        answers: { [first.id]: [...first.correct] },
+        submitted: { [first.id]: true },
+      },
+    },
+  });
+
+  const source = createLocalSource({
+    name: 'notes.md',
+    size: 64,
+    text: '# Heading\n\nBody text for the backup fixture.\n',
+    existingIds: [],
+  });
+  const library = { ...createEmptyLibrary(), sources: [source] };
+
+  const agent = createAgentSession(dataset.id);
+  agent.startedAt = 1_700_000_000_000;
+  agent.reflections[script[0].questionId] = 'What I noticed.';
+  return { progress, library, agent, dataset, script };
+}
+
+/** Round-trips a record the way the browser does: JSON out, JSON in. */
+function roundTrip(record, name = 'backup.json') {
+  return readBackup(JSON.stringify(record), { name, normalizeProgress });
+}
+
+test('a backup carries progress, imports, and the agent session with a format stamp', () => {
+  const { progress, library, agent, script } = sampleState();
+  const backup = createBackup({ progress, library, agent, exportedAt: 1_756_000_000_000 });
+
+  assert.equal(backup.format, BACKUP_FORMAT);
+  assert.equal(backup.version, BACKUP_VERSION);
+  assert.equal(backup.exportedAt, 1_756_000_000_000);
+  assert.deepEqual(Object.keys(backup).sort(), ['agent', 'exportedAt', 'format', 'library', 'progress', 'version']);
+
+  assert.equal(backup.progress.activeDatasetId, 'flutter');
+  assert.equal(backup.library.sources.length, 1);
+  assert.equal(backup.agent.reflections[script[0].questionId], 'What I noticed.');
+
+  assert.deepEqual(backupCounts({ progress, library, agent }), {
+    answers: 1,
+    sources: 1,
+    sections: library.sources[0].sections.length,
+    reflections: 1,
+    agentDatasetId: 'flutter',
+  });
+});
+
+test('a backup copies only allow-listed fields, so no token or stray key can ride along', () => {
+  const { progress, library, agent } = sampleState();
+  const tampered = {
+    progress: { ...progress, apiKey: 'sk-not-a-real-key', authToken: 'bearer', __proto__: { polluted: true } },
+    library: { ...library, credentials: { password: 'hunter2' } },
+    agent: { ...agent, deviceId: 'abc-123', modelEndpoint: 'https://example.invalid' },
+  };
+  const serialized = JSON.stringify(createBackup({ ...tampered, exportedAt: 1 }));
+
+  for (const secret of ['apiKey', 'authToken', 'sk-not-a-real-key', 'credentials', 'password', 'hunter2', 'deviceId', 'modelEndpoint', 'polluted']) {
+    assert.equal(serialized.includes(secret), false, `backup leaked ${secret}`);
+  }
+
+  const backup = createBackup({ ...tampered, exportedAt: 1 });
+  assert.deepEqual(Object.keys(backup.progress).sort(), ['activeDatasetId', 'datasets', 'version']);
+  assert.deepEqual(Object.keys(backup.library).sort(), ['sources', 'version']);
+  assert.deepEqual(Object.keys(backup.agent).sort(), ['completed', 'datasetId', 'hints', 'reflections', 'startedAt', 'turnIndex', 'version']);
+});
+
+test('an empty state produces a backup with a stamp but no sections', () => {
+  const backup = createBackup({ exportedAt: 0 });
+  assert.deepEqual(backup, { format: BACKUP_FORMAT, version: BACKUP_VERSION });
+  assert.equal(roundTrip(backup).ok, false);
+  assert.equal(roundTrip(backup).reason, 'shape');
+});
+
+test('backup file names are dated in UTC and fall back when no stamp is present', () => {
+  assert.equal(backupFileName(1_756_000_000_000), 'anchor-demo-backup-2025-08-24.json');
+  assert.equal(backupFileName(0), 'anchor-demo-backup.json');
+  assert.equal(backupFileName('nonsense'), 'anchor-demo-backup.json');
+});
+
+test('a backup written by this build reads back with its counts intact', () => {
+  const { progress, library, agent, script } = sampleState();
+  const result = roundTrip(createBackup({ progress, library, agent, exportedAt: 1_756_000_000_000 }), 'anchor.json');
+
+  assert.equal(result.ok, true);
+  assert.equal(result.name, 'anchor.json');
+  assert.equal(result.version, BACKUP_VERSION);
+  assert.equal(result.exportedAt, 1_756_000_000_000);
+  assert.deepEqual(result.declared, [...BACKUP_SECTIONS]);
+  assert.deepEqual(result.dropped, []);
+  assert.equal(result.counts.answers, 1);
+  assert.equal(result.counts.sources, 1);
+  assert.equal(result.counts.reflections, 1);
+  assert.equal(result.sections.agent.reflections[script[0].questionId], 'What I noticed.');
+  assert.ok(result.bytes > 0);
+});
+
+test('candidate files are screened on name and size before any read', () => {
+  assert.deepEqual(validateBackupCandidate(fakeFile('backup.json', 200)), { ok: true, name: 'backup.json', bytes: 200 });
+  assert.equal(validateBackupCandidate(fakeFile('BACKUP.JSON', 200)).ok, true);
+  assert.equal(validateBackupCandidate(fakeFile('backup.md', 200)).reason, 'type');
+  assert.equal(validateBackupCandidate(fakeFile('backup.json.exe', 200)).reason, 'type');
+  assert.equal(validateBackupCandidate(fakeFile('backup.json', 0)).reason, 'empty');
+  assert.equal(validateBackupCandidate(fakeFile('backup.json', BACKUP_LIMITS.maxBytes + 1)).reason, 'size');
+  assert.equal(validateBackupCandidate(null).reason, 'type');
+});
+
+test('restore rejects empty, oversized, and unparsable payloads without throwing', () => {
+  assert.equal(readBackup('', { normalizeProgress }).reason, 'empty');
+  assert.equal(readBackup(null, { normalizeProgress }).reason, 'empty');
+  assert.equal(readBackup('{ not json', { normalizeProgress }).reason, 'json');
+
+  const oversized = readBackup('x'.repeat(BACKUP_LIMITS.maxBytes + 10), { normalizeProgress });
+  assert.equal(oversized.reason, 'size');
+  assert.ok(oversized.bytes > BACKUP_LIMITS.maxBytes);
+
+  // Multi-byte text is measured in bytes, not characters, so the cap cannot be walked past.
+  assert.equal(byteLength('锚学'), 6);
+  assert.equal(byteLength(''), 0);
+  assert.equal(readBackup('锚'.repeat(BACKUP_LIMITS.maxBytes / 2), { normalizeProgress }).reason, 'size');
+});
+
+test('restore rejects foreign JSON, wrong versions, and section-free payloads', () => {
+  assert.equal(readBackup('[]', { normalizeProgress }).reason, 'format');
+  assert.equal(readBackup('"a string"', { normalizeProgress }).reason, 'format');
+  assert.equal(readBackup('42', { normalizeProgress }).reason, 'format');
+  assert.equal(readBackup('null', { normalizeProgress }).reason, 'format');
+  assert.equal(readBackup(JSON.stringify({ some: 'other tool' }), { normalizeProgress }).reason, 'format');
+  assert.equal(readBackup(JSON.stringify({ format: 'other.app.backup', version: 1, progress: {} }), { normalizeProgress }).reason, 'format');
+
+  const future = readBackup(JSON.stringify({ format: BACKUP_FORMAT, version: BACKUP_VERSION + 1, progress: {} }), { normalizeProgress });
+  assert.equal(future.reason, 'version');
+  assert.equal(future.version, BACKUP_VERSION + 1);
+  assert.equal(readBackup(JSON.stringify({ format: BACKUP_FORMAT, version: '1', progress: {} }), { normalizeProgress }).reason, 'version');
+
+  assert.equal(readBackup(JSON.stringify({ format: BACKUP_FORMAT, version: BACKUP_VERSION }), { normalizeProgress }).reason, 'shape');
+  assert.equal(readBackup(JSON.stringify({ format: BACKUP_FORMAT, version: BACKUP_VERSION, progress: 'nope', library: [], agent: null }), { normalizeProgress }).reason, 'shape');
+});
+
+test('a hostile backup is normalized down to the fields this build understands', () => {
+  const { library } = sampleState();
+  const hostile = {
+    format: BACKUP_FORMAT,
+    version: BACKUP_VERSION,
+    exportedAt: 'not a date',
+    progress: {
+      version: 1,
+      activeDatasetId: '../../etc/passwd',
+      datasets: {
+        flutter: { currentIndex: 9_999, completed: 'yes', answers: { 'flutter-state-owner': ['state', 'injected'] }, submitted: { 'flutter-state-owner': true } },
+        'not-a-dataset': { currentIndex: 0, answers: {}, submitted: {} },
+      },
+    },
+    library: {
+      version: LIBRARY_VERSION,
+      sources: [
+        { ...library.sources[0], name: '<img src=x onerror="alert(1)">' },
+        { id: 'bogus', name: 'no sections' },
+      ],
+    },
+    agent: { version: AGENT_SESSION_VERSION, datasetId: 'flutter', turnIndex: 4_000, completed: true, reflections: { unknown: 'x' }, hints: 'nope' },
+    extraSection: { please: 'restore me' },
+    __proto__: { polluted: true },
+  };
+
+  const result = readBackup(JSON.stringify(hostile), { name: 'hostile.json', normalizeProgress });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.declared, [...BACKUP_SECTIONS]);
+  assert.equal(result.exportedAt, 0);
+
+  // Sections outside the allow-list never become restorable state.
+  assert.deepEqual(Object.keys(result.sections).sort(), ['agent', 'library', 'progress']);
+  assert.equal(result.sections.extraSection, undefined);
+  assert.equal({}.polluted, undefined);
+
+  assert.equal(result.sections.progress.activeDatasetId, null);
+  assert.equal(result.sections.progress.datasets['not-a-dataset'], undefined);
+  assert.equal(result.sections.progress.datasets.flutter.currentIndex, 3);
+  assert.deepEqual(result.sections.progress.datasets.flutter.answers['flutter-state-owner'], ['state']);
+
+  // The markup-looking name survives as text; escaping is the renderer's job and is asserted in the
+  // browser suite. What matters here is that it is stored as a plain string, unparsed.
+  assert.equal(result.sections.library.sources.length, 1);
+  assert.equal(typeof result.sections.library.sources[0].name, 'string');
+  assert.equal(result.sections.library.sources[0].name, '<img src=x onerror="alert(1)">');
+
+  assert.equal(result.sections.agent.turnIndex <= 3, true);
+  assert.deepEqual(result.sections.agent.reflections, {});
+  assert.deepEqual(result.sections.agent.hints, {});
+});
+
+test('sections a backup declares but cannot be read are reported as dropped, never merged', () => {
+  const { progress } = sampleState();
+  const result = readBackup(JSON.stringify({
+    format: BACKUP_FORMAT,
+    version: BACKUP_VERSION,
+    progress,
+    library: { version: 999, sources: [{ id: 'x', name: 'x.md', sections: [] }] },
+    agent: { version: 999, datasetId: 'flutter' },
+  }), { normalizeProgress });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.declared, [...BACKUP_SECTIONS]);
+  assert.deepEqual(result.dropped, ['library', 'agent']);
+  assert.equal(result.sections.agent, undefined);
+  assert.deepEqual(result.sections.library.sources, []);
+  assert.equal(result.counts.answers, 1);
+  assert.equal(result.counts.sources, 0);
+  assert.equal(result.counts.reflections, 0);
+});
+
+test('a partial backup restores only the sections it declares', () => {
+  const { library } = sampleState();
+  const result = readBackup(JSON.stringify(createBackup({ library, exportedAt: 1_756_000_000_000 })), { normalizeProgress });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.declared, ['library']);
+  assert.deepEqual(result.dropped, []);
+  assert.equal(result.sections.progress, undefined);
+  assert.equal(result.sections.agent, undefined);
+  assert.equal(result.counts.sources, 1);
+});
+
+test('theme normalization accepts only the palettes this build ships', () => {
+  assert.equal(normalizeTheme('light'), 'light');
+  assert.equal(normalizeTheme('dark'), 'dark');
+  assert.equal(normalizeTheme({ version: THEME_VERSION, theme: 'dark' }), 'dark');
+
+  for (const rejected of [null, undefined, '', 'system', 'sepia', 'DARK', 42, [], ['dark'], { theme: 'dark' }, { version: 99, theme: 'dark' }, { version: THEME_VERSION, theme: 'neon' }]) {
+    assert.equal(normalizeTheme(rejected), null, `accepted ${JSON.stringify(rejected)}`);
+  }
+
+  assert.deepEqual(createThemeRecord('dark'), { version: THEME_VERSION, theme: 'dark' });
+  assert.deepEqual(createThemeRecord('nonsense'), { version: THEME_VERSION, theme: 'light' });
+});
+
+test('the system hint is only a fallback: a stored choice always wins', () => {
+  assert.equal(resolveTheme(null, false), 'light');
+  assert.equal(resolveTheme(null, true), 'dark');
+  assert.equal(resolveTheme('sepia', true), 'dark');
+  assert.equal(resolveTheme('light', true), 'light');
+  assert.equal(resolveTheme('dark', false), 'dark');
+  assert.equal(resolveTheme({ version: THEME_VERSION, theme: 'light' }, true), 'light');
+  assert.equal(resolveTheme(undefined), 'light');
 });
