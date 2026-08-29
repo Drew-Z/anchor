@@ -126,6 +126,22 @@ export function scoreDataset(dataset, datasetProgress) {
 }
 
 /**
+ * Pairs each bundled citation with the Library search that reopens it, scoped to the deck it came from.
+ *
+ * The quiz feedback panel and the completion review both cite the same passages, so both read them through
+ * this one helper: a single search model means a locator cannot resolve one way under a submitted answer and
+ * another way in the review. `search` is `null` when a citation ships no locator — there is nothing to look
+ * up — and the renderers say so instead of offering a link that would land on an empty result.
+ */
+export function citationEvidence(citations, datasetId = '') {
+  return (Array.isArray(citations) ? citations : []).map((citation) => ({
+    locator: citation.locator,
+    excerpt: citation.excerpt,
+    search: sourceRevisitSearch(citation.locator, datasetId),
+  }));
+}
+
+/**
  * Everything the completion screen shows, resolved in one pass so the score, the per-row status, and the
  * summary line can never disagree. One row per bundled question, in dataset order, holding the selection
  * stored in this browser, the options the dataset marks correct, and the search state that reopens the
@@ -158,11 +174,7 @@ export function completionReviewModel(dataset, datasetProgress = {}) {
       // same answers read the same row.
       selected: question.options.filter((option) => selection.includes(option.id)),
       expected: question.correct.map((id) => byId.get(id)).filter(Boolean),
-      citations: (Array.isArray(question.citations) ? question.citations : []).map((citation) => ({
-        locator: citation.locator,
-        excerpt: citation.excerpt,
-        search: sourceRevisitSearch(citation.locator, dataset?.id ?? ''),
-      })),
+      citations: citationEvidence(question.citations, dataset?.id ?? ''),
     };
   });
 
@@ -1997,11 +2009,20 @@ if (typeof document !== 'undefined') {
       : `${translate('app.question')} ${index + 1} ${translate('app.of')} ${total}`;
   }
 
-  function renderFeedback(question, state) {
+  /**
+   * The panel a submitted answer opens. Each citation carries a link into the Library search for its own
+   * locator, so the evidence behind an answer is one click from the passage it came from — right or wrong,
+   * since a wrong answer is exactly when reading the source matters. The link is an ordinary in-page anchor:
+   * it changes the hash, leaves a history entry, and browser back returns to this question with the stored
+   * answer, this feedback, and any open tutor panel still in place.
+   */
+  function renderFeedback(dataset, question, state) {
     if (!state.submitted[question.id]) return '';
+    const text = SHELL_TEXT.feedback;
     const selected = state.answers[question.id] ?? [];
     const correct = isCorrect(question, selected);
     const tutorOpen = openTutorQuestions.has(question.id);
+    const evidence = citationEvidence(question.citations, dataset?.id ?? '');
     return `
       <section class="feedback-panel" aria-live="polite">
         <div class="feedback-status${correct ? '' : ' is-incorrect'}">
@@ -2015,12 +2036,21 @@ if (typeof document !== 'undefined') {
         <div class="citation-section">
           <h2>${escapeHtml(translate('app.sourceEvidence'))}</h2>
           <div class="citation-list">
-            ${question.citations.map((citation) => `
+            ${evidence.map((citation) => `
               <article class="citation-item">
                 <div class="citation-locator"><span>${escapeHtml(citation.locator)}</span><span class="source-kind">SOURCE</span></div>
                 <blockquote>${escapeHtml(textFor(citation.excerpt, locale()))}</blockquote>
+                ${citation.search ? `
+                  <a
+                    class="feedback-source-link"
+                    href="${routeHash({ view: 'library', search: citation.search })}"
+                    data-feedback-source="${escapeHtml(citation.locator)}"
+                    aria-label="${escapeHtml(formatCount(shell(text.sourceLinkLabel), { locator: citation.locator }))}"
+                  >${escapeHtml(shell(text.sourceAction))}</a>` : `
+                  <p class="feedback-source-note">${escapeHtml(shell(text.sourceMissing))}</p>`}
               </article>`).join('')}
           </div>
+          ${evidence.some((citation) => citation.search) ? `<p class="feedback-source-hint">${escapeHtml(shell(text.sourceHint))}</p>` : ''}
         </div>
         <button class="button button-secondary tutor-trigger" type="button" data-toggle-tutor="${question.id}" aria-expanded="${tutorOpen}" aria-controls="tutor-${escapeHtml(question.id)}">${escapeHtml(translate('app.tutor'))}</button>
         ${tutorOpen ? `
@@ -2090,7 +2120,7 @@ if (typeof document !== 'undefined') {
               ${submitted ? `<button class="button button-primary" type="button" data-next>${escapeHtml(translate(state.currentIndex === dataset.questions.length - 1 ? 'app.finish' : 'app.next'))}</button>` : `<button class="button button-primary" type="button" data-submit ${selected.length ? '' : 'disabled'}>${escapeHtml(translate('app.submit'))}</button>`}
             </div>
           </div>
-          ${renderFeedback(question, state)}
+          ${renderFeedback(dataset, question, state)}
         </article>
       </section>`;
   }

@@ -666,6 +666,23 @@ export const SHELL_TEXT = {
     ),
   },
 
+  /*
+   * Copy for the feedback panel a submitted answer opens. The source link is the same search the completion
+   * review uses, so the two surfaces say the same thing about the same passage; only the placement differs.
+   */
+  feedback: {
+    sourceAction: localized('Read this source in the library', '在知识库中阅读此来源'),
+    sourceLinkLabel: localized(
+      'Read {locator} in the library',
+      '在知识库中阅读 {locator}',
+    ),
+    sourceHint: localized(
+      'Opens the bundled search for this deck. Use your browser back button to return to this answer.',
+      '会打开此数据集的内置检索。使用浏览器的返回按钮即可回到这个答案。',
+    ),
+    sourceMissing: localized('This question ships without a source locator.', '这道题没有附带来源定位。'),
+  },
+
   agent: {
     eyebrow: localized('Agent', 'Agent'),
     title: localized('Guided help that shows its sources', '会展示来源的引导式辅导'),

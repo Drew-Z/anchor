@@ -12,6 +12,7 @@ import {
   LIBRARY_SEARCH_LIMITS,
   LOCAL_IMPORT_LIMITS,
   LIBRARY_VERSION,
+  SHELL_TEXT,
   THEME_VERSION,
   agentProgressFill,
   agentReflectionCount,
@@ -38,6 +39,7 @@ import {
   homeDashboardModel,
   localDayStamp,
   formatBytes,
+  formatCount,
   formatImportedAt,
   foldSearchText,
   getDataset,
@@ -62,6 +64,7 @@ import {
   verifiedQuestionCount,
 } from '../landing/app/scripts/data.js';
 import {
+  citationEvidence,
   completionReviewModel,
   createInitialProgress,
   isCorrect,
@@ -1287,6 +1290,86 @@ test('a review row links to the passage its answer cited', () => {
         assert.equal(found.matches[0].primary, 'locator');
       }
     }
+  }
+});
+
+test('feedback and review read a citation through one shared search model', () => {
+  const dataset = getDataset('flutter');
+  const question = dataset.questions[0];
+
+  // The evidence a submitted answer shows and the evidence its review row shows come from the same call, so
+  // a locator cannot resolve one way under the question and another way in the review.
+  const evidence = citationEvidence(question.citations, dataset.id);
+  assert.equal(evidence.length, question.citations.length);
+  assert.ok(evidence.length > 0);
+  evidence.forEach((citation, at) => {
+    assert.equal(citation.locator, question.citations[at].locator);
+    assert.deepEqual(citation.excerpt, question.citations[at].excerpt);
+    assert.deepEqual(citation.search, sourceRevisitSearch(citation.locator, dataset.id));
+  });
+
+  const reviewed = completionReviewModel(dataset, createInitialProgress().datasets.flutter).rows[0];
+  assert.deepEqual(reviewed.citations, evidence);
+
+  // A missing locator is the renderer's "say so instead of linking" state, and a question that ships no
+  // citations at all yields nothing to render rather than throwing.
+  assert.equal(citationEvidence([{ locator: '', excerpt: { en: 'x', zh: 'x' } }], 'flutter')[0].search, null);
+  assert.equal(citationEvidence([{ locator: '   ' }], 'flutter')[0].search, null);
+  assert.deepEqual(citationEvidence([], 'flutter'), []);
+  assert.deepEqual(citationEvidence(undefined, 'flutter'), []);
+  assert.deepEqual(citationEvidence(null), []);
+
+  // Without a deck the search stays valid and simply widens to every bundled source.
+  assert.equal(citationEvidence(question.citations)[0].search.scope, '');
+
+  // Every citation a feedback panel can show has to land on the passage it names: one bundled record, matched
+  // on the locator, inside the deck the answer came from.
+  const index = buildLibraryIndex(createEmptyLibrary());
+  const scopes = librarySearchScopes(index);
+  let checked = 0;
+  for (const deck of DATASETS) {
+    for (const shown of deck.questions) {
+      for (const citation of citationEvidence(shown.citations, deck.id)) {
+        assert.ok(citation.search, `${citation.locator} offers a link`);
+        assert.deepEqual(resolveLibrarySearch(citation.search, scopes), citation.search);
+        const found = searchLibrary(index, citation.search.query, {
+          kind: citation.search.kind,
+          scope: citation.search.scope,
+        });
+        assert.equal(found.matches.length, 1, `${citation.locator} resolves to one record`);
+        assert.equal(found.matches[0].record.locator, citation.locator);
+        assert.equal(found.matches[0].record.scopeId, deck.id);
+        assert.equal(found.matches[0].primary, 'locator');
+        checked += 1;
+      }
+    }
+  }
+  assert.equal(checked, 12);
+});
+
+test('the feedback source link ships bilingual copy and a per-locator accessible name', () => {
+  const text = SHELL_TEXT.feedback;
+  for (const key of ['sourceAction', 'sourceLinkLabel', 'sourceHint', 'sourceMissing']) {
+    assert.ok(text[key].en.length > 0, `${key} has English copy`);
+    assert.ok(text[key].zh.length > 0, `${key} has Chinese copy`);
+    assert.notEqual(text[key].en, text[key].zh);
+  }
+
+  // Two links in one panel need two names, so the locator goes into the label rather than being implied by
+  // position. The placeholder is the only difference between the two locales' names.
+  const locator = 'flutter/widgets.md#statefulwidget';
+  for (const copy of [text.sourceLinkLabel.en, text.sourceLinkLabel.zh]) {
+    assert.match(copy, /\{locator\}/);
+    const named = formatCount(copy, { locator });
+    assert.ok(named.includes(locator));
+    assert.doesNotMatch(named, /\{locator\}/);
+  }
+
+  // The hint is what tells a learner the link stays in this browser and that back comes home, so it has to
+  // name both. Nothing here points at a network destination.
+  assert.match(text.sourceHint.en, /back/i);
+  for (const copy of Object.values(text)) {
+    assert.doesNotMatch(copy.en + copy.zh, /https?:\/\//);
   }
 });
 

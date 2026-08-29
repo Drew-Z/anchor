@@ -452,6 +452,167 @@ test('the completion review reads in both languages and fits a phone', async ({ 
   expect(keys[PROGRESS_STORAGE_KEY]).not.toBeNull();
 });
 
+const feedbackText = SHELL_TEXT.feedback;
+
+/** Submits one answer in a deck and waits for the feedback panel it opens. */
+async function submitAnswer(page, datasetId, { correct = true } = {}) {
+  const dataset = getDataset(datasetId);
+  const question = dataset.questions[0];
+  const wrong = question.options.filter((option) => !question.correct.includes(option.id));
+  const picked = correct ? question.correct : [wrong[0].id];
+  await page.goto(`/app/#/decks/${datasetId}`);
+  for (const optionId of picked) await page.locator(`input[value="${optionId}"]`).check();
+  await page.locator('[data-submit]').click();
+  await expect(page.locator('.feedback-panel')).toBeVisible();
+  return { dataset, question, picked };
+}
+
+test('a submitted answer links its citation into the library and browser back returns to it', async ({ page }) => {
+  const offOrigin = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).origin !== expectedOrigin) offOrigin.push(request.url());
+  });
+
+  const { dataset, question, picked } = await submitAnswer(page, 'flutter', { correct: true });
+  const citation = question.citations[0];
+
+  // The evidence panel offers the passage itself, not just its address. The link is the same search the
+  // review row uses, so both surfaces lead to one record.
+  const link = page.locator('.feedback-panel [data-feedback-source]');
+  await expect(link).toHaveCount(question.citations.length);
+  await expect(link.first()).toHaveText(feedbackText.sourceAction.en);
+  await expect(page.locator('.feedback-source-hint')).toHaveText(feedbackText.sourceHint.en);
+
+  // Two links in one panel need two names, so each carries its own locator.
+  await expect(link.first()).toHaveAttribute('aria-label', `Read ${citation.locator} in the library`);
+  const expectedHash = routeHash({ view: 'library', search: sourceRevisitSearch(citation.locator, dataset.id) });
+  await expect(link.first()).toHaveAttribute('href', expectedHash);
+
+  // Following it is a route change, not a fetch: the locator resolves against the bundled index in-browser.
+  await link.first().click();
+  await expect(page).toHaveURL(new RegExp(`${expectedHash.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));
+  await expect(page.locator('[data-library-search]')).toBeVisible();
+  await expect(searchField(page)).toHaveValue(citation.locator);
+  await expect(searchResults(page)).toHaveCount(1);
+  await expect(searchResults(page).first().locator('.library-result-locator')).toHaveText(citation.locator);
+  await expect(searchResults(page).first().locator('.library-result-scope-name')).toHaveText(dataset.title.en);
+  await expect(searchResults(page).first()).toHaveAttribute('data-result-kind', 'bundled');
+
+  // Back returns to the same submitted question, not to the top of the deck: the stored answer is still
+  // checked and still locked, with the feedback, explanation, and citation that came with it.
+  await page.goBack();
+  await expect(page.locator('.quiz-view')).toBeVisible();
+  await expect(page.locator('.quiz-view .question-index')).toContainText(`Question 1 of ${dataset.questions.length}`);
+  await expect(page.locator(`input[value="${picked[0]}"]`)).toBeChecked();
+  await expect(page.locator(`input[value="${picked[0]}"]`)).toBeDisabled();
+  await expect(page.locator('.feedback-status')).toContainText('Supported by the source');
+  await expect(page.locator('.explanation-block p')).toHaveText(question.explanation.en);
+  await expect(page.locator('.citation-item blockquote').first()).toHaveText(citation.excerpt.en);
+  await expect(page.locator('[data-feedback-source]').first()).toHaveAttribute('href', expectedHash);
+  await expect(page.locator('[data-next]')).toBeVisible();
+
+  // The position is stored state, so a reload holds the question rather than restarting the deck.
+  await page.reload();
+  await expect(page.locator('.quiz-view .question-index')).toContainText(`Question 1 of ${dataset.questions.length}`);
+  await expect(page.locator('.feedback-panel')).toBeVisible();
+  await expect(page.locator(`input[value="${picked[0]}"]`)).toBeChecked();
+
+  // Reading a source is a read: it records nothing about the library or an agent session.
+  const keys = await storedKeys(page);
+  expect(keys[LOCAL_LIBRARY_STORAGE_KEY]).toBeNull();
+  expect(keys[AGENT_SESSION_STORAGE_KEY]).toBeNull();
+  expect(keys[PROGRESS_STORAGE_KEY]).not.toBeNull();
+  expect(offOrigin).toEqual([]);
+});
+
+test('a wrong answer keeps its source link and its open tutor panel across the trip', async ({ page }) => {
+  const offOrigin = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).origin !== expectedOrigin) offOrigin.push(request.url());
+  });
+
+  // A wrong answer is exactly when the passage matters, so the link is offered on the same terms.
+  const { dataset, question, picked } = await submitAnswer(page, 'git', { correct: false });
+  const citation = question.citations[0];
+  await expect(page.locator('.feedback-status.is-incorrect')).toContainText('Review the source');
+
+  // Open the tutor first: its disclosure and hints are part of the state that has to survive the trip.
+  const tutorTrigger = page.locator(`[data-toggle-tutor="${question.id}"]`);
+  await expect(tutorTrigger).toHaveAttribute('aria-expanded', 'false');
+  await tutorTrigger.click();
+  await expect(tutorTrigger).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.locator('.tutor-panel')).toBeVisible();
+  await expect(page.locator('.tutor-disclosure')).toBeVisible();
+
+  const expectedHash = routeHash({ view: 'library', search: sourceRevisitSearch(citation.locator, dataset.id) });
+  const link = page.locator('[data-feedback-source]').first();
+  await expect(link).toHaveAttribute('href', expectedHash);
+
+  // The link is a real anchor, so it is reachable and followable from the keyboard.
+  await link.focus();
+  await expect(link).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('[data-library-search]')).toBeVisible();
+  await expect(searchResults(page)).toHaveCount(1);
+  await expect(searchResults(page).first().locator('.library-result-locator')).toHaveText(citation.locator);
+
+  // Back restores the whole panel: wrong answer still locked in, feedback still saying so, tutor still open.
+  await page.goBack();
+  await expect(page.locator('.quiz-view')).toBeVisible();
+  await expect(page.locator(`input[value="${picked[0]}"]`)).toBeChecked();
+  await expect(page.locator(`input[value="${picked[0]}"]`)).toBeDisabled();
+  await expect(page.locator('.feedback-status.is-incorrect')).toContainText('Review the source');
+  await expect(page.locator('.explanation-block p')).toHaveText(question.explanation.en);
+  await expect(page.locator('.citation-item blockquote').first()).toHaveText(citation.excerpt.en);
+  await expect(page.locator('.tutor-panel')).toBeVisible();
+  await expect(page.locator(`[data-toggle-tutor="${question.id}"]`)).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.locator('.tutor-panel li').first()).toHaveText(question.tutorHints[0].en);
+
+  // The tutor stays a deliberate disclosure: it is in-memory, so a reload closes it again while the
+  // submitted answer and its evidence stay exactly where they were.
+  await page.reload();
+  await expect(page.locator(`input[value="${picked[0]}"]`)).toBeChecked();
+  await expect(page.locator('.feedback-panel')).toBeVisible();
+  await expect(page.locator('.tutor-panel')).toHaveCount(0);
+  await expect(page.locator(`[data-toggle-tutor="${question.id}"]`)).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('[data-feedback-source]').first()).toHaveAttribute('href', expectedHash);
+  expect(offOrigin).toEqual([]);
+});
+
+test('the feedback source link reads in both languages and fits a phone', async ({ page }) => {
+  const { dataset, question } = await submitAnswer(page, 'javascript', { correct: true });
+  const citation = question.citations[0];
+
+  await page.locator('[data-locale="zh"]').click();
+  await expect(page.locator('[data-feedback-source]').first()).toHaveText(feedbackText.sourceAction.zh);
+  await expect(page.locator('.feedback-source-hint')).toHaveText(feedbackText.sourceHint.zh);
+  await expect(page.locator('[data-feedback-source]').first())
+    .toHaveAttribute('aria-label', `在知识库中阅读 ${citation.locator}`);
+  await expect(page.locator('.citation-item blockquote').first()).toHaveText(citation.excerpt.zh);
+
+  // The locator is the same string in either language, so 中文 leads to the same passage.
+  const expectedHash = routeHash({ view: 'library', search: sourceRevisitSearch(citation.locator, dataset.id) });
+  await expect(page.locator('[data-feedback-source]').first()).toHaveAttribute('href', expectedHash);
+  await page.locator('[data-feedback-source]').first().click();
+  await expect(searchResults(page)).toHaveCount(1);
+  await expect(searchResults(page).first().locator('.library-result-scope-name')).toHaveText(dataset.title.zh);
+  await page.goBack();
+  await expect(page.locator('.feedback-panel')).toBeVisible();
+  await expect(page.locator('[data-feedback-source]').first()).toHaveText(feedbackText.sourceAction.zh);
+
+  await page.locator('[data-locale="en"]').click();
+  await expect(page.locator('[data-feedback-source]').first()).toHaveText(feedbackText.sourceAction.en);
+
+  // A citation card plus a link must not push the panel past a phone's width in either language.
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const locale of ['en', 'zh']) {
+    await page.locator(`[data-locale="${locale}"]`).click();
+    await expect(page.locator('[data-feedback-source]').first()).toBeVisible();
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
+  }
+});
+
 test('malformed or incompatible progress returns safely to dataset selection', async ({ page }) => {
   await page.addInitScript(([key]) => localStorage.setItem(key, '{broken-json'), [PROGRESS_STORAGE_KEY]);
   await page.goto('/app/#/decks');

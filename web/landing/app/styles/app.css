@@ -1140,12 +1140,23 @@ h3 {
   font-style: italic;
 }
 
-.completion-source-link {
+/* Both surfaces link a citation back to its passage, so both links read the same. A long locator can be the
+   whole label, so the text wraps and breaks rather than pushing the citation card past the viewport. */
+.completion-source-link,
+.feedback-source-link {
   display: inline-block;
   margin-top: 10px;
   color: var(--accent-text);
   font-size: 12px;
   font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+.feedback-source-hint,
+.feedback-source-note {
+  margin-top: 10px;
+  color: var(--text-muted);
+  font-size: 12px;
 }
 
 .completion-row-note {
@@ -3001,6 +3012,13 @@ h3 {
   .library-result-head {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  /* On a narrow screen the source link gets its own line and a taller hit area: at 12px it is otherwise a
+     thin target sitting directly under the excerpt it belongs to. */
+  .completion-source-link,
+  .feedback-source-link {
+    padding-block: 6px;
   }
 
   /* The clear button drops below the field: side by side, a bilingual label squeezes the input to
