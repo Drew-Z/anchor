@@ -544,6 +544,230 @@ test('the deck library fits a 390px viewport and asks nothing of the network', a
   expect(offOrigin).toEqual([]);
 });
 
+const homeToday = (page) => page.locator('[data-home-today]');
+const homeFocus = (page) => page.locator('[data-home-focus]');
+const homePlanRows = (page) => page.locator('[data-home-plan-row]');
+
+/** Opens Home on a cleared progress key, so every number on it is exactly what this test produced. */
+async function openHomeFresh(page) {
+  await page.goto('/app/#/home');
+  await page.evaluate((key) => localStorage.removeItem(key), PROGRESS_STORAGE_KEY);
+  await page.reload();
+  await expect(homeToday(page)).toBeVisible();
+}
+
+/** Answers every question of one deck through the UI, leaving the other decks' progress alone. */
+async function answerWholeDeck(page, datasetId) {
+  await page.goto(`/app/#/decks/${datasetId}`);
+  for (const question of getDataset(datasetId).questions) {
+    for (const optionId of question.correct) await page.locator(`input[value="${optionId}"]`).check();
+    await page.locator('[data-submit]').click();
+    await expect(page.locator('.feedback-status')).toBeVisible();
+    await page.locator('[data-next]').click();
+  }
+}
+
+test('home opens on a zero state that offers a first deck rather than a queue', async ({ page }) => {
+  await openHomeFresh(page);
+
+  await expect(page.locator('[data-home-answered]')).toHaveText('0/12');
+  await expect(page.locator('[data-home-correct]')).toHaveText('0/12');
+  await expect(page.locator('[data-home-percent]')).toHaveText('0%');
+  await expect(page.locator('[data-home-started]')).toHaveText(`0/${DATASETS.length}`);
+
+  // Today is a local target derived from what is left to answer, not a schedule handed down.
+  await expect(page.locator('[data-home-today-goal]')).toHaveText('0 of 4 answered today');
+  await expect(page.locator('[data-home-today-status]')).toHaveText(SHELL_TEXT.home.todayEmpty.en);
+  await expect(homeToday(page)).toHaveAttribute('data-home-today-state', 'open');
+  await expect(homeToday(page).locator('[role="progressbar"]')).toHaveAttribute('aria-valuenow', '0');
+  await expect(homeToday(page).locator('[role="progressbar"]')).toHaveAttribute('aria-valuemax', '4');
+  await expect(homeToday(page).locator('[data-home-today-note]')).toHaveText(SHELL_TEXT.home.todayBody.en);
+
+  // With nothing started the next step is the first bundled deck, offered as a start.
+  await expect(homeFocus(page)).toHaveAttribute('data-home-focus', DATASETS[0].id);
+  await expect(homeFocus(page)).toHaveAttribute('data-home-focus-action', 'start');
+  await expect(homeFocus(page)).toContainText(DATASETS[0].title.en);
+  await expect(homeFocus(page)).toContainText('4 of 4 questions left');
+  await expect(homeFocus(page).locator('.button')).toContainText(SHELL_TEXT.decks.actionStart.en);
+  await expect(homeFocus(page).locator('.button')).toHaveAttribute('href', `#/decks/${DATASETS[0].id}`);
+
+  // Every bundled deck is listed, in bundled order, with nothing marked done.
+  await expect(homePlanRows(page)).toHaveCount(DATASETS.length);
+  for (const [index, dataset] of DATASETS.entries()) {
+    const row = homePlanRows(page).nth(index);
+    await expect(row).toHaveAttribute('data-home-plan-row', dataset.id);
+    await expect(row).toContainText(dataset.title.en);
+    await expect(row.locator('[data-home-plan-count]')).toHaveText('0/4 questions');
+    await expect(row.locator('[data-home-plan-status]')).toHaveText(SHELL_TEXT.home.planRemaining.en.replace('{n}', '4'));
+    await expect(row.locator('.progress-bar')).toHaveClass(/deck-fill-0/);
+  }
+  await expect(page.locator('[data-home-plan-summary]')).toHaveText(`0 of ${DATASETS.length} decks complete`);
+
+  // Nothing on this surface claims a queue, a streak, an account, or a model call.
+  const homeText = (await page.locator('#app-content').innerText()).toLowerCase();
+  for (const word of ['streak', ' xp', 'hearts', 'due today', 'scheduled for', 'sign in', 'sync']) {
+    expect(homeText, `home should not claim “${word.trim()}”`).not.toContain(word);
+  }
+});
+
+test('home follows the progress this browser stored, one deck at a time', async ({ page }) => {
+  await openHomeFresh(page);
+  await answerQuestions(page, 'flutter', 1);
+  await page.goto('/app/#/home');
+
+  await expect(page.locator('[data-home-answered]')).toHaveText('1/12');
+  await expect(page.locator('[data-home-correct]')).toHaveText('1/12');
+  await expect(page.locator('[data-home-percent]')).toHaveText('8%');
+  await expect(page.locator('[data-home-started]')).toHaveText(`1/${DATASETS.length}`);
+
+  await expect(page.locator('[data-home-today-goal]')).toHaveText('1 of 4 answered today');
+  await expect(page.locator('[data-home-today-status]')).toHaveText('3 to go');
+  await expect(homeToday(page).locator('[role="progressbar"]')).toHaveAttribute('aria-valuenow', '1');
+  await expect(homeToday(page).locator('.progress-bar')).toHaveClass(/agent-fill-30/);
+
+  // The deck with work in it becomes the resume target, and the label changes with it.
+  await expect(homeFocus(page)).toHaveAttribute('data-home-focus', 'flutter');
+  await expect(homeFocus(page)).toHaveAttribute('data-home-focus-action', 'continue');
+  await expect(homeFocus(page)).toContainText('3 of 4 questions left');
+  await expect(homeFocus(page).locator('.button')).toContainText(SHELL_TEXT.decks.actionContinue.en);
+
+  // Progress belongs to one deck: the other rows still read as untouched.
+  const flutterRow = page.locator('[data-home-plan-row="flutter"]');
+  await expect(flutterRow.locator('[data-home-plan-count]')).toHaveText('1/4 questions');
+  await expect(flutterRow.locator('[data-home-plan-status]')).toHaveText('3 left');
+  await expect(flutterRow.locator('.progress-bar')).toHaveClass(/deck-fill-30/);
+  await expect(page.locator('[data-home-plan-row="git"] [data-home-plan-count]')).toHaveText('0/4 questions');
+  await expect(page.locator('[data-home-plan-summary]')).toHaveText(`0 of ${DATASETS.length} decks complete`);
+
+  // Finishing that deck marks its row done and moves the next step to the next unfinished deck.
+  await answerQuestions(page, 'flutter', 4);
+  await page.goto('/app/#/home');
+  await expect(page.locator('[data-home-answered]')).toHaveText('4/12');
+  await expect(page.locator('[data-home-percent]')).toHaveText('33%');
+  await expect(flutterRow.locator('[data-home-plan-status]')).toHaveText(SHELL_TEXT.home.planDone.en);
+  await expect(flutterRow.locator('[data-home-plan-status]')).toHaveClass(/is-done/);
+  await expect(flutterRow.locator('.progress-bar')).toHaveClass(/deck-fill-100/);
+  await expect(page.locator('[data-home-plan-summary]')).toHaveText(`1 of ${DATASETS.length} decks complete`);
+  await expect(homeFocus(page)).toHaveAttribute('data-home-focus', 'git');
+  await expect(homeFocus(page)).toHaveAttribute('data-home-focus-action', 'start');
+
+  // Four answers in one day is the target, and the line keeps the real count rather than a fraction.
+  await expect(page.locator('[data-home-today-goal]')).toHaveText('4 answered today');
+  await expect(page.locator('[data-home-today-status]')).toHaveText(SHELL_TEXT.home.todayMet.en);
+  await expect(homeToday(page)).toHaveAttribute('data-home-today-state', 'met');
+
+  // Resetting progress puts the whole surface back to its zero state, today's count included.
+  await page.locator('#reset-progress').click();
+  await expect(page.locator('[data-home-answered]')).toHaveText('0/12');
+  await expect(page.locator('[data-home-today-goal]')).toHaveText('0 of 4 answered today');
+  await expect(homeFocus(page)).toHaveAttribute('data-home-focus-action', 'start');
+  await expect(page.locator('[data-home-plan-summary]')).toHaveText(`0 of ${DATASETS.length} decks complete`);
+});
+
+test('home stops promising a goal once every bundled question is answered', async ({ page }) => {
+  await openHomeFresh(page);
+  for (const dataset of DATASETS) await answerWholeDeck(page, dataset.id);
+  await page.goto('/app/#/home');
+
+  await expect(page.locator('[data-home-answered]')).toHaveText('12/12');
+  await expect(page.locator('[data-home-percent]')).toHaveText('100%');
+  await expect(page.locator('[data-home-started]')).toHaveText(`${DATASETS.length}/${DATASETS.length}`);
+  await expect(page.locator('[data-home-plan-summary]')).toHaveText(`${DATASETS.length} of ${DATASETS.length} decks complete`);
+  await expect(page.locator('[data-home-plan-status].is-done')).toHaveCount(DATASETS.length);
+
+  // The bundled set is finished, so Home points at import instead of a target it cannot offer.
+  await expect(homeToday(page)).toHaveAttribute('data-home-today-state', 'exhausted');
+  await expect(page.locator('[data-home-today-goal]')).toHaveText('12 answered today');
+  await expect(page.locator('[data-home-today-note]')).toHaveText(SHELL_TEXT.home.todayExhausted.en);
+
+  // There is still one deck to open, now as a review rather than as unfinished work.
+  await expect(homeFocus(page)).toHaveAttribute('data-home-focus-action', 'review');
+  await expect(homeFocus(page)).toContainText('All 4 questions answered');
+  await expect(homeFocus(page).locator('.button')).toContainText(SHELL_TEXT.decks.actionReview.en);
+});
+
+test('home reaches every next surface, stays bilingual, and asks for nothing off-origin', async ({ page }) => {
+  const offOriginRequests = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).origin !== expectedOrigin) offOriginRequests.push(request.url());
+  });
+
+  await openHomeFresh(page);
+
+  // Four explicit next actions, each landing on the surface it names.
+  const destinations = [['decks', '#/decks'], ['agent', '#/agent'], ['library', '#/library'], ['import', '#/import']];
+  for (const [action, hash] of destinations) {
+    const card = page.locator(`[data-home-action="${action}"]`);
+    await expect(card.locator('.button')).toHaveAttribute('href', hash);
+    await card.locator('.button').click();
+    await expect(page).toHaveURL(new RegExp(`${hash.replace('#/', '#/')}$`));
+    await page.goto('/app/#/home');
+  }
+
+  // The import action keeps its Android scope badge: reading a file is local, building questions is not.
+  await expect(page.locator('[data-home-action="import"] .scope-badge.scope-android')).toBeVisible();
+
+  // Keyboard order runs down the surface: the focus deck, then the four actions, then the plan rows.
+  // Tabbing stops at the last plan row so the walk asserts the order rather than a step count.
+  const lastRow = DATASETS.at(-1).id;
+  const marker = () => page.evaluate(() => {
+    const node = document.activeElement;
+    if (!node || !document.getElementById('app-content')?.contains(node)) return null;
+    return node.closest('[data-home-focus]') ? 'focus'
+      : node.closest('[data-home-action]')?.dataset.homeAction
+      ?? node.closest('[data-home-plan-row]')?.dataset.homePlanRow
+      ?? null;
+  });
+
+  await page.locator('.view-heading h1').click();
+  const reachable = [];
+  for (let step = 0; step < 20 && reachable.at(-1) !== lastRow; step += 1) {
+    await page.keyboard.press('Tab');
+    const current = await marker();
+    if (current && reachable.at(-1) !== current) reachable.push(current);
+  }
+  expect(reachable).toEqual(['focus', 'decks', 'agent', 'library', 'import', ...DATASETS.map((dataset) => dataset.id)]);
+
+  // Enter on that row opens its deck, so a plan row is a real target for the keyboard too.
+  await expect(page.locator(`[data-home-plan-row="${lastRow}"]`)).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(new RegExp(`#/decks/${lastRow}$`));
+
+  // Every number and label on the surface has a Chinese reading; none of them fall back to English.
+  // Progress is cleared first because opening that deck left a resume hint behind, as it should.
+  await openHomeFresh(page);
+  await page.locator('[data-locale="zh"]').click();
+  await expect(page.locator('#app-content h1')).toContainText(SHELL_TEXT.home.title.zh);
+  await expect(homeToday(page)).toContainText(SHELL_TEXT.home.todayTitle.zh);
+  await expect(page.locator('[data-home-today-goal]')).toHaveText('今天已答 0 / 4 题');
+  await expect(page.locator('[data-home-today-note]')).toHaveText(SHELL_TEXT.home.todayBody.zh);
+  await expect(homeFocus(page)).toContainText(DATASETS[0].title.zh);
+  await expect(homeFocus(page).locator('.button')).toContainText(SHELL_TEXT.decks.actionStart.zh);
+  await expect(page.locator('[data-home-action="agent"]')).toContainText(SHELL_TEXT.home.agentTitle.zh);
+  await expect(page.locator('[data-home-action="library"]')).toContainText(SHELL_TEXT.home.libraryTitle.zh);
+  await expect(page.locator('[data-home-plan-summary]')).toHaveText(`已完成 0 / ${DATASETS.length} 个题包`);
+  await expect(page.locator('[data-home-plan-row="git"] [data-home-plan-status]')).toHaveText('还剩 4 题');
+
+  // The dashboard has to fit a phone in either language, bar and four-number grid included.
+  for (const locale of ['zh', 'en']) {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator(`[data-locale="${locale}"]`).click();
+    await expect(page.locator('[data-home-plan-summary]')).toBeVisible();
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow, `home overflows at 390px in ${locale}`).toBeLessThanOrEqual(0);
+  }
+
+  // The bar has to render at a width, not just carry the class: a zero-width track would show nothing.
+  await answerQuestions(page, 'flutter', 1);
+  await page.goto('/app/#/home');
+  const ratio = await deckFillRatio(homeToday(page));
+  expect(ratio).toBeGreaterThan(0.2);
+  expect(ratio).toBeLessThan(0.4);
+  expect(await deckFillRatio(page.locator('[data-home-plan-row="flutter"]'))).toBeGreaterThan(0.2);
+
+  expect(offOriginRequests).toEqual([]);
+});
+
 test('the shell exposes every product surface on desktop and mobile', async ({ page }) => {
   const offOriginRequests = [];
   page.on('request', (request) => {

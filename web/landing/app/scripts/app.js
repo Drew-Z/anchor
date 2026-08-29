@@ -40,7 +40,9 @@ import {
   formatImportedAt,
   getDataset,
   highlightSegments,
+  homeDashboardModel,
   librarySearchScopes,
+  localDayStamp,
   looksBinary,
   normalizeAgentSession,
   normalizeLocalLibrary,
@@ -92,7 +94,17 @@ export const ANCHOR_STORAGE_KEYS = [
 ];
 
 export function createInitialProgress() {
-  return { version: DATA_VERSION, activeDatasetId: null, datasets: {} };
+  return { version: DATA_VERSION, activeDatasetId: null, datasets: {}, daily: createDailyRecord() };
+}
+
+/**
+ * Answers submitted on one local calendar day. It rides inside the progress record so every existing
+ * reset path — reset progress, the privacy actions, a restore — clears it without a second key to track,
+ * and it is deliberately left out of the backup allow-list: how much was answered on this device today is
+ * not learning content, and it should not travel to another machine or another day.
+ */
+function createDailyRecord() {
+  return { date: '', answered: 0 };
 }
 
 function createDatasetProgress() {
@@ -135,7 +147,21 @@ export function normalizeProgress(candidate) {
     }
     normalized.datasets[dataset.id] = target;
   }
+
+  // A day stamp is only trusted when it is a stamp this build writes and the count is a plain integer.
+  // Anything else — a tampered key, a restored backup that never carried one — starts today at zero.
+  const day = candidate.daily;
+  const stamp = typeof day?.date === 'string' && DAY_STAMP_PATTERN.test(day.date) ? day.date : '';
+  const answered = Number.isInteger(day?.answered) && day.answered > 0 ? day.answered : 0;
+  if (stamp) normalized.daily = { date: stamp, answered: Math.min(answered, totalBundledQuestions()) };
   return normalized;
+}
+
+const DAY_STAMP_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Ceiling for a day's count: nobody can answer more questions than the bundled set holds. */
+function totalBundledQuestions() {
+  return DATASETS.reduce((total, dataset) => total + dataset.questions.length, 0);
 }
 
 export const VIEWS = ['home', 'decks', 'agent', 'library', 'profile', 'import'];
@@ -554,10 +580,33 @@ if (typeof document !== 'undefined') {
     }, { total: 0, submitted: 0, correct: 0, started: 0 });
   }
 
-  /** Deterministic resume target: the stored active dataset when it still has work, else the first one. */
-  function continueTarget() {
-    const partial = DATASETS.filter((dataset) => !datasetProgress(dataset.id).completed && submittedCountFor(dataset) > 0);
-    return partial.find((dataset) => dataset.id === progress.activeDatasetId) ?? partial[0] ?? null;
+  /** Answers submitted in this browser today, or zero once the stored stamp is no longer today's. */
+  function answeredToday() {
+    return progress.daily?.date === localDayStamp() ? progress.daily.answered : 0;
+  }
+
+  /**
+   * Counts one submitted answer against today. Called from the submit handler only, so it counts the act
+   * of answering rather than the state of the record: re-reading a deck later does not inflate the day.
+   */
+  function recordDailyAnswer() {
+    const today = localDayStamp();
+    if (!today) return;
+    const current = progress.daily?.date === today ? progress.daily.answered : 0;
+    progress.daily = { date: today, answered: Math.min(current + 1, totalBundledQuestions()) };
+  }
+
+  /** Home's whole state in one pass: summary, today's goal, one focus deck, and a row per bundled deck. */
+  function homeDashboard() {
+    return homeDashboardModel({
+      datasets: DATASETS,
+      activeDatasetId: progress.activeDatasetId,
+      answeredToday: answeredToday(),
+      progressFor: (dataset) => {
+        const state = datasetProgress(dataset.id);
+        return { answered: submittedCountFor(dataset), correct: scoreDataset(dataset, state), completed: state.completed };
+      },
+    });
   }
 
   function viewHeading(eyebrow, title, body) {
@@ -573,69 +622,137 @@ if (typeof document !== 'undefined') {
     return `<ul class="scope-list">${items.map((item) => `<li>${escapeHtml(shell(item))}</li>`).join('')}</ul>`;
   }
 
-  function renderHome() {
-    const summary = progressSummary();
-    const resume = continueTarget();
+  /**
+   * Today's local count, as a goal line plus a bar. There is no streak and no history: only the answers
+   * submitted on this device today, against a target capped by what is left to answer. Once the bundled
+   * set runs out the block says so instead of showing a goal that can no longer be reached.
+   */
+  function renderTodayCard(daily) {
     const text = SHELL_TEXT.home;
 
-    const resumeCard = resume ? `
-      <article class="shell-card shell-card-accent">
+    // Past the target the goal has nothing left to say, so the line drops it and keeps the real count:
+    // "4 of 4" would quietly discard work, and "12 of 4" would read as a broken fraction.
+    const goalLine = daily.goal === 0
+      ? shell(text.todayEmpty)
+      : daily.done >= daily.goal
+        ? formatCount(shell(text.todayCount), { done: daily.done })
+        : formatCount(shell(text.todayGoal), { done: daily.done, goal: daily.goal });
+    const status = daily.met
+      ? shell(text.todayMet)
+      : daily.done === 0 ? shell(text.todayEmpty) : formatCount(shell(text.todayRemaining), { n: daily.remaining });
+
+    const meter = daily.goal > 0 ? `
+      <div class="progress-track today-track" role="progressbar" aria-label="${escapeHtml(shell(text.todayTitle))}" aria-valuemin="0" aria-valuemax="${daily.goal}" aria-valuenow="${Math.min(daily.done, daily.goal)}" aria-valuetext="${escapeHtml(goalLine)}">
+        <div class="progress-bar agent-fill-${daily.fill}"></div>
+      </div>` : '';
+
+    return `
+      <section class="today-card" data-home-today data-home-today-state="${daily.exhausted ? 'exhausted' : daily.met ? 'met' : 'open'}">
+        <div class="today-head">
+          <h2>${escapeHtml(shell(text.todayTitle))}</h2>
+          <strong data-home-today-goal>${escapeHtml(goalLine)}</strong>
+        </div>
+        ${meter}
+        ${daily.goal > 0 ? `<p class="today-status${daily.met ? ' is-done' : ''}" data-home-today-status>${escapeHtml(status)}</p>` : ''}
+        <p class="today-note" data-home-today-note>${escapeHtml(shell(daily.exhausted ? text.todayExhausted : text.todayBody))}</p>
+      </section>`;
+  }
+
+  /**
+   * One deterministic next step, resolved from stored progress by `homeDashboardModel`. The heading names
+   * why this deck is here — resume, first start, or review — and the single button is the way into it.
+   */
+  function renderFocusCard(focus) {
+    if (!focus) return '';
+    const text = SHELL_TEXT.home;
+    const titles = { continue: text.continueTitle, start: text.focusStartTitle, review: text.focusReviewTitle };
+    const detail = focus.remaining > 0
+      ? formatCount(shell(text.focusRemaining), { n: focus.remaining, total: focus.total })
+      : formatCount(shell(text.focusComplete), { total: focus.total });
+
+    return `
+      <div class="shell-cards home-focus">
+      <article class="shell-card shell-card-accent" data-home-focus="${escapeHtml(focus.id)}" data-home-focus-action="${escapeHtml(focus.action)}">
         <div class="shell-card-head">
-          <span class="dataset-mark">${resume.mark}</span>
+          <span class="dataset-mark">${escapeHtml(focus.mark)}</span>
           <div>
-            <h2>${escapeHtml(shell(text.continueTitle))}</h2>
-            <p>${escapeHtml(textFor(resume.title, locale()))} · ${submittedCountFor(resume)}/${resume.questions.length}</p>
+            <p class="eyebrow">${escapeHtml(shell(text.focusEyebrow))}</p>
+            <h2>${escapeHtml(shell(titles[focus.action] ?? text.continueTitle))}</h2>
+            <p data-home-focus-detail>${escapeHtml(textFor(focus.dataset.title, locale()))} · ${escapeHtml(detail)}</p>
           </div>
         </div>
-        <a class="button button-primary" href="${routeHash({ view: 'decks', datasetId: resume.id })}">${escapeHtml(shell(text.continueAction))}</a>
-      </article>` : '';
+        <a class="button button-primary" href="${routeHash({ view: 'decks', datasetId: focus.id })}">${escapeHtml(shell(SHELL_TEXT.decks[DECK_ACTION_KEYS[focus.action]] ?? text.continueAction))}</a>
+      </article>
+      </div>`;
+  }
+
+  function renderHome() {
+    const { summary, rows, focus, daily } = homeDashboard();
+    const text = SHELL_TEXT.home;
 
     content.innerHTML = `
       <section class="shell-view" data-view="home">
         ${viewHeading(shell(text.eyebrow), shell(text.title), shell(text.body))}
         <p class="shell-scope">${badge('local')}<span>${escapeHtml(shell(SHELL_TEXT.browserScope))}</span></p>
 
-        <div class="stat-grid">
-          <div class="stat-card"><span>${escapeHtml(shell(text.statAnswered))}</span><strong>${summary.submitted}<small>/${summary.total}</small></strong></div>
-          <div class="stat-card"><span>${escapeHtml(shell(text.statCorrect))}</span><strong>${summary.correct}<small>/${summary.total}</small></strong></div>
-          <div class="stat-card"><span>${escapeHtml(shell(text.statStarted))}</span><strong>${summary.started}<small>/${DATASETS.length}</small></strong></div>
+        ${renderTodayCard(daily)}
+
+        <div class="stat-grid stat-grid-home">
+          <div class="stat-card"><span>${escapeHtml(shell(text.statAnswered))}</span><strong data-home-answered>${summary.answered}<small>/${summary.total}</small></strong></div>
+          <div class="stat-card"><span>${escapeHtml(shell(text.statCorrect))}</span><strong data-home-correct>${summary.correct}<small>/${summary.total}</small></strong></div>
+          <div class="stat-card"><span>${escapeHtml(shell(text.statCompletion))}</span><strong data-home-percent>${summary.percent}<small>%</small></strong></div>
+          <div class="stat-card"><span>${escapeHtml(shell(text.statStarted))}</span><strong data-home-started>${summary.started}<small>/${summary.decks}</small></strong></div>
         </div>
 
-        <div class="shell-cards">
-          ${resumeCard}
-          <article class="shell-card">
-            <h2>${escapeHtml(shell(text.startTitle))}</h2>
-            <p>${escapeHtml(shell(text.startBody))}</p>
-            <a class="button ${resume ? 'button-secondary' : 'button-primary'}" href="${routeHash({ view: 'decks' })}">${escapeHtml(shell(text.startAction))}</a>
-          </article>
-          <article class="shell-card">
-            <div class="shell-card-head"><h2>${escapeHtml(shell(text.importTitle))}</h2>${badge('android')}</div>
-            <p>${escapeHtml(shell(text.importBody))}</p>
-            <a class="button button-secondary" href="${routeHash({ view: 'import' })}" data-nav-route="import">${escapeHtml(shell(text.importAction))}</a>
-          </article>
-        </div>
+        ${renderFocusCard(focus)}
+
+        <section class="shell-section">
+          <h2>${escapeHtml(shell(text.actionsTitle))}</h2>
+          <div class="shell-cards action-grid">
+            <article class="shell-card" data-home-action="decks">
+              <h2>${escapeHtml(shell(text.startTitle))}</h2>
+              <p>${escapeHtml(shell(text.startBody))}</p>
+              <a class="button button-secondary" href="${routeHash({ view: 'decks' })}">${escapeHtml(shell(text.startAction))}</a>
+            </article>
+            <article class="shell-card" data-home-action="agent">
+              <h2>${escapeHtml(shell(text.agentTitle))}</h2>
+              <p>${escapeHtml(shell(text.agentBody))}</p>
+              <a class="button button-secondary" href="${routeHash({ view: 'agent' })}">${escapeHtml(shell(text.agentAction))}</a>
+            </article>
+            <article class="shell-card" data-home-action="library">
+              <h2>${escapeHtml(shell(text.libraryTitle))}</h2>
+              <p>${escapeHtml(shell(text.libraryBody))}</p>
+              <a class="button button-secondary" href="${routeHash({ view: 'library' })}">${escapeHtml(shell(text.libraryAction))}</a>
+            </article>
+            <article class="shell-card" data-home-action="import">
+              <div class="shell-card-head"><h2>${escapeHtml(shell(text.importTitle))}</h2>${badge('android')}</div>
+              <p>${escapeHtml(shell(text.importBody))}</p>
+              <a class="button button-secondary" href="${routeHash({ view: 'import' })}" data-nav-route="import">${escapeHtml(shell(text.importAction))}</a>
+            </article>
+          </div>
+        </section>
 
         <section class="shell-section">
           <h2>${escapeHtml(shell(text.planTitle))}</h2>
           <p class="section-lead">${escapeHtml(shell(text.planBody))}</p>
+          <p class="plan-summary" data-home-plan-summary>${escapeHtml(formatCount(shell(text.planSummary), { done: summary.decksComplete, total: summary.decks }))}</p>
           <ul class="plan-list">
-            ${DATASETS.map((dataset) => {
-              const state = datasetProgress(dataset.id);
-              const submitted = submittedCountFor(dataset);
-              const remaining = dataset.questions.length - submitted;
-              const status = state.completed || remaining === 0
-                ? escapeHtml(shell(text.planDone))
-                : escapeHtml(formatCount(shell(text.planRemaining), { n: remaining }));
+            ${rows.map((row) => {
+              const done = row.completed || row.remaining === 0;
+              const status = done
+                ? shell(text.planDone)
+                : formatCount(shell(text.planRemaining), { n: row.remaining });
               return `
                 <li>
-                  <a class="plan-row" href="${routeHash({ view: 'decks', datasetId: dataset.id })}">
-                    <span class="dataset-mark">${dataset.mark}</span>
+                  <a class="plan-row" href="${routeHash({ view: 'decks', datasetId: row.id })}" data-home-plan-row="${escapeHtml(row.id)}">
+                    <span class="dataset-mark">${escapeHtml(row.mark)}</span>
                     <span class="plan-label">
-                      <strong>${escapeHtml(textFor(dataset.title, locale()))}</strong>
-                      <span>${submitted}/${dataset.questions.length} ${escapeHtml(translate('app.questions'))}</span>
+                      <strong>${escapeHtml(textFor(row.dataset.title, locale()))}</strong>
+                      <span data-home-plan-count>${row.answered}/${row.total} ${escapeHtml(translate('app.questions'))}</span>
                     </span>
-                    <span class="plan-status${state.completed || remaining === 0 ? ' is-done' : ''}">${status}</span>
+                    <span class="plan-status${done ? ' is-done' : ''}" data-home-plan-status>${escapeHtml(status)}</span>
                     <span class="plan-arrow" aria-hidden="true">→</span>
+                    <span class="progress-track plan-track" aria-hidden="true"><span class="progress-bar deck-fill-${row.fill}"></span></span>
                   </a>
                 </li>`;
             }).join('')}
@@ -2673,6 +2790,10 @@ if (typeof document !== 'undefined') {
     if (event.target.closest('[data-submit]') && context) {
       const answer = context.state.answers[context.question.id] ?? [];
       if (!answer.length) return;
+
+      // A question already submitted is being re-read, not answered again, so only a first submission
+      // counts toward today. That keeps the daily number a record of work rather than of navigation.
+      if (!context.state.submitted[context.question.id]) recordDailyAnswer();
       context.state.submitted[context.question.id] = true;
       announce(translate(isCorrect(context.question, answer) ? 'app.correct' : 'app.incorrect'));
       persistAndRender();

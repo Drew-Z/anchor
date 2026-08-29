@@ -1110,11 +1110,72 @@ h3 {
   color: var(--evidence-text);
 }
 
+/* Today's local count. A panel rather than a stat card, because it carries a bar and the two lines of
+   scope copy that keep it from reading as a streak or a server-side schedule. */
+.today-card {
+  padding: 16px 18px;
+  margin-bottom: 18px;
+  border: 1px solid var(--accent-line-soft);
+  border-radius: var(--radius);
+  background: var(--accent-wash-card);
+}
+
+.today-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px 14px;
+  margin-bottom: 10px;
+}
+
+.today-head h2 {
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.today-head strong {
+  flex: 0 0 auto;
+  font-size: 15px;
+}
+
+.today-track {
+  grid-column: auto;
+}
+
+.today-status {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.today-status.is-done {
+  color: var(--accent-text);
+}
+
+.today-note {
+  max-width: 62ch;
+  margin-top: 8px;
+  margin-bottom: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
   margin-bottom: 26px;
+}
+
+/* Home reports a fourth number, coverage, so it gets its own column count. Profile keeps three. */
+.stat-grid-home {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .stat-card {
@@ -1151,6 +1212,22 @@ h3 {
   display: grid;
   gap: 12px;
   margin-bottom: 34px;
+}
+
+/* Four equal next actions read as a set of choices; one column would rank them by accident. */
+.action-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.home-focus {
+  margin-bottom: 30px;
+}
+
+/* `.shell-card p` is the more specific selector for this paragraph, so the eyebrow restates itself. */
+.shell-card-accent .eyebrow {
+  margin-bottom: 2px;
+  color: var(--accent-text);
+  font-size: 11px;
 }
 
 .shell-card {
@@ -1244,17 +1321,34 @@ h3 {
   gap: 8px;
 }
 
+.plan-summary {
+  margin-bottom: 14px;
+  color: var(--accent-text);
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .plan-row {
   display: grid;
   grid-template-columns: 38px minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 12px;
+  gap: 8px 12px;
   padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: 7px;
   background: var(--panel);
   color: var(--text);
   text-decoration: none;
+}
+
+/* Last in the row so the label, status, and arrow stay on one line and the bar takes the next.
+   The track and its fill are spans, because the row is a link and its content stays phrasing-level. */
+.plan-track {
+  display: block;
+}
+
+.plan-track .progress-bar {
+  display: block;
 }
 
 .plan-row:hover {
@@ -2627,6 +2721,11 @@ h3 {
     gap: 8px;
   }
 
+  /* Four numbers across a tablet width leave no room for a bilingual label, so they pair up instead. */
+  .stat-grid-home {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .stat-card {
     padding: 12px;
   }
@@ -2637,6 +2736,10 @@ h3 {
 
   .shell-card {
     padding: 18px;
+  }
+
+  .action-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .plan-row {
@@ -2754,7 +2857,8 @@ h3 {
     font-size: 52px;
   }
 
-  .stat-grid {
+  .stat-grid,
+  .stat-grid-home {
     grid-template-columns: 1fr;
   }
 
@@ -2763,6 +2867,10 @@ h3 {
     align-items: baseline;
     justify-content: space-between;
     gap: 12px;
+  }
+
+  .today-card {
+    padding: 14px 16px;
   }
 
   .stat-card span {

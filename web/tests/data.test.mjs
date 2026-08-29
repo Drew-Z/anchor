@@ -29,10 +29,14 @@ import {
   createEmptyLibrary,
   createLocalSource,
   createThemeRecord,
+  DAILY_GOAL_QUESTIONS,
+  dailyGoalModel,
   deckCardModel,
   deckProgressFill,
   deckSearchTerms,
   extractSections,
+  homeDashboardModel,
+  localDayStamp,
   formatBytes,
   formatImportedAt,
   foldSearchText,
@@ -760,6 +764,203 @@ test('a deck with no verified question offers no start', () => {
   assert.equal(empty.total, 0);
   assert.equal(empty.percent, 0);
   assert.equal(empty.action, 'pending');
+});
+
+test('a day stamp is the device calendar date, not a UTC one', () => {
+  // Built from local getters, so the stamp matches the day the learner is actually having.
+  const noon = new Date(2026, 7, 29, 12, 0, 0);
+  assert.equal(localDayStamp(noon.getTime()), '2026-08-29');
+
+  // Month and day are padded, so string comparison is enough to tell one day from another.
+  assert.equal(localDayStamp(new Date(2026, 0, 5, 9, 30).getTime()), '2026-01-05');
+
+  // Local midnight belongs to the day it starts, whatever the offset does to the UTC date.
+  const midnight = new Date(2026, 7, 29, 0, 0, 0);
+  assert.equal(localDayStamp(midnight.getTime()), '2026-08-29');
+  assert.equal(localDayStamp(new Date(2026, 7, 29, 23, 59, 59).getTime()), '2026-08-29');
+
+  // An unusable timestamp is no day at all, which every caller reads as "nothing answered today".
+  for (const bad of [null, NaN, Infinity, -1, 0, 'today', {}]) assert.equal(localDayStamp(bad), '');
+
+  // No argument means now, which is how the shell asks whether a stored stamp is still today's.
+  assert.match(localDayStamp(), /^\d{4}-\d{2}-\d{2}$/);
+  assert.equal(localDayStamp(), localDayStamp(Date.now()));
+});
+
+test('the daily goal is capped by what is left to answer, so it can always be reached', () => {
+  const fresh = dailyGoalModel({ answeredToday: 0, remainingQuestions: 12 });
+  assert.equal(fresh.goal, DAILY_GOAL_QUESTIONS);
+  assert.equal(fresh.done, 0);
+  assert.equal(fresh.remaining, DAILY_GOAL_QUESTIONS);
+  assert.equal(fresh.met, false);
+  assert.equal(fresh.exhausted, false);
+  assert.equal(fresh.percent, 0);
+  assert.equal(fresh.fill, 0);
+
+  const partway = dailyGoalModel({ answeredToday: 1, remainingQuestions: 11 });
+  assert.equal(partway.remaining, DAILY_GOAL_QUESTIONS - 1);
+  assert.equal(partway.met, false);
+  assert.equal(partway.percent, 25);
+  assert.equal(partway.fill, 30);
+
+  const met = dailyGoalModel({ answeredToday: DAILY_GOAL_QUESTIONS, remainingQuestions: 8 });
+  assert.equal(met.met, true);
+  assert.equal(met.remaining, 0);
+  assert.equal(met.percent, 100);
+  assert.equal(met.fill, 100);
+
+  // Only four questions left means today's target is four, not a number the bundled set cannot supply.
+  const scarce = dailyGoalModel({ answeredToday: 0, remainingQuestions: 2, target: 4 });
+  assert.equal(scarce.goal, 2);
+  assert.equal(scarce.met, false);
+
+  // Work already done today still counts once it has used up the last question: the goal shrinks to
+  // what was reachable and reads as met, instead of a bar stuck at 2 of 4 forever.
+  const finished = dailyGoalModel({ answeredToday: 2, remainingQuestions: 0 });
+  assert.equal(finished.goal, 2);
+  assert.equal(finished.met, true);
+  assert.equal(finished.exhausted, true);
+  assert.equal(finished.percent, 100);
+
+  // Everything answered on an earlier day: no goal to show today, and the surface is told why.
+  const spent = dailyGoalModel({ answeredToday: 0, remainingQuestions: 0 });
+  assert.equal(spent.goal, 0);
+  assert.equal(spent.met, false);
+  assert.equal(spent.exhausted, true);
+  assert.equal(spent.percent, 0);
+  assert.equal(spent.fill, 0);
+
+  // Counts arriving from storage are clamped, and overshooting the target still reads as done.
+  const overshoot = dailyGoalModel({ answeredToday: 9, remainingQuestions: 3 });
+  assert.equal(overshoot.goal, DAILY_GOAL_QUESTIONS);
+  assert.equal(overshoot.percent, 100);
+  assert.equal(overshoot.fill, 100);
+  const negative = dailyGoalModel({ answeredToday: -5, remainingQuestions: -5 });
+  assert.equal(negative.done, 0);
+  assert.equal(negative.goal, 0);
+  assert.deepEqual(dailyGoalModel(), dailyGoalModel({ answeredToday: 0, remainingQuestions: 0 }));
+});
+
+/** Progress lookup for the dashboard model, keyed by dataset id. Anything unlisted reads as untouched. */
+function homeProgress(byId = {}) {
+  return (dataset) => byId[dataset.id] ?? {};
+}
+
+test('the home dashboard sums bundled totals against this browser\'s own progress', () => {
+  const zero = homeDashboardModel({ progressFor: homeProgress() });
+  assert.equal(zero.summary.total, 12);
+  assert.equal(zero.summary.answered, 0);
+  assert.equal(zero.summary.correct, 0);
+  assert.equal(zero.summary.started, 0);
+  assert.equal(zero.summary.decks, DATASETS.length);
+  assert.equal(zero.summary.decksComplete, 0);
+  assert.equal(zero.summary.remaining, 12);
+  assert.equal(zero.summary.percent, 0);
+
+  // Every bundled deck gets a row, in bundled order, whether or not it has been touched.
+  assert.deepEqual(zero.rows.map((row) => row.id), DATASETS.map((dataset) => dataset.id));
+  assert.deepEqual(zero.rows.map((row) => row.remaining), [4, 4, 4]);
+
+  const mixed = homeDashboardModel({
+    progressFor: homeProgress({
+      flutter: { answered: 4, correct: 3, completed: true },
+      git: { answered: 1, correct: 1 },
+    }),
+  });
+  assert.equal(mixed.summary.answered, 5);
+  assert.equal(mixed.summary.correct, 4);
+  assert.equal(mixed.summary.started, 2);
+  assert.equal(mixed.summary.decksComplete, 1);
+  assert.equal(mixed.summary.remaining, 7);
+  assert.equal(mixed.summary.percent, 42);
+  assert.deepEqual(mixed.rows.map((row) => row.remaining), [0, 3, 4]);
+  assert.deepEqual(mixed.rows.map((row) => row.fill), [100, 30, 0]);
+
+  // A deck can be flagged complete with nothing recorded against it, which a restored record can do.
+  // The flag counts the deck as finished; the four questions are still unanswered, and `remaining` says
+  // so rather than letting the flag hide work the learner could still do.
+  const flagged = homeDashboardModel({ progressFor: homeProgress({ git: { completed: true } }) });
+  assert.equal(flagged.rows[1].completed, true);
+  assert.equal(flagged.rows[1].remaining, 4);
+  assert.equal(flagged.summary.decksComplete, 1);
+  assert.equal(flagged.summary.percent, 0);
+
+  // The percentage is coverage of the bundled set, not a score: it moves on answers, not on correctness.
+  const wrong = homeDashboardModel({ progressFor: homeProgress({ flutter: { answered: 4, correct: 0 } }) });
+  assert.equal(wrong.summary.percent, 33);
+  assert.equal(wrong.summary.correct, 0);
+});
+
+test('the home focus deck is picked from stored progress, never from a schedule', () => {
+  // Nothing started: the first bundled deck, offered as a start rather than a resume.
+  const fresh = homeDashboardModel({ progressFor: homeProgress() });
+  assert.equal(fresh.focus.id, DATASETS[0].id);
+  assert.equal(fresh.focus.action, 'start');
+  assert.equal(fresh.focus.remaining, 4);
+
+  // The deck this browser last opened wins while it still has questions left.
+  const resumed = homeDashboardModel({
+    activeDatasetId: 'javascript',
+    progressFor: homeProgress({ flutter: { answered: 1 }, javascript: { answered: 2 } }),
+  });
+  assert.equal(resumed.focus.id, 'javascript');
+  assert.equal(resumed.focus.action, 'continue');
+  assert.equal(resumed.focus.remaining, 2);
+
+  // Once that deck is finished the hint is stale, so the first unfinished deck in bundled order takes over.
+  const stale = homeDashboardModel({
+    activeDatasetId: 'javascript',
+    progressFor: homeProgress({ javascript: { completed: true }, git: { answered: 1 } }),
+  });
+  assert.equal(stale.focus.id, DATASETS[0].id);
+
+  // An unknown or missing hint is simply ignored; the choice stays deterministic either way.
+  for (const activeDatasetId of [null, undefined, 'not-a-deck']) {
+    assert.equal(homeDashboardModel({ activeDatasetId, progressFor: homeProgress() }).focus.id, DATASETS[0].id);
+  }
+
+  // Everything answered: Home still offers one deck, now as a review, and reports nothing left.
+  const done = homeDashboardModel({
+    progressFor: homeProgress(Object.fromEntries(DATASETS.map((dataset) => [dataset.id, { completed: true, answered: dataset.questions.length }]))),
+  });
+  assert.equal(done.focus.id, DATASETS[0].id);
+  assert.equal(done.focus.action, 'review');
+  assert.equal(done.focus.remaining, 0);
+  assert.equal(done.daily.exhausted, true);
+
+  // No practisable deck means no focus at all, rather than a card that opens an empty deck.
+  const unverified = homeDashboardModel({
+    datasets: [{ id: 'draft', mark: 'DR', title: { en: 'Draft', zh: '草稿' }, questions: [{ citations: [] }] }],
+    progressFor: homeProgress(),
+  });
+  assert.equal(unverified.focus, null);
+  assert.equal(unverified.rows.length, 1);
+  assert.deepEqual(homeDashboardModel({ datasets: [], progressFor: homeProgress() }).focus, null);
+});
+
+test('the home daily goal is derived from the same progress, capped by what is unanswered', () => {
+  const fresh = homeDashboardModel({ answeredToday: 0, progressFor: homeProgress() });
+  assert.equal(fresh.daily.goal, DAILY_GOAL_QUESTIONS);
+  assert.equal(fresh.daily.done, 0);
+  assert.equal(fresh.daily.exhausted, false);
+
+  const working = homeDashboardModel({ answeredToday: 2, progressFor: homeProgress({ flutter: { answered: 2 } }) });
+  assert.equal(working.daily.done, 2);
+  assert.equal(working.daily.remaining, DAILY_GOAL_QUESTIONS - 2);
+  assert.equal(working.daily.met, false);
+
+  // The last two bundled questions answered today: the goal is what was reachable, and it is met.
+  const nearlyDone = homeDashboardModel({
+    answeredToday: 2,
+    progressFor: homeProgress({
+      flutter: { answered: 4, completed: true },
+      git: { answered: 4, completed: true },
+      javascript: { answered: 4, completed: true },
+    }),
+  });
+  assert.equal(nearlyDone.daily.goal, 2);
+  assert.equal(nearlyDone.daily.met, true);
+  assert.equal(nearlyDone.daily.exhausted, true);
 });
 
 test('deck search filters by the title in the language on screen', () => {

@@ -511,27 +511,75 @@ export const SHELL_TEXT = {
     statAnswered: localized('Answered', '已答题'),
     statCorrect: localized('Supported', '得到支持'),
     statStarted: localized('Datasets started', '已开始数据集'),
+    statCompletion: localized('Questions covered', '题目覆盖率'),
+
+    /**
+     * Today block. The count is answers submitted in this browser since local midnight, so the copy
+     * names both limits: it is one browser, and it is one day. No streak is implied or stored, and
+     * nothing here is scheduled — a goal is a target for today, not a queue somebody else built.
+     */
+    todayTitle: localized('Today', '今天'),
+    todayBody: localized(
+      'Answers you submitted in this browser today. The count resets at midnight on this device and is never uploaded.',
+      '今天在此浏览器中提交的答题数。计数在本机午夜重置，且不会上传。',
+    ),
+    todayGoal: localized('{done} of {goal} answered today', '今天已答 {done} / {goal} 题'),
+    todayCount: localized('{done} answered today', '今天已答 {done} 题'),
+    todayMet: localized('Daily goal reached', '已达成今日目标'),
+    todayRemaining: localized('{n} to go', '还差 {n} 题'),
+    todayExhausted: localized(
+      'Every bundled question has been answered. Import your own material to keep going.',
+      '内置题目已全部作答。导入你自己的资料即可继续。',
+    ),
+    todayEmpty: localized('Nothing answered yet today', '今天还没有答题'),
+
+    /** Focus card: one deterministic target, picked from stored progress rather than a review queue. */
+    focusEyebrow: localized('Next up', '接下来'),
     continueTitle: localized('Continue where you stopped', '继续上次的练习'),
+    focusStartTitle: localized('Start your first deck', '开始第一个题包'),
+    focusReviewTitle: localized('Review a completed deck', '复习已完成的题包'),
+    focusRemaining: localized('{n} of {total} questions left', '还剩 {n} / {total} 题'),
+    focusComplete: localized('All {total} questions answered', '{total} 道题已全部作答'),
     continueAction: localized('Continue', '继续'),
+    actionsTitle: localized('Where to go next', '接下来去哪里'),
     startTitle: localized('Pick a dataset', '选择一套数据集'),
     startBody: localized(
       'Each dataset mixes single choice, multiple choice, and true/false questions, and every answer opens its source passage.',
       '每套数据集包含单选、多选和判断题，每个答案都可以展开对应的原文。',
     ),
     startAction: localized('Open decks', '打开题库'),
+    agentTitle: localized('Walk a guided session', '走一遍引导流程'),
+    agentBody: localized(
+      'A scripted walkthrough of how the agent works, with preset prompts and no model call. Your notes stay in this browser.',
+      '以预设提示脚本化地展示代理的工作方式，不会调用任何模型。你的笔记只保存在此浏览器中。',
+    ),
+    agentAction: localized('Open the agent', '打开代理'),
+    libraryTitle: localized('Check the sources', '查看来源'),
+    libraryBody: localized(
+      'Every bundled passage and imported file, searchable by literal text. This is where an answer’s evidence comes from.',
+      '所有内置原文和导入文件，可按字面文本搜索。答案的证据就来自这里。',
+    ),
+    libraryAction: localized('Open the library', '打开来源库'),
     importTitle: localized('Add content', '添加内容'),
     importBody: localized(
       'Read a Markdown or text file into this browser to see how Anchor splits it into sections. The Android app takes the same file further and builds questions from it.',
       '可以把 Markdown 或纯文本文件读入当前浏览器，看看 Anchor 如何把它切分成小节。Android 应用会在此基础上继续生成题目。',
     ),
     importAction: localized('Import a file', '导入文件'),
-    planTitle: localized('Review plan', '复习计划'),
+    /**
+     * The plan lists every bundled deck in its bundled order and reports what this browser has
+     * answered. It is deliberately not called a review plan: nothing here is due, scheduled, or
+     * ordered by an algorithm.
+     */
+    planTitle: localized('Learning plan', '学习计划'),
     planBody: localized(
-      'Built from the progress stored in this browser. Nothing is scheduled on a server.',
-      '根据保存在此浏览器中的进度生成，不依赖任何服务端排程。',
+      'Every bundled deck, in order, with the progress stored in this browser. Nothing is scheduled on a server.',
+      '按顺序列出全部内置题包，并显示保存在此浏览器中的进度。不依赖任何服务端排程。',
     ),
+    planProgress: localized('{done}/{total} answered', '已答 {done}/{total}'),
     planRemaining: localized('{n} left', '还剩 {n} 题'),
     planDone: localized('Complete', '已完成'),
+    planSummary: localized('{done} of {total} decks complete', '已完成 {done} / {total} 个题包'),
   },
 
   decks: {
@@ -1664,6 +1712,94 @@ export function deckCardModel(dataset, { answered = 0, correct = 0, completed = 
     tier: percent >= 100 ? 'complete' : percent >= 50 ? 'progress' : 'start',
     action,
     startable: verified > 0,
+  };
+}
+
+/**
+ * How many answers count as a day's work here. One bundled deck is four questions, so the target is one
+ * deck's worth: reachable in a sitting, and honest about the size of the bundled set. It is a fixed
+ * local target, not a plan handed down by a scheduler.
+ */
+export const DAILY_GOAL_QUESTIONS = 4;
+
+/**
+ * The device's calendar day as `YYYY-MM-DD`. Local, not UTC: a learner's "today" is the one on their
+ * own clock, and this value is only ever compared against another reading from the same device. Returns
+ * an empty string for an unusable timestamp, which every caller treats as "no day recorded".
+ */
+export function localDayStamp(timestamp = Date.now()) {
+  const value = Number(timestamp);
+  if (!Number.isFinite(value) || value <= 0) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+/**
+ * Today's target, derived from progress this browser already holds. The goal is capped by the questions
+ * still unanswered, so it can never ask for more than the bundled set can supply: once everything is
+ * answered the goal is `exhausted` and the surface points at import instead of showing an impossible bar.
+ */
+export function dailyGoalModel({ answeredToday = 0, remainingQuestions = 0, target = DAILY_GOAL_QUESTIONS } = {}) {
+  const done = Math.max(Math.round(Number(answeredToday) || 0), 0);
+  const remaining = Math.max(Math.round(Number(remainingQuestions) || 0), 0);
+  const wanted = Math.max(Math.round(Number(target) || 0), 0);
+
+  // Answers already logged today are work that happened, so they always count toward the goal even when
+  // they used up the last unanswered question and `remaining` has since dropped to zero.
+  const goal = Math.max(Math.min(wanted, done + remaining), done > 0 ? Math.min(done, wanted) : 0);
+  const exhausted = remaining === 0;
+  const met = goal > 0 && done >= goal;
+  return {
+    done,
+    goal,
+    remaining: Math.max(goal - done, 0),
+    met,
+    exhausted,
+    percent: goal > 0 ? Math.min(Math.round((done / goal) * 100), 100) : 0,
+    fill: agentProgressFill(Math.min(done, goal), goal),
+  };
+}
+
+/**
+ * Everything Home shows, resolved in one pass from bundled data plus browser-local progress: the four
+ * summary numbers, today's goal, one deterministic focus deck, and a plan row for every bundled deck.
+ *
+ * `focus` is chosen by stored state, never by a schedule: the deck this browser last opened if it still
+ * has questions left, else the first unfinished deck in bundled order, else the first startable deck to
+ * review. It resolves to `null` only when no deck has a verified question to practice.
+ */
+export function homeDashboardModel({ datasets = DATASETS, progressFor = () => ({}), answeredToday = 0, activeDatasetId = null } = {}) {
+  const list = Array.isArray(datasets) ? datasets : [];
+  const rows = list.map((dataset) => {
+    const card = deckCardModel(dataset, progressFor(dataset) ?? {});
+    return { dataset, ...card, remaining: Math.max(card.total - card.answered, 0) };
+  });
+
+  const summary = rows.reduce((totals, row) => ({
+    total: totals.total + row.total,
+    answered: totals.answered + row.answered,
+    correct: totals.correct + row.correct,
+    started: totals.started + (row.answered > 0 || row.completed ? 1 : 0),
+    decksComplete: totals.decksComplete + (row.completed ? 1 : 0),
+  }), { total: 0, answered: 0, correct: 0, started: 0, decksComplete: 0 });
+  summary.decks = rows.length;
+  summary.remaining = Math.max(summary.total - summary.answered, 0);
+  summary.percent = summary.total > 0 ? Math.round((summary.answered / summary.total) * 100) : 0;
+
+  const unfinished = rows.filter((row) => row.startable && !row.completed);
+  const focus = unfinished.find((row) => row.id === activeDatasetId)
+    ?? unfinished[0]
+    ?? rows.find((row) => row.startable)
+    ?? null;
+
+  return {
+    summary,
+    rows,
+    focus,
+    daily: dailyGoalModel({ answeredToday, remainingQuestions: summary.remaining }),
   };
 }
 
