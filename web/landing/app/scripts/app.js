@@ -1,12 +1,18 @@
 import { getLocale, initializeLocale, setLocale, translate } from '../../scripts/i18n.js?v=20260829-1';
 import {
+  AGENT_SESSION_LIMITS,
   DATA_VERSION,
   DATASETS,
   LOCAL_IMPORT_LIMITS,
   SHELL_TEXT,
+  agentProgressFill,
+  agentReflectionCount,
+  buildAgentScript,
+  clampReflection,
   collectSources,
   countQuestions,
   countSources,
+  createAgentSession,
   createEmptyLibrary,
   createLocalSource,
   formatBytes,
@@ -14,6 +20,7 @@ import {
   formatImportedAt,
   getDataset,
   looksBinary,
+  normalizeAgentSession,
   normalizeLocalLibrary,
   sectionLocator,
   textFor,
@@ -28,6 +35,12 @@ export const PROGRESS_STORAGE_KEY = 'anchor.demo.progress.v1';
  * learner brought in, and so a schema change on either side cannot invalidate the other.
  */
 export const LOCAL_LIBRARY_STORAGE_KEY = 'anchor.demo.library.v1';
+
+/**
+ * The guided Agent session gets a third key for the same reason: it holds learner-written
+ * reflections, so neither the quiz reset nor the library reset may take it with them.
+ */
+export const AGENT_SESSION_STORAGE_KEY = 'anchor.demo.agent.v1';
 
 export function createInitialProgress() {
   return { version: DATA_VERSION, activeDatasetId: null, datasets: {} };
@@ -143,6 +156,32 @@ function saveLibrary(library, storage = globalThis.localStorage) {
   }
 }
 
+/** Returns null when there is no replayable session, which is also the "show the start panel" state. */
+function loadAgentSession(storage = globalThis.localStorage) {
+  try {
+    const value = storage?.getItem(AGENT_SESSION_STORAGE_KEY);
+    return value ? normalizeAgentSession(JSON.parse(value)) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveAgentSession(session, storage = globalThis.localStorage) {
+  try {
+    storage?.setItem(AGENT_SESSION_STORAGE_KEY, JSON.stringify(session));
+  } catch {
+    // Storage is an enhancement; the active session remains usable without it.
+  }
+}
+
+function clearStoredAgentSession(storage = globalThis.localStorage) {
+  try {
+    storage?.removeItem(AGENT_SESSION_STORAGE_KEY);
+  } catch {
+    // Reset remains effective for the active session.
+  }
+}
+
 if (typeof document !== 'undefined') {
   const content = document.querySelector('#app-content');
   const datasetList = document.querySelector('#dataset-list');
@@ -156,8 +195,15 @@ if (typeof document !== 'undefined') {
   const privacyNote = document.querySelector('#privacy-note');
   let progress = loadProgress();
   let library = loadLibrary();
+  let agentSession = loadAgentSession();
   let route = parseRoute(window.location.hash);
   const openTutorQuestions = new Set();
+
+  // Agent view state that is deliberately not persisted: the dataset radio choice before a session
+  // exists, the "write something first" nudge, and a half-open reset confirmation.
+  let agentDatasetChoice = null;
+  let agentReflectionNudge = false;
+  let agentClearPending = false;
 
   // Import is a three-step flow: select, review, confirm. Only `library` is ever persisted, so a
   // selected-but-unconfirmed file exists in memory alone and disappears on reload.
@@ -441,28 +487,237 @@ if (typeof document !== 'undefined') {
       </section>`;
   }
 
+  function agentScriptFor(session) {
+    return session ? buildAgentScript(getDataset(session.datasetId)) : [];
+  }
+
+  function agentProgress(done, total) {
+    return `
+      <div class="progress-track" role="progressbar" aria-label="${escapeHtml(translate('app.progress'))}" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${done}">
+        <div class="progress-bar agent-fill-${agentProgressFill(done, total)}"></div>
+      </div>`;
+  }
+
+  /** Confirmation for the agent-scoped reset. Rendered next to whichever control opened it. */
+  function renderAgentClearConfirm() {
+    const text = SHELL_TEXT.agent;
+    return `
+      <div class="local-confirm agent-confirm" role="group" aria-label="${escapeHtml(shell(text.clearTitle))}">
+        <p class="local-confirm-title"><strong>${escapeHtml(shell(text.clearTitle))}</strong></p>
+        <p class="local-confirm-body">${escapeHtml(shell(text.clearBody))}</p>
+        <div class="card-actions">
+          <button class="button button-danger" type="button" data-agent-clear-confirm>${escapeHtml(shell(text.clearConfirm))}</button>
+          <button class="button button-secondary" type="button" data-agent-clear-cancel>${escapeHtml(shell(text.clearCancel))}</button>
+        </div>
+      </div>`;
+  }
+
+  function renderAgentStart() {
+    const text = SHELL_TEXT.agent;
+    const chosen = getDataset(agentDatasetChoice) ? agentDatasetChoice : null;
+    return `
+      <article class="shell-card shell-card-accent agent-panel" data-agent-start tabindex="-1">
+        <div class="shell-card-head">
+          <h2>${escapeHtml(shell(text.modeTitle))}</h2>
+          ${badge('local')}
+        </div>
+        <p>${escapeHtml(shell(text.modeBody))}</p>
+        <p class="tutor-disclosure">${escapeHtml(translate('app.tutorDisclosure'))}</p>
+
+        <fieldset class="agent-picker">
+          <legend>${escapeHtml(shell(text.pickLegend))}</legend>
+          ${DATASETS.map((dataset) => `
+            <label class="agent-option">
+              <input type="radio" name="agent-dataset" value="${dataset.id}" data-agent-dataset="${dataset.id}"${chosen === dataset.id ? ' checked' : ''}>
+              <span class="agent-option-body">
+                <strong>${escapeHtml(textFor(dataset.title, locale()))}</strong>
+                <span>${escapeHtml(textFor(dataset.summary, locale()))}</span>
+                <span class="agent-option-meta">${escapeHtml(formatCount(shell(text.pickHint), { n: dataset.questions.length }))}</span>
+              </span>
+            </label>`).join('')}
+        </fieldset>
+
+        <div class="card-actions">
+          <button class="button button-primary" type="button" data-agent-start-session${chosen ? '' : ' disabled'}>${escapeHtml(shell(text.startAction))}</button>
+        </div>
+        <p class="agent-note" data-agent-start-note${chosen ? ' hidden' : ''}>${escapeHtml(shell(text.startBlocked))}</p>
+      </article>`;
+  }
+
+  /** Scripted hints for one turn. Reveal is one hint at a time so the disclosure stays next to them. */
+  function renderAgentHints(turn, revealed) {
+    const text = SHELL_TEXT.agent;
+    const total = turn.hints.length;
+    const shown = Math.min(revealed, total);
+    const exhausted = shown >= total;
+    return `
+      <section class="agent-hints">
+        <div class="agent-hints-head">
+          <h3>${escapeHtml(shell(text.hintTitle))}</h3>
+          <span class="agent-chip">${escapeHtml(shell(text.modeScripted))}</span>
+        </div>
+        <p class="tutor-disclosure" data-agent-disclosure>${escapeHtml(translate('app.tutorDisclosure'))}</p>
+        ${shown ? `
+          <ul class="agent-hint-list" data-agent-hint-list tabindex="-1">
+            ${turn.hints.slice(0, shown).map((hint) => `<li>${escapeHtml(shell(hint))}</li>`).join('')}
+          </ul>` : ''}
+        <button class="button button-secondary" type="button" data-agent-hint="${turn.questionId}"${exhausted ? ' disabled' : ''}>
+          ${escapeHtml(shell(exhausted ? text.hintAllShown : text.hintAction))}
+        </button>
+      </section>`;
+  }
+
+  function renderAgentTurn(script) {
+    const text = SHELL_TEXT.agent;
+    const dataset = getDataset(agentSession.datasetId);
+    const total = script.length;
+    const turn = script[Math.min(agentSession.turnIndex, total - 1)];
+    const reflection = agentSession.reflections[turn.questionId] ?? '';
+    const ready = Boolean(reflection.trim());
+    const isLast = turn.index === total - 1;
+    const max = AGENT_SESSION_LIMITS.maxReflectionChars;
+
+    return `
+      <article class="shell-card shell-card-accent agent-panel" data-agent-session="${dataset.id}">
+        <div class="shell-card-head">
+          <div>
+            <h2>${escapeHtml(shell(text.sessionTitle))}</h2>
+            <p class="agent-dataset">${escapeHtml(textFor(dataset.title, locale()))}</p>
+          </div>
+          ${badge('local')}
+        </div>
+
+        <div class="agent-progress">
+          <p class="agent-counter" data-agent-counter>${escapeHtml(formatCount(shell(text.turnCounter), { n: turn.index + 1, total }))}</p>
+          ${agentProgress(agentReflectionCount(agentSession, script), total)}
+        </div>
+
+        <div class="agent-turn" data-agent-turn="${turn.questionId}" tabindex="-1">
+          <p class="agent-focus">
+            <span class="source-kind">${escapeHtml(shell(text.turnFocus))}</span>
+            <code>${escapeHtml(turn.focus)}</code>
+          </p>
+          <h3>${escapeHtml(shell(text.turnPrompt))}</h3>
+          <p class="agent-prompt" data-agent-prompt>${escapeHtml(textFor(turn.prompt, locale()))}</p>
+
+          ${turn.citation ? `
+            <section class="citation-section">
+              <h3>${escapeHtml(shell(text.sourceTitle))}</h3>
+              <div class="citation-item">
+                <p class="citation-locator"><span>${escapeHtml(turn.citation.locator)}</span></p>
+                <blockquote>${escapeHtml(textFor(turn.citation.excerpt, locale()))}</blockquote>
+              </div>
+            </section>` : ''}
+
+          ${renderAgentHints(turn, agentSession.hints[turn.questionId] ?? 0)}
+
+          <div class="agent-reflection">
+            <label class="agent-reflection-label" for="agent-reflection">${escapeHtml(shell(text.reflectionLabel))}</label>
+            <p class="agent-reflection-help" id="agent-reflection-help">${escapeHtml(shell(text.reflectionHelp))}</p>
+            <textarea class="agent-reflection-input" id="agent-reflection" rows="4" maxlength="${max}"
+              data-agent-reflection="${turn.questionId}"
+              aria-describedby="agent-reflection-help agent-reflection-count">${escapeHtml(reflection)}</textarea>
+            <p class="agent-reflection-count" id="agent-reflection-count" data-agent-count>${escapeHtml(formatCount(shell(text.reflectionCount), { n: reflection.length, max }))}</p>
+            ${agentReflectionNudge && !ready
+              ? `<p class="agent-error" role="alert" data-agent-nudge tabindex="-1">${escapeHtml(shell(text.reflectionRequired))}</p>`
+              : ''}
+          </div>
+
+          <div class="card-actions agent-actions">
+            <button class="button button-primary" type="button" data-agent-advance="${turn.questionId}"${ready ? '' : ' aria-disabled="true"'}>
+              ${escapeHtml(shell(isLast ? text.finishAction : text.nextAction))}
+            </button>
+            <button class="button button-secondary" type="button" data-agent-clear>${escapeHtml(shell(text.clearAction))}</button>
+          </div>
+        </div>
+
+        ${agentClearPending ? renderAgentClearConfirm() : ''}
+        <p class="agent-note">${escapeHtml(shell(text.storedNote))}</p>
+        <div class="agent-links">
+          <a class="button button-secondary" href="${routeHash({ view: 'decks', datasetId: dataset.id })}">${escapeHtml(shell(text.deckAction))}</a>
+          <a class="button button-secondary" href="${routeHash({ view: 'library' })}">${escapeHtml(shell(text.libraryAction))}</a>
+        </div>
+      </article>`;
+  }
+
+  /**
+   * Completion recap. Each reflection is shown next to the dataset's own explanation so the learner
+   * compares their words with bundled text, not with anything generated for them.
+   */
+  function renderAgentComplete(script) {
+    const text = SHELL_TEXT.agent;
+    const dataset = getDataset(agentSession.datasetId);
+    const total = script.length;
+    return `
+      <article class="shell-card shell-card-accent agent-panel is-complete" data-agent-complete="${dataset.id}">
+        <div class="shell-card-head">
+          <h2 data-agent-done tabindex="-1">${escapeHtml(shell(text.doneTitle))}</h2>
+          ${badge('local')}
+        </div>
+        <p>${escapeHtml(formatCount(shell(text.doneBody), { n: total, dataset: textFor(dataset.title, locale()) }))}</p>
+        <div class="agent-progress">${agentProgress(total, total)}</div>
+
+        <section class="agent-recap">
+          <h3>${escapeHtml(shell(text.recapTitle))}</h3>
+          <ol class="agent-recap-list">
+            ${script.map((turn) => `
+              <li data-agent-recap="${turn.questionId}">
+                <p class="agent-recap-prompt">${escapeHtml(textFor(turn.prompt, locale()))}</p>
+                <p class="agent-recap-mine">
+                  <span>${escapeHtml(shell(text.recapMine))}</span>
+                  ${escapeHtml(agentSession.reflections[turn.questionId] ?? '')}
+                </p>
+                <div class="citation-item">
+                  <p class="citation-locator">
+                    <span>${escapeHtml(shell(text.recapSource))}</span>
+                    <span>${escapeHtml(turn.focus)}</span>
+                  </p>
+                  <blockquote>${escapeHtml(textFor(turn.explanation, locale()))}</blockquote>
+                </div>
+              </li>`).join('')}
+          </ol>
+        </section>
+
+        <p class="tutor-disclosure">${escapeHtml(translate('app.tutorDisclosure'))}</p>
+        <div class="card-actions agent-actions">
+          <a class="button button-primary" href="${routeHash({ view: 'decks', datasetId: dataset.id })}">${escapeHtml(shell(text.deckAction))}</a>
+          <a class="button button-secondary" href="${routeHash({ view: 'library' })}">${escapeHtml(shell(text.libraryAction))}</a>
+          <button class="button button-secondary" type="button" data-agent-clear>${escapeHtml(shell(text.restartAction))}</button>
+        </div>
+        ${agentClearPending ? renderAgentClearConfirm() : ''}
+        <p class="agent-note">${escapeHtml(shell(text.storedNote))}</p>
+      </article>`;
+  }
+
   function renderAgent() {
     const text = SHELL_TEXT.agent;
+    const script = agentScriptFor(agentSession);
+    // A stored session whose dataset no longer resolves leaves `script` empty, which falls back to
+    // the start panel rather than rendering a half-session.
+    const panel = agentSession && script.length
+      ? (agentSession.completed ? renderAgentComplete(script) : renderAgentTurn(script))
+      : renderAgentStart();
+
     content.innerHTML = `
       <section class="shell-view" data-view="agent">
         ${viewHeading(shell(text.eyebrow), shell(text.title), shell(text.body))}
-        <div class="shell-cards">
-          <article class="shell-card shell-card-accent">
-            <div class="shell-card-head">
-              <h2>${escapeHtml(shell(text.tutorTitle))}</h2>
-              ${badge('local')}
-            </div>
-            <p>${escapeHtml(shell(text.tutorBody))}</p>
-            <p class="tutor-disclosure">${escapeHtml(translate('app.tutorDisclosure'))}</p>
-            <a class="button button-primary" href="${routeHash({ view: 'decks' })}">${escapeHtml(shell(text.tutorAction))}</a>
-          </article>
+        <p class="shell-scope">${badge('local')}<span>${escapeHtml(shell(SHELL_TEXT.browserScope))}</span></p>
+        <div class="shell-cards agent-stack">
+          ${panel}
           <article class="shell-card">
             <div class="shell-card-head">
               <h2>${escapeHtml(shell(text.nativeTitle))}</h2>
               ${badge('android')}
             </div>
             <p>${escapeHtml(shell(text.nativeBody))}</p>
-            ${scopeList([text.nativeTutor, text.nativeInterview, text.nativeTarget, text.nativeReview])}
+            ${scopeList([
+              text.nativeTutor,
+              text.nativeQa,
+              text.nativeSocratic,
+              text.nativeInterview,
+              text.nativeTarget,
+              text.nativeReview,
+            ])}
           </article>
         </div>
       </section>`;
@@ -1144,7 +1399,147 @@ if (typeof document !== 'undefined') {
     return false;
   }
 
+  /** Handles the guided Agent session controls. Returns true when consumed. */
+  function handleAgentClick(event) {
+    const text = SHELL_TEXT.agent;
+
+    if (event.target.closest('[data-agent-start-session]')) {
+      const dataset = getDataset(agentDatasetChoice);
+      if (!dataset) return true;
+      agentSession = createAgentSession(dataset.id);
+      agentSession.startedAt = Date.now();
+      agentReflectionNudge = false;
+      agentClearPending = false;
+      saveAgentSession(agentSession);
+      rerender({
+        focus: '[data-agent-turn]',
+        message: formatCount(shell(text.announceStarted), {
+          dataset: textFor(dataset.title, locale()),
+          total: dataset.questions.length,
+        }),
+      });
+      return true;
+    }
+
+    const hintButton = event.target.closest('[data-agent-hint]');
+    if (hintButton && agentSession) {
+      const turn = agentScriptFor(agentSession).find((entry) => entry.questionId === hintButton.dataset.agentHint);
+      if (!turn) return true;
+      const shown = Math.min((agentSession.hints[turn.questionId] ?? 0) + 1, turn.hints.length);
+      agentSession.hints[turn.questionId] = shown;
+      saveAgentSession(agentSession);
+      rerender({
+        // The reveal button disappears from the tab order once every hint is out, so focus lands on
+        // the list the learner just opened instead of being dropped on the body.
+        focus: () => document.querySelector('[data-agent-hint]:not([disabled])') ?? document.querySelector('[data-agent-hint-list]'),
+        message: formatCount(shell(text.announceHint), { n: shown, total: turn.hints.length }),
+      });
+      return true;
+    }
+
+    if (event.target.closest('[data-agent-advance]') && agentSession) {
+      const script = agentScriptFor(agentSession);
+      const total = script.length;
+      const turn = script[Math.min(agentSession.turnIndex, total - 1)];
+      if (!(agentSession.reflections[turn.questionId] ?? '').trim()) {
+        // The button stays clickable while `aria-disabled`, so the reason can be stated instead of
+        // the press being swallowed silently.
+        agentReflectionNudge = true;
+        rerender({ focus: '[data-agent-nudge]', message: shell(text.reflectionRequired) });
+        return true;
+      }
+      agentReflectionNudge = false;
+      if (turn.index === total - 1) {
+        agentSession.completed = true;
+        saveAgentSession(agentSession);
+        rerender({
+          focus: '[data-agent-done]',
+          message: formatCount(shell(text.announceDone), { n: agentReflectionCount(agentSession, script) }),
+        });
+        return true;
+      }
+      agentSession.turnIndex = turn.index + 1;
+      saveAgentSession(agentSession);
+      rerender({
+        focus: '[data-agent-turn]',
+        message: formatCount(shell(text.announceTurn), { n: agentSession.turnIndex + 1, total }),
+      });
+      return true;
+    }
+
+    if (event.target.closest('[data-agent-clear]')) {
+      agentClearPending = true;
+      rerender({ focus: '[data-agent-clear-confirm]' });
+      return true;
+    }
+
+    if (event.target.closest('[data-agent-clear-cancel]')) {
+      agentClearPending = false;
+      rerender({ focus: '[data-agent-clear]' });
+      return true;
+    }
+
+    if (event.target.closest('[data-agent-clear-confirm]')) {
+      // Scoped to the agent key. Quiz progress and imported sources are cleared by their own controls
+      // only, so a learner who resets one keeps the other two.
+      const previous = agentSession?.datasetId ?? null;
+      agentSession = null;
+      agentClearPending = false;
+      agentReflectionNudge = false;
+      agentDatasetChoice = getDataset(previous) ? previous : null;
+      clearStoredAgentSession();
+      rerender({
+        focus: () => document.querySelector('[data-agent-start-session]:not([disabled])') ?? document.querySelector('[data-agent-start]'),
+        message: shell(text.announceCleared),
+      });
+      return true;
+    }
+    return false;
+  }
+
+  document.addEventListener('input', (event) => {
+    const field = event.target.closest('[data-agent-reflection]');
+    if (!field || !agentSession) return;
+    const value = clampReflection(field.value);
+    if (value !== field.value) field.value = value;
+    const questionId = field.dataset.agentReflection;
+    if (value.trim()) agentSession.reflections[questionId] = value;
+    else delete agentSession.reflections[questionId];
+    saveAgentSession(agentSession);
+
+    // Patched in place rather than re-rendered: a full rebuild on every keystroke would take the
+    // caret and the composition state with it.
+    const counter = document.querySelector('[data-agent-count]');
+    if (counter) {
+      counter.textContent = formatCount(shell(SHELL_TEXT.agent.reflectionCount), {
+        n: value.length,
+        max: AGENT_SESSION_LIMITS.maxReflectionChars,
+      });
+    }
+    const advance = document.querySelector('[data-agent-advance]');
+    if (value.trim()) {
+      advance?.removeAttribute('aria-disabled');
+      if (agentReflectionNudge) {
+        agentReflectionNudge = false;
+        document.querySelector('[data-agent-nudge]')?.remove();
+      }
+    } else {
+      advance?.setAttribute('aria-disabled', 'true');
+    }
+  });
+
   document.addEventListener('change', (event) => {
+    const agentDataset = event.target.closest('[data-agent-dataset]');
+    if (agentDataset) {
+      agentDatasetChoice = getDataset(agentDataset.value) ? agentDataset.value : null;
+      // Toggled in place so the radio the learner just pressed keeps focus.
+      const start = document.querySelector('[data-agent-start-session]');
+      if (start) start.disabled = !agentDatasetChoice;
+      const note = document.querySelector('[data-agent-start-note]');
+      if (note) note.hidden = Boolean(agentDatasetChoice);
+      return;
+    }
+
     const fileInput = event.target.closest('[data-import-input]');
     if (fileInput) {
       const file = fileInput.files?.[0] ?? null;
@@ -1179,8 +1574,8 @@ if (typeof document !== 'undefined') {
     }
 
     if (event.target.closest('[data-reset-progress]')) {
-      // Deliberately scoped to the quiz key. Imported sources are the learner's own material and are
-      // only removed through the library's own reset control.
+      // Deliberately scoped to the quiz key. Imported sources and the guided Agent session are the
+      // learner's own material and are only removed through their own reset controls.
       progress = createInitialProgress();
       openTutorQuestions.clear();
       try {
@@ -1194,7 +1589,7 @@ if (typeof document !== 'undefined') {
       return;
     }
 
-    if (handleImportClick(event) || handleLocalLibraryClick(event)) return;
+    if (handleImportClick(event) || handleLocalLibraryClick(event) || handleAgentClick(event)) return;
 
     const context = currentContext();
     if (event.target.closest('[data-submit]') && context) {
@@ -1280,6 +1675,8 @@ if (typeof document !== 'undefined') {
     // A half-answered confirmation should not be waiting when the learner comes back to a surface.
     pendingDelete = null;
     importError = null;
+    agentClearPending = false;
+    agentReflectionNudge = false;
     render();
     content?.focus();
   });

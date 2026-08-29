@@ -1,6 +1,19 @@
 import { expect, test } from '@playwright/test';
-import { DATASETS, LOCAL_IMPORT_LIMITS, SHELL_TEXT, countSources } from '../landing/app/scripts/data.js';
-import { LOCAL_LIBRARY_STORAGE_KEY, PROGRESS_STORAGE_KEY } from '../landing/app/scripts/app.js';
+import {
+  AGENT_SESSION_LIMITS,
+  AGENT_SESSION_VERSION,
+  DATASETS,
+  LOCAL_IMPORT_LIMITS,
+  SHELL_TEXT,
+  buildAgentScript,
+  countSources,
+  getDataset,
+} from '../landing/app/scripts/data.js';
+import {
+  AGENT_SESSION_STORAGE_KEY,
+  LOCAL_LIBRARY_STORAGE_KEY,
+  PROGRESS_STORAGE_KEY,
+} from '../landing/app/scripts/app.js';
 
 const expectedOrigin = new URL(process.env.ANCHOR_BASE_URL ?? 'http://127.0.0.1:4173').origin;
 
@@ -25,6 +38,21 @@ function storedSourceNames(page) {
     const raw = window.localStorage.getItem(key);
     return raw ? JSON.parse(raw).sources.map((source) => source.name) : null;
   }, LOCAL_LIBRARY_STORAGE_KEY);
+}
+
+function storedAgentSession(page) {
+  return page.evaluate((key) => {
+    const raw = window.localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  }, AGENT_SESSION_STORAGE_KEY);
+}
+
+/** Walks the start panel the way a learner would: pick a bundled dataset, then begin. */
+async function startAgentSession(page, datasetId) {
+  await page.goto('/app/#/agent');
+  await page.locator(`[data-agent-dataset="${datasetId}"]`).check();
+  await page.locator('[data-agent-start-session]').click();
+  await expect(page.locator('[data-agent-turn]')).toBeVisible();
 }
 
 const SHELL_SURFACES = [
@@ -569,6 +597,348 @@ test('import and browser library fit a 390px viewport without horizontal overflo
   await page.locator('[data-remove-source]').click();
   await expect(page.locator('.local-confirm')).toBeVisible();
   expect(await overflow(), 'delete confirmation overflows at 390px').toBeLessThanOrEqual(0);
+});
+
+test('a guided agent session runs on bundled content from start to completion', async ({ page }) => {
+  const offOriginRequests = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).origin !== expectedOrigin) offOriginRequests.push(request.url());
+  });
+  const pageErrors = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+
+  const dataset = getDataset('flutter');
+  const script = buildAgentScript(dataset);
+
+  await page.goto('/app/#/agent');
+  await expect(page.locator('[data-agent-start]')).toBeVisible();
+  await expect(page.locator('[data-agent-start-session]')).toBeDisabled();
+  await expect(page.locator('[data-agent-start-note]')).toBeVisible();
+  expect(await storedAgentSession(page)).toBeNull();
+
+  // Choosing a dataset unblocks the start control but stores nothing yet.
+  await page.locator('[data-agent-dataset="flutter"]').check();
+  await expect(page.locator('[data-agent-start-session]')).toBeEnabled();
+  await expect(page.locator('[data-agent-start-note]')).toBeHidden();
+  expect(await storedAgentSession(page)).toBeNull();
+
+  await page.locator('[data-agent-start-session]').click();
+  await expect(page.locator('[data-agent-turn]')).toBeFocused();
+  await expect(page.locator('#app-announcer')).toContainText(dataset.title.en);
+  await expect(page.locator('#app-announcer')).toContainText(`Turn 1 of ${script.length}`);
+  await expect(page.locator('.agent-progress [role="progressbar"]')).toHaveAttribute('aria-valuemax', String(script.length));
+
+  for (const [index, turn] of script.entries()) {
+    await expect(page.locator('[data-agent-counter]')).toHaveText(`Turn ${index + 1} of ${script.length}`);
+    await expect(page.locator('[data-agent-prompt]')).toHaveText(turn.prompt.en);
+    await expect(page.locator('.agent-turn .citation-locator')).toContainText(turn.citation.locator);
+    await expect(page.locator('.agent-turn blockquote')).toContainText(turn.citation.excerpt.en);
+
+    // Hints are bundled text revealed one at a time behind an explicit local disclosure.
+    await expect(page.locator('[data-agent-hint-list]')).toHaveCount(0);
+    await page.locator('[data-agent-hint]').click();
+    await expect(page.locator('[data-agent-hint-list] li')).toHaveCount(1);
+    await expect(page.locator('[data-agent-hint-list] li').first()).toHaveText(turn.hints[0].en);
+    await expect(page.locator('[data-agent-disclosure]')).toContainText('No live AI');
+    await expect(page.locator('#app-announcer')).toContainText(`Hint 1 of ${turn.hints.length}`);
+
+    await page.locator('[data-agent-reflection]').fill(`My own words for turn ${index + 1}.`);
+    await expect(page.locator('[data-agent-count]')).toContainText(`/${AGENT_SESSION_LIMITS.maxReflectionChars}`);
+    await page.locator('[data-agent-advance]').click();
+  }
+
+  await expect(page.locator('[data-agent-complete]')).toBeVisible();
+  await expect(page.locator('[data-agent-done]')).toBeFocused();
+  await expect(page.locator('#app-announcer')).toContainText(`${script.length} reflections`);
+  await expect(page.locator('[data-agent-recap]')).toHaveCount(script.length);
+
+  for (const [index, turn] of script.entries()) {
+    const recap = page.locator(`[data-agent-recap="${turn.questionId}"]`);
+    await expect(recap).toContainText(`My own words for turn ${index + 1}.`);
+    await expect(recap).toContainText(turn.explanation.en);
+    await expect(recap.locator('.citation-locator')).toContainText(turn.citation.locator);
+  }
+
+  await expect(page.locator(`[data-agent-complete] a[href="#/decks/${dataset.id}"]`)).toBeVisible();
+  await expect(page.locator('[data-agent-complete] a[href="#/library"]')).toBeVisible();
+
+  // The finished session survives a reload from local storage alone.
+  await page.reload();
+  await expect(page.locator('[data-agent-complete]')).toBeVisible();
+  await expect(page.locator('[data-agent-recap]')).toHaveCount(script.length);
+  const stored = await storedAgentSession(page);
+  expect(stored.version).toBe(AGENT_SESSION_VERSION);
+  expect(stored.datasetId).toBe(dataset.id);
+  expect(stored.completed).toBe(true);
+  expect(Object.keys(stored.reflections)).toHaveLength(script.length);
+
+  expect(offOriginRequests, `unexpected off-origin requests: ${offOriginRequests.join(', ')}`).toEqual([]);
+  expect(pageErrors).toEqual([]);
+});
+
+test('a guided agent turn will not advance until the learner writes something', async ({ page }) => {
+  const script = buildAgentScript(getDataset('git'));
+  await startAgentSession(page, 'git');
+
+  const advance = page.locator('[data-agent-advance]');
+  await expect(advance).toHaveAttribute('aria-disabled', 'true');
+
+  // `aria-disabled` keeps the button in the tab order and still fires on a real pointer press, so the
+  // reason can be announced instead of the press being swallowed. Playwright's actionability check
+  // treats it as disabled, hence `force`.
+  await advance.click({ force: true });
+  const nudge = page.locator('[data-agent-nudge]');
+  await expect(nudge).toBeVisible();
+  await expect(nudge).toHaveText(SHELL_TEXT.agent.reflectionRequired.en);
+  await expect(nudge).toBeFocused();
+  await expect(page.locator('#app-announcer')).toContainText(SHELL_TEXT.agent.reflectionRequired.en);
+  await expect(page.locator('[data-agent-counter]')).toHaveText(`Turn 1 of ${script.length}`);
+
+  // Whitespace is not an answer.
+  await page.locator('[data-agent-reflection]').fill('    ');
+  await expect(advance).toHaveAttribute('aria-disabled', 'true');
+  await advance.click({ force: true });
+  await expect(page.locator('[data-agent-counter]')).toHaveText(`Turn 1 of ${script.length}`);
+  expect((await storedAgentSession(page)).reflections).toEqual({});
+
+  await page.locator('[data-agent-reflection]').fill('A commit is a snapshot, not a diff.');
+  await expect(advance).not.toHaveAttribute('aria-disabled', 'true');
+  await expect(page.locator('[data-agent-nudge]')).toHaveCount(0);
+  await advance.click();
+  await expect(page.locator('[data-agent-counter]')).toHaveText(`Turn 2 of ${script.length}`);
+  await expect(page.locator('[data-agent-turn]')).toBeFocused();
+  await expect(page.locator('[data-agent-reflection]')).toHaveValue('');
+
+  // Hints run out visibly rather than disappearing.
+  const hint = page.locator('[data-agent-hint]');
+  const available = script[1].hints.length;
+  for (let index = 0; index < available; index += 1) await hint.click();
+  await expect(page.locator('[data-agent-hint-list] li')).toHaveCount(available);
+  await expect(hint).toBeDisabled();
+  await expect(hint).toHaveText(SHELL_TEXT.agent.hintAllShown.en);
+  await expect(page.locator('#app-announcer')).toContainText(`Hint ${available} of ${available}`);
+});
+
+test('a guided agent session resumes mid-turn and outlives a quiz reset', async ({ page }) => {
+  const script = buildAgentScript(getDataset('git'));
+
+  await page.goto('/app/#/decks/flutter');
+  await page.locator('input[value="state"]').check();
+  await page.locator('[data-submit]').click();
+  await expect(page.locator('.feedback-panel')).toBeVisible();
+
+  await startAgentSession(page, 'git');
+  await page.locator('[data-agent-hint]').click();
+  await page.locator('[data-agent-reflection]').fill('Turn one in my own words.');
+  await page.locator('[data-agent-advance]').click();
+  await expect(page.locator('[data-agent-counter]')).toHaveText(`Turn 2 of ${script.length}`);
+
+  // Typing is persisted as it happens, so a reload keeps the draft and the revealed hint.
+  await page.locator('[data-agent-hint]').click();
+  await page.locator('[data-agent-reflection]').fill('Halfway through turn two.');
+  await page.reload();
+  await expect(page.locator('[data-agent-counter]')).toHaveText(`Turn 2 of ${script.length}`);
+  await expect(page.locator('[data-agent-reflection]')).toHaveValue('Halfway through turn two.');
+  await expect(page.locator('[data-agent-hint-list] li')).toHaveCount(1);
+  await expect(page.locator('[data-agent-advance]')).not.toHaveAttribute('aria-disabled', 'true');
+  await expect(page.locator('[data-agent-complete]')).toHaveCount(0);
+
+  // Leaving the surface and coming back is not a reset either.
+  await page.goto('/app/#/library');
+  await page.goto('/app/#/agent');
+  await expect(page.locator('[data-agent-counter]')).toHaveText(`Turn 2 of ${script.length}`);
+
+  // The quiz reset is scoped to quiz progress only.
+  await page.locator('#reset-progress').click();
+  expect(await page.evaluate((key) => window.localStorage.getItem(key), PROGRESS_STORAGE_KEY)).toBeNull();
+  const stored = await storedAgentSession(page);
+  expect(stored.datasetId).toBe('git');
+  expect(stored.turnIndex).toBe(1);
+  await page.goto('/app/#/agent');
+  await expect(page.locator('[data-agent-counter]')).toHaveText(`Turn 2 of ${script.length}`);
+  await expect(page.locator('[data-agent-reflection]')).toHaveValue('Halfway through turn two.');
+});
+
+test('clearing a guided agent session is confirmed and leaves quiz progress and imports alone', async ({ page }) => {
+  await page.goto('/app/#/decks/flutter');
+  await page.locator('input[value="state"]').check();
+  await page.locator('[data-submit]').click();
+  await expect(page.locator('.feedback-panel')).toBeVisible();
+
+  await page.goto('/app/#/import');
+  await pickFile(page);
+  await page.locator('[data-import-confirm]').click();
+  expect(await storedSourceNames(page)).toEqual(['anchor-notes.md']);
+
+  await startAgentSession(page, 'flutter');
+  await page.locator('[data-agent-reflection]').fill('Worth keeping until I say otherwise.');
+  expect(await storedAgentSession(page)).not.toBeNull();
+
+  await page.locator('[data-agent-clear]').click();
+  const confirmPanel = page.locator('.agent-confirm');
+  await expect(confirmPanel).toBeVisible();
+  await expect(confirmPanel).toContainText(SHELL_TEXT.agent.clearBody.en);
+  await expect(page.locator('[data-agent-clear-confirm]')).toBeFocused();
+
+  // Nothing is discarded until the second, deliberate click.
+  await expect(page.locator('[data-agent-turn]')).toBeVisible();
+  expect(await storedAgentSession(page)).not.toBeNull();
+  await page.locator('[data-agent-clear-cancel]').click();
+  await expect(page.locator('.agent-confirm')).toHaveCount(0);
+  await expect(page.locator('[data-agent-reflection]')).toHaveValue('Worth keeping until I say otherwise.');
+
+  await page.locator('[data-agent-clear]').click();
+  await page.locator('[data-agent-clear-confirm]').click();
+  await expect(page.locator('[data-agent-start]')).toBeVisible();
+  await expect(page.locator('[data-agent-turn]')).toHaveCount(0);
+  await expect(page.locator('[data-agent-start-session]')).toBeFocused();
+  await expect(page.locator('#app-announcer')).toContainText(SHELL_TEXT.agent.announceCleared.en);
+  expect(await storedAgentSession(page)).toBeNull();
+
+  // Scoped: the quiz answer and the imported source are untouched.
+  expect(await page.evaluate((key) => window.localStorage.getItem(key), PROGRESS_STORAGE_KEY)).not.toBeNull();
+  expect(await storedSourceNames(page)).toEqual(['anchor-notes.md']);
+  await page.goto('/app/#/decks/flutter');
+  await expect(page.locator('.feedback-panel')).toBeVisible();
+});
+
+test('malformed or stale agent session storage recovers instead of breaking the surface', async ({ page }) => {
+  const pageErrors = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  const write = (value) =>
+    page.evaluate(([key, stored]) => window.localStorage.setItem(key, stored), [AGENT_SESSION_STORAGE_KEY, value]);
+
+  await page.goto('/app/#/agent');
+  const unusable = [
+    'not json at all',
+    'null',
+    '[]',
+    '{"version":99,"datasetId":"flutter","turnIndex":0}',
+    `{"version":${AGENT_SESSION_VERSION},"datasetId":"retired-dataset","turnIndex":2,"completed":true}`,
+  ];
+  for (const value of unusable) {
+    await write(value);
+    await page.reload();
+    await expect(page.locator('#app-content h1')).toBeVisible();
+    await expect(page.locator('[data-agent-start]')).toBeVisible();
+    await expect(page.locator('[data-agent-complete]')).toHaveCount(0);
+  }
+
+  // A session for a real dataset with an inconsistent pointer resumes where the learner could
+  // actually have been, instead of claiming a completion that never happened.
+  await write(
+    `{"version":${AGENT_SESSION_VERSION},"datasetId":"flutter","turnIndex":999,"completed":true,` +
+      '"reflections":{"retired-question":"kept nowhere"},"hints":{"retired-question":9}}',
+  );
+  await page.reload();
+  await expect(page.locator('[data-agent-counter]')).toHaveText(`Turn 1 of ${buildAgentScript(getDataset('flutter')).length}`);
+  await expect(page.locator('[data-agent-complete]')).toHaveCount(0);
+  await expect(page.locator('[data-agent-reflection]')).toHaveValue('');
+  await expect(page.locator('[data-agent-hint-list]')).toHaveCount(0);
+  await expect(page.locator('[data-agent-advance]')).toHaveAttribute('aria-disabled', 'true');
+
+  expect(pageErrors).toEqual([]);
+});
+
+test('a reflection is kept as text and never rendered as markup', async ({ page }) => {
+  const pageErrors = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  const hostile =
+    '<img src=x onerror="window.__anchorPwned = true"> & </textarea><script>window.__anchorPwned = true;</script>';
+  const script = buildAgentScript(getDataset('flutter'));
+
+  await startAgentSession(page, 'flutter');
+  await page.locator('[data-agent-reflection]').fill(hostile);
+
+  // Round-tripped through storage and back into the textarea without becoming markup.
+  await page.reload();
+  await expect(page.locator('[data-agent-reflection]')).toHaveValue(hostile);
+  await expect(page.locator('#app-content img, #app-content iframe, #app-content script')).toHaveCount(0);
+  expect(await page.evaluate(() => window.__anchorPwned)).toBeUndefined();
+
+  for (let index = 0; index < script.length; index += 1) {
+    await page.locator('[data-agent-reflection]').fill(hostile);
+    await page.locator('[data-agent-advance]').click();
+  }
+
+  await expect(page.locator('[data-agent-complete]')).toBeVisible();
+  await expect(page.locator('.agent-recap-mine').first()).toContainText(hostile);
+  await expect(page.locator('#app-content img, #app-content iframe, #app-content script')).toHaveCount(0);
+  expect(await page.evaluate(() => window.__anchorPwned)).toBeUndefined();
+  expect(pageErrors).toEqual([]);
+});
+
+test('guided agent copy stays bilingual and keeps the session across a locale switch', async ({ page }) => {
+  const dataset = getDataset('flutter');
+
+  await page.goto('/app/#/agent');
+  await expect(page.locator('#app-content')).toContainText(SHELL_TEXT.agent.modeTitle.en);
+  await expect(page.locator('#app-content')).toContainText(SHELL_TEXT.agent.nativeQa.en);
+  await expect(page.locator('#app-content')).toContainText(SHELL_TEXT.agent.nativeSocratic.en);
+
+  await page.locator('[data-locale="zh"]').click();
+  await expect(page.locator('#app-content')).toContainText(SHELL_TEXT.agent.modeTitle.zh);
+  await expect(page.locator('[data-agent-start-note]')).toHaveText(SHELL_TEXT.agent.startBlocked.zh);
+  await expect(page.locator('#app-content')).toContainText(SHELL_TEXT.agent.nativeQa.zh);
+  await expect(page.locator('#app-content')).toContainText(SHELL_TEXT.agent.nativeSocratic.zh);
+
+  await page.locator('[data-agent-dataset="flutter"]').check();
+  await page.locator('[data-agent-start-session]').click();
+  await expect(page.locator('[data-agent-turn]')).toBeVisible();
+  await expect(page.locator('#app-content')).toContainText(SHELL_TEXT.agent.reflectionLabel.zh);
+  await expect(page.locator('[data-agent-advance]')).toContainText(SHELL_TEXT.agent.nextAction.zh);
+  await expect(page.locator('[data-agent-prompt]')).toHaveText(dataset.questions[0].prompt.zh);
+
+  await page.locator('[data-agent-hint]').click();
+  await expect(page.locator('[data-agent-hint-list] li').first()).toHaveText(dataset.questions[0].tutorHints[0].zh);
+  await expect(page.locator('[data-agent-disclosure]')).toContainText('实时');
+
+  // The stored session belongs to the learner, not to the locale.
+  await page.locator('[data-agent-reflection]').fill('用我自己的话说一遍。');
+  await page.locator('[data-locale="en"]').click();
+  await expect(page.locator('[data-agent-reflection]')).toHaveValue('用我自己的话说一遍。');
+  await expect(page.locator('[data-agent-prompt]')).toHaveText(dataset.questions[0].prompt.en);
+  await expect(page.locator('[data-agent-advance]')).toContainText(SHELL_TEXT.agent.nextAction.en);
+  await expect(page.locator('[data-agent-hint-list] li').first()).toHaveText(dataset.questions[0].tutorHints[0].en);
+});
+
+test('the guided agent session fits a 390px viewport without horizontal overflow', async ({ page }) => {
+  const overflow = () =>
+    page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  const script = buildAgentScript(getDataset('flutter'));
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/app/#/agent');
+  await expect(page.locator('[data-agent-start]')).toBeVisible();
+  expect(await overflow(), 'agent start panel overflows at 390px').toBeLessThanOrEqual(0);
+
+  await page.locator('[data-agent-dataset="flutter"]').check();
+  await page.locator('[data-agent-start-session]').click();
+  await expect(page.locator('[data-agent-turn]')).toBeVisible();
+  expect(await overflow(), 'agent turn overflows at 390px').toBeLessThanOrEqual(0);
+
+  await page.locator('[data-agent-hint]').click();
+  await page.locator('[data-agent-hint]').click();
+  await expect(page.locator('[data-agent-hint-list] li')).toHaveCount(2);
+  expect(await overflow(), 'revealed hints overflow at 390px').toBeLessThanOrEqual(0);
+
+  await page.locator('[data-agent-clear]').click();
+  await expect(page.locator('.agent-confirm')).toBeVisible();
+  expect(await overflow(), 'agent reset confirmation overflows at 390px').toBeLessThanOrEqual(0);
+  await page.locator('[data-agent-clear-cancel]').click();
+
+  // An unbroken reflection has to wrap instead of widening the page.
+  for (let index = 0; index < script.length; index += 1) {
+    await page.locator('[data-agent-reflection]').fill('unbrokenreflectionwithoutspaces'.repeat(10));
+    expect(await overflow(), 'a long reflection overflows at 390px').toBeLessThanOrEqual(0);
+    await page.locator('[data-agent-advance]').click();
+  }
+  await expect(page.locator('[data-agent-complete]')).toBeVisible();
+  expect(await overflow(), 'agent recap overflows at 390px').toBeLessThanOrEqual(0);
+
+  // The fixed mobile tab bar is still the primary navigation here.
+  await expect(page.locator('#app-tabbar')).toBeVisible();
+  await expect(page.locator('#app-tabbar [data-tab-route="agent"]')).toHaveAttribute('aria-current', 'page');
 });
 
 test('landing page keeps navigation and bilingual content usable on mobile', async ({ page }) => {

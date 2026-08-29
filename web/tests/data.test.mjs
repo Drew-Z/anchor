@@ -1,15 +1,24 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  AGENT_SESSION_LIMITS,
+  AGENT_SESSION_VERSION,
   DATASETS,
   LOCAL_IMPORT_LIMITS,
   LIBRARY_VERSION,
+  agentProgressFill,
+  agentReflectionCount,
+  buildAgentScript,
+  clampReflection,
+  createAgentSession,
   createEmptyLibrary,
   createLocalSource,
   extractSections,
   formatBytes,
   formatImportedAt,
+  getDataset,
   looksBinary,
+  normalizeAgentSession,
   normalizeLocalLibrary,
   sectionLocator,
   truncateExcerpt,
@@ -183,4 +192,139 @@ test('malformed or stale local library recovers without throwing', () => {
   assert.equal(normalized.sources[0].id, valid.id);
   assert.equal(normalized.sources[0].sections[0].heading, 'Keep');
   assert.ok(normalized.sources.length <= LOCAL_IMPORT_LIMITS.maxSources);
+});
+
+test('the guided agent script is derived from bundled dataset content only', () => {
+  const dataset = getDataset('flutter');
+  const script = buildAgentScript(dataset);
+
+  assert.equal(script.length, dataset.questions.length);
+  assert.deepEqual(script.map((turn) => turn.index), [0, 1, 2, 3]);
+  assert.deepEqual(
+    script.map((turn) => turn.questionId),
+    dataset.questions.map((question) => question.id),
+  );
+
+  for (const [index, turn] of script.entries()) {
+    const question = dataset.questions[index];
+    assert.equal(turn.prompt, question.prompt);
+    assert.equal(turn.explanation, question.explanation);
+    assert.equal(turn.citation, question.citations[0]);
+    assert.equal(turn.focus, question.citations[0].locator);
+    assert.equal(turn.hints, question.tutorHints);
+    assert.ok(turn.hints.length > 0);
+  }
+
+  // A dataset always yields the same turns, which is what lets the surface call the session scripted.
+  assert.deepEqual(buildAgentScript(dataset), script);
+  assert.deepEqual(buildAgentScript(null), []);
+});
+
+test('a new agent session starts empty at the first turn', () => {
+  const session = createAgentSession('git');
+  assert.deepEqual(session, {
+    version: AGENT_SESSION_VERSION,
+    datasetId: 'git',
+    turnIndex: 0,
+    completed: false,
+    reflections: {},
+    hints: {},
+    startedAt: 0,
+  });
+});
+
+test('malformed or stale agent sessions fall back to no session', () => {
+  assert.equal(normalizeAgentSession(null), null);
+  assert.equal(normalizeAgentSession('not json'), null);
+  assert.equal(normalizeAgentSession([]), null);
+  assert.equal(normalizeAgentSession({ version: 99, datasetId: 'flutter' }), null);
+  assert.equal(normalizeAgentSession({ version: AGENT_SESSION_VERSION, datasetId: 'not-a-dataset' }), null);
+  assert.equal(normalizeAgentSession({ version: AGENT_SESSION_VERSION }), null);
+});
+
+test('agent session normalization drops unknown turns and clamps the resume point', () => {
+  const dataset = getDataset('javascript');
+  const script = buildAgentScript(dataset);
+  const session = normalizeAgentSession({
+    version: AGENT_SESSION_VERSION,
+    datasetId: dataset.id,
+    turnIndex: 999,
+    completed: true,
+    startedAt: -5,
+    reflections: {
+      [script[0].questionId]: '  kept  ',
+      [script[1].questionId]: '   ',
+      'question-that-no-longer-exists': 'dropped',
+      [script[2].questionId]: 42,
+    },
+    hints: {
+      [script[0].questionId]: 99,
+      [script[1].questionId]: 0,
+      'question-that-no-longer-exists': 3,
+    },
+  });
+
+  assert.deepEqual(Object.keys(session.reflections), [script[0].questionId]);
+  assert.equal(session.reflections[script[0].questionId], '  kept  ');
+  assert.equal(session.hints[script[0].questionId], script[0].hints.length);
+  assert.deepEqual(Object.keys(session.hints), [script[0].questionId]);
+  assert.equal(session.startedAt, 0);
+
+  // One reflection means the furthest honest resume point is the second turn.
+  assert.equal(session.turnIndex, 1);
+  assert.equal(session.completed, false);
+  assert.equal(agentReflectionCount(session, script), 1);
+});
+
+test('an agent session is only complete when every turn has a reflection', () => {
+  const dataset = getDataset('git');
+  const script = buildAgentScript(dataset);
+  const reflections = Object.fromEntries(script.map((turn) => [turn.questionId, 'said out loud']));
+
+  const complete = normalizeAgentSession({
+    version: AGENT_SESSION_VERSION,
+    datasetId: dataset.id,
+    turnIndex: script.length - 1,
+    completed: true,
+    reflections,
+  });
+  assert.equal(complete.completed, true);
+  assert.equal(complete.turnIndex, script.length - 1);
+  assert.equal(agentReflectionCount(complete, script), script.length);
+
+  const claimed = normalizeAgentSession({
+    version: AGENT_SESSION_VERSION,
+    datasetId: dataset.id,
+    turnIndex: script.length - 1,
+    completed: true,
+    reflections: { [script[0].questionId]: 'only one' },
+  });
+  assert.equal(claimed.completed, false);
+  assert.equal(claimed.turnIndex, 1);
+});
+
+test('reflections are capped for storage and progress reports as a decile', () => {
+  const max = AGENT_SESSION_LIMITS.maxReflectionChars;
+  assert.equal(clampReflection('a'.repeat(max + 50)).length, max);
+  assert.equal(clampReflection('spaced  out '), 'spaced  out ');
+  assert.equal(clampReflection(null), '');
+
+  const dataset = getDataset('flutter');
+  const script = buildAgentScript(dataset);
+  const stored = normalizeAgentSession({
+    version: AGENT_SESSION_VERSION,
+    datasetId: dataset.id,
+    turnIndex: 0,
+    reflections: { [script[0].questionId]: 'b'.repeat(max + 200) },
+  });
+  assert.equal(stored.reflections[script[0].questionId].length, max);
+
+  assert.equal(agentProgressFill(0, 4), 0);
+  assert.equal(agentProgressFill(1, 4), 30);
+  assert.equal(agentProgressFill(2, 4), 50);
+  assert.equal(agentProgressFill(4, 4), 100);
+  assert.equal(agentProgressFill(9, 4), 100);
+  assert.equal(agentProgressFill(-3, 4), 0);
+  assert.equal(agentProgressFill(1, 0), 0);
+  assert.equal(agentReflectionCount(null, script), 0);
 });

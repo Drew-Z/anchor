@@ -17,6 +17,19 @@ export const LOCAL_IMPORT_LIMITS = {
   maxSources: 12,
 };
 
+/** Storage schema for the browser-local guided Agent session. Bumped independently of the keys above. */
+export const AGENT_SESSION_VERSION = 1;
+
+/**
+ * Bounds for one stored guided session.
+ *
+ * A reflection is the only learner-authored text this surface keeps, so it is capped for the same
+ * reason imported excerpts are: `localStorage` is small, synchronous, and shared across the origin.
+ */
+export const AGENT_SESSION_LIMITS = {
+  maxReflectionChars: 600,
+};
+
 const localized = (en, zh) => ({ en, zh });
 
 export const DATASETS = [
@@ -504,23 +517,86 @@ export const SHELL_TEXT = {
     eyebrow: localized('Agent', 'Agent'),
     title: localized('Guided help that shows its sources', '会展示来源的引导式辅导'),
     body: localized(
-      'In the Android Private Alpha the Agent sets a learning target, explains concepts from imported material, and runs interview practice. The browser shell carries the scripted part of that experience.',
-      '在 Android Private Alpha 中，Agent 会设定学习目标、基于导入资料讲解概念，并进行面试练习。浏览器外壳只承载其中的预置部分。',
+      'In the Android Private Alpha the Agent picks a learning goal, explains concepts from imported material, and runs interview practice. The browser shell runs the scripted walkthrough of that loop.',
+      '在 Android Private Alpha 中，Agent 会选择学习目标、基于导入资料讲解概念，并进行面试练习。浏览器外壳运行其中预置的引导流程。',
     ),
-    tutorTitle: localized('Scripted tutor hints', '预置导师提示'),
-    tutorBody: localized(
-      'Answer a question in the decks, then open the tutor panel to read hints that ship with the demo. No model is called.',
-      '在题库中作答后展开导师面板，即可阅读随演示内置的提示，不会调用任何模型。',
+
+    /** Start panel: choosing a bundled dataset and opening a scripted session. */
+    modeTitle: localized('Guided walkthrough', '引导式流程'),
+    modeBody: localized(
+      'Work through one bundled dataset turn by turn. Every prompt, source passage, and hint below is fixed text that ships with this demo, so the same dataset always produces the same session.',
+      '按顺序走完一套内置数据集。下面每个提示、原文片段和导师提示都是随演示内置的固定文本，因此同一套数据集每次都会得到相同的流程。',
     ),
-    tutorAction: localized('Practice and open a hint', '去练习并查看提示'),
+    modeScripted: localized('Scripted, no model call', '预置内容，不调用模型'),
+    pickLegend: localized('Dataset for this session', '本次流程使用的数据集'),
+    pickHint: localized('{n} turns', '{n} 轮'),
+    startAction: localized('Start guided session', '开始引导式流程'),
+    startBlocked: localized('Select a dataset to start.', '请先选择一套数据集。'),
+
+    /** Active session: progress, turn content, reflection, hints. */
+    sessionTitle: localized('Guided session', '引导式流程'),
+    turnCounter: localized('Turn {n} of {total}', '第 {n} 轮 / 共 {total} 轮'),
+    turnFocus: localized('Focus', '本轮重点'),
+    turnPrompt: localized('Question from the dataset', '来自数据集的问题'),
+    sourceTitle: localized('Source passage', '原文片段'),
+    hintAction: localized('Reveal a hint', '展开一条提示'),
+    hintTitle: localized('Tutor hints', '导师提示'),
+    hintAllShown: localized('All hints shown', '提示已全部展开'),
+    reflectionLabel: localized('Your reflection', '你的思考'),
+    reflectionHelp: localized(
+      'Write what you would say out loud. It stays in this browser and is never uploaded.',
+      '写下你会怎么说出来。内容只保留在此浏览器，不会上传。',
+    ),
+    reflectionRequired: localized('Write a reflection to continue.', '写下思考后即可继续。'),
+    reflectionCount: localized('{n}/{max} characters', '{n}/{max} 字符'),
+    nextAction: localized('Next turn', '下一轮'),
+    finishAction: localized('Finish session', '完成流程'),
+    storedNote: localized(
+      'This session is stored in this browser only. Reloading the page resumes it.',
+      '流程仅保存在此浏览器中，刷新页面后会继续。',
+    ),
+
+    /** Completion: recap plus links back into the deck and the library. */
+    doneTitle: localized('Session complete', '流程已完成'),
+    doneBody: localized(
+      'You wrote a reflection for all {n} turns of {dataset}. Compare each one with the passage the dataset cites.',
+      '你已为《{dataset}》的全部 {n} 轮写下思考。可以逐条对照数据集引用的原文。',
+    ),
+    recapTitle: localized('Your notes and the source', '你的笔记与原文'),
+    recapMine: localized('Your reflection', '你的思考'),
+    recapSource: localized('What the dataset says', '数据集的说明'),
+    deckAction: localized('Practice this dataset', '练习这套数据集'),
+    libraryAction: localized('Open the source library', '打开来源库'),
+    restartAction: localized('Start another session', '开始新的流程'),
+
+    /** Scoped reset. Separate from the quiz reset so neither control clears the other's data. */
+    clearAction: localized('Clear this session', '清除此流程'),
+    clearTitle: localized('Clear the guided session?', '确认清除引导式流程？'),
+    clearBody: localized(
+      'This removes the stored turns and reflections for this session only. Quiz progress and imported sources stay.',
+      '仅会删除此流程已保存的轮次与思考，答题进度和已导入的来源不受影响。',
+    ),
+    clearConfirm: localized('Clear session', '清除流程'),
+    clearCancel: localized('Keep session', '保留流程'),
+
+    /** Live-region announcements. */
+    announceStarted: localized('Guided session started on {dataset}. Turn 1 of {total}.', '已开始《{dataset}》的引导式流程，第 1 轮 / 共 {total} 轮。'),
+    announceTurn: localized('Turn {n} of {total}.', '第 {n} 轮 / 共 {total} 轮。'),
+    announceHint: localized('Hint {n} of {total} shown. Scripted text, no live AI.', '已展开第 {n} / {total} 条提示。内容为预置文本，未运行实时 AI。'),
+    announceDone: localized('Session complete. {n} reflections saved in this browser.', '流程已完成，{n} 条思考已保存在此浏览器。'),
+    announceCleared: localized('Guided session cleared. Quiz progress kept.', '引导式流程已清除，答题进度保留。'),
+
+    /** Android-only boundary. */
     nativeTitle: localized('Runs on Android only', '仅在 Android 上运行'),
     nativeBody: localized(
-      'These capabilities need a configured model and on-device storage, so the static browser demo does not include them.',
-      '这些能力需要已配置的模型和设备本地存储，静态浏览器演示不包含它们。',
+      'These capabilities need a configured model and on-device storage, so the static browser demo does not include them. The walkthrough above replays fixed text instead.',
+      '这些能力需要已配置的模型和设备本地存储，静态浏览器演示不包含它们。上面的引导流程只是回放固定文本。',
     ),
     nativeTutor: localized('Live tutor conversation about an imported concept', '围绕导入概念的实时导师对话'),
-    nativeInterview: localized('Interview mode with evidence-bound follow-up questions', '带证据约束追问的面试官模式'),
-    nativeTarget: localized('Learning targets for interview prep, project study, or open exploration', '面试准备、项目学习、自由探索等学习目标'),
+    nativeQa: localized('Knowledge base question and answer over your own material', '基于你自己资料的知识库问答'),
+    nativeSocratic: localized('Socratic follow-up questions generated from your answers', '根据你的回答生成的苏格拉底式追问'),
+    nativeInterview: localized('Project interview mode with evidence-bound follow-up questions', '带证据约束追问的项目面试官模式'),
+    nativeTarget: localized('Learning goals for interview prep, project study, or programming foundations', '面试准备、讲清项目细节、编程基础等学习目标'),
     nativeReview: localized('Session history and interview review records', '会话历史与面试复盘记录'),
   },
 
@@ -939,6 +1015,101 @@ export function normalizeLocalLibrary(candidate, limits = LOCAL_IMPORT_LIMITS) {
   }
 
   return library;
+}
+
+/**
+ * Derives the fixed turn script for one guided Agent session.
+ *
+ * Every field is a reference into the bundled dataset: the question prompt, its first citation, its
+ * tutor hints, and its explanation. Nothing here is generated, so a dataset always yields the same
+ * turns in the same order and the surface can say so honestly.
+ */
+export function buildAgentScript(dataset) {
+  if (!dataset || !Array.isArray(dataset.questions)) return [];
+  return dataset.questions.map((question, index) => ({
+    index,
+    questionId: question.id,
+    prompt: question.prompt,
+    focus: question.citations[0]?.locator ?? '',
+    citation: question.citations[0] ?? null,
+    hints: question.tutorHints ?? [],
+    explanation: question.explanation,
+  }));
+}
+
+export function createAgentSession(datasetId) {
+  return {
+    version: AGENT_SESSION_VERSION,
+    datasetId,
+    turnIndex: 0,
+    completed: false,
+    reflections: {},
+    hints: {},
+    startedAt: 0,
+  };
+}
+
+/** Trims a reflection to the stored ceiling without collapsing the spacing the learner typed. */
+export function clampReflection(value, limits = AGENT_SESSION_LIMITS) {
+  return String(value ?? '').slice(0, limits.maxReflectionChars);
+}
+
+/**
+ * Accepts only a session this build can replay. A stale version, an unknown dataset, or a shape that
+ * no longer matches returns `null` so the surface falls back to its start panel instead of throwing.
+ *
+ * Question ids that have disappeared from the dataset are dropped, `turnIndex` is clamped to the turn
+ * after the last answered one, and `completed` requires a reflection on every turn — so a tampered or
+ * partially written record resumes at a position the learner could actually have reached.
+ */
+export function normalizeAgentSession(candidate, resolveDataset = getDataset, limits = AGENT_SESSION_LIMITS) {
+  if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return null;
+  if (candidate.version !== AGENT_SESSION_VERSION) return null;
+  const dataset = resolveDataset(candidate.datasetId);
+  if (!dataset) return null;
+
+  const script = buildAgentScript(dataset);
+  if (!script.length) return null;
+
+  const session = createAgentSession(dataset.id);
+  session.startedAt = Number.isFinite(Number(candidate.startedAt)) && Number(candidate.startedAt) > 0
+    ? Math.round(Number(candidate.startedAt))
+    : 0;
+
+  for (const turn of script) {
+    const reflection = candidate.reflections?.[turn.questionId];
+    if (typeof reflection === 'string' && reflection.trim()) {
+      session.reflections[turn.questionId] = clampReflection(reflection, limits);
+    }
+    const revealed = candidate.hints?.[turn.questionId];
+    if (Number.isInteger(revealed) && revealed > 0) {
+      session.hints[turn.questionId] = Math.min(revealed, turn.hints.length);
+    }
+  }
+
+  const answered = script.filter((turn) => session.reflections[turn.questionId]).length;
+  const ceiling = Math.min(answered, script.length - 1);
+  session.turnIndex = Number.isInteger(candidate.turnIndex)
+    ? Math.min(Math.max(candidate.turnIndex, 0), ceiling)
+    : ceiling;
+  session.completed = candidate.completed === true && answered === script.length;
+  return session;
+}
+
+/** Number of turns the learner has actually written a reflection for. */
+export function agentReflectionCount(session, script) {
+  if (!session || !Array.isArray(script)) return 0;
+  return script.filter((turn) => Boolean(session.reflections?.[turn.questionId])).length;
+}
+
+/**
+ * Progress as a decile bucket. The Content-Security-Policy blocks inline styles, so the width has to
+ * come from a class rather than a computed `style` attribute.
+ */
+export function agentProgressFill(done, total) {
+  if (!Number.isFinite(total) || total <= 0) return 0;
+  const ratio = Math.min(Math.max(Number(done) || 0, 0), total) / total;
+  return Math.round(ratio * 10) * 10;
 }
 
 /** Locator shown next to an imported excerpt. Derived from the file name, never from a model. */
