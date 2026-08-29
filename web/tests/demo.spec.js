@@ -645,6 +645,266 @@ test('import and browser library fit a 390px viewport without horizontal overflo
   expect(await overflow(), 'delete confirmation overflows at 390px').toBeLessThanOrEqual(0);
 });
 
+/** Text with one heading per language, so a search can be checked in English and in Chinese. */
+const SEARCH_FIXTURE = [
+  '# Anchor overview',
+  'Anchor keeps every question attached to the passage it came from.',
+  '',
+  '## Widget lifecycle',
+  'My own notes about a StatefulWidget rebuild and its State object.',
+  '',
+  '## 复习计划',
+  '每周复习一次提交记录。',
+].join('\n');
+
+/** Imports one file through the real picker, then lands on the library. */
+async function seedSearchLibrary(page, options = {}) {
+  await page.goto('/app/#/import');
+  await pickFile(page, { text: SEARCH_FIXTURE, ...options });
+  await page.locator('[data-import-confirm]').click();
+  await expect(page.locator('[data-import-saved]')).toBeVisible();
+  await page.goto('/app/#/library');
+  await expect(page.locator('[data-library-search]')).toBeVisible();
+}
+
+const searchField = (page) => page.locator('[data-library-search-input]');
+const searchResults = (page) => page.locator('[data-library-result]');
+
+test('library search matches bundled evidence and says which field matched', async ({ page }) => {
+  const offOrigin = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).origin !== expectedOrigin) offOrigin.push(request.url());
+  });
+
+  await page.goto('/app/#/library');
+
+  // Nothing is searched yet, so the surface counts the corpus instead of guessing.
+  await expect(page.locator('[data-library-search-empty]')).toHaveAttribute('data-empty-kind', 'idle');
+  await expect(page.locator('[data-library-search-status]')).toContainText('12');
+  await expect(page.locator('[data-library-search-clear]')).toBeHidden();
+  await expect(page.locator('label[for="library-search-input"]')).toHaveText(SHELL_TEXT.library.search.label.en);
+  await expect(searchField(page)).toHaveAttribute('maxlength', '80');
+
+  await searchField(page).fill('initState');
+  await expect(searchResults(page)).not.toHaveCount(0);
+  await expect(page.locator('[data-library-search-empty]')).toHaveCount(0);
+  await expect(page.locator('[data-library-search-clear]')).toBeVisible();
+
+  const first = searchResults(page).first();
+  await expect(first).toHaveAttribute('data-result-kind', 'bundled');
+  await expect(first.locator('.library-result-kind')).toHaveText(SHELL_TEXT.library.search.badgeBundled.en);
+  await expect(first.locator('.library-result-scope-name')).toHaveText(getDataset('flutter').title.en);
+  await expect(first.locator('.library-result-locator')).toHaveText('flutter/state-lifecycle.md#initState');
+  await expect(first.locator('.library-result-note')).toHaveText(SHELL_TEXT.library.search.noteBundled.en);
+  await expect(first.locator('.library-result-reason')).toContainText(SHELL_TEXT.library.search.reasonExcerpt.en);
+  await expect(first.locator('mark').first()).toHaveText(/initState/i);
+
+  // The match carries its own way back to the dataset it came from.
+  await first.locator('.library-result-actions a').click();
+  await expect(page).toHaveURL(/#\/decks\/flutter$/);
+  await expect(page.locator('.quiz-view')).toBeVisible();
+  expect(offOrigin).toEqual([]);
+});
+
+test('library search matches imported file text and leads back to that section', async ({ page }) => {
+  await seedSearchLibrary(page);
+
+  await searchField(page).fill('StatefulWidget rebuild');
+  const imported = searchResults(page).filter({ has: page.locator('[data-library-result-open]') }).first();
+  await expect(imported).toHaveAttribute('data-result-kind', 'imported');
+  await expect(imported.locator('.library-result-kind')).toHaveText(SHELL_TEXT.library.search.badgeImported.en);
+  await expect(imported.locator('.library-result-scope-name')).toHaveText('anchor-notes.md');
+  await expect(imported.locator('.library-result-locator')).toHaveText('anchor-notes.md#widget-lifecycle');
+  await expect(imported.locator('.library-result-detail')).toContainText('Widget lifecycle');
+  await expect(imported.locator('.library-result-note')).toHaveText(SHELL_TEXT.library.search.noteImported.en);
+
+  // Opening a result expands the stored source and puts the caret on that section.
+  await imported.locator('[data-library-result-open]').click();
+  await expect(page.locator('[data-toggle-source]')).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.locator('[data-local-section="1"]')).toBeFocused();
+  await expect(page.locator('#app-announcer')).toContainText('anchor-notes.md');
+  await expect(searchField(page)).toHaveValue('StatefulWidget rebuild');
+});
+
+test('library search filters by source kind and by one dataset or file', async ({ page }) => {
+  await seedSearchLibrary(page);
+  await searchField(page).fill('state');
+
+  const kinds = () => searchResults(page).evaluateAll((nodes) => [...new Set(nodes.map((node) => node.dataset.resultKind))]);
+  expect(await kinds()).toEqual(['bundled', 'imported']);
+
+  await page.locator('[data-library-search-kind][value="imported"]').check();
+  expect(await kinds()).toEqual(['imported']);
+  await expect(page).toHaveURL(/kind=imported/);
+  // The scope list narrows with the kind, so it can never offer a filter that returns nothing.
+  await expect(page.locator('[data-library-search-scope] option')).toHaveCount(2);
+
+  await page.locator('[data-library-search-kind][value="bundled"]').check();
+  expect(await kinds()).toEqual(['bundled']);
+  await expect(page.locator('[data-library-search-scope] option')).toHaveCount(DATASETS.length + 1);
+
+  await page.locator('[data-library-search-scope]').selectOption('bundled:flutter');
+  await expect(page).toHaveURL(/src=bundled%3Aflutter/);
+  const scopes = await searchResults(page).locator('.library-result-scope-name').allTextContents();
+  expect([...new Set(scopes)]).toEqual([getDataset('flutter').title.en]);
+
+  // A filter that survives into a shared link is dropped once its source is gone.
+  await page.locator('[data-library-search-kind][value="all"]').check();
+  await page.goto('/app/#/library?q=state&src=imported%3Agone');
+  await expect(page).toHaveURL(/#\/library\?q=state$/);
+  await expect(page.locator('[data-library-search-scope]')).toHaveValue('');
+  expect(await kinds()).toEqual(['bundled', 'imported']);
+});
+
+test('library search distinguishes no query, no match, and no imported sources', async ({ page }) => {
+  await page.goto('/app/#/library');
+  const empty = page.locator('[data-library-search-empty]');
+  await expect(empty).toHaveAttribute('data-empty-kind', 'idle');
+  await expect(empty).toContainText(SHELL_TEXT.library.search.emptyIdle.en);
+
+  // Asking only for imported text before importing anything is a state, not a failed search.
+  await page.locator('[data-library-search-kind][value="imported"]').check();
+  await searchField(page).fill('anchor');
+  await expect(empty).toHaveAttribute('data-empty-kind', 'no-imported');
+  await expect(empty).toContainText(SHELL_TEXT.library.search.emptyNoImported.en);
+
+  await page.locator('[data-library-search-kind][value="all"]').check();
+  await searchField(page).fill('kubernetes');
+  await expect(empty).toHaveAttribute('data-empty-kind', 'no-results');
+  await expect(empty).toContainText('kubernetes');
+  await expect(page.locator('[data-library-search-status]')).toContainText('0');
+
+  // Clearing restores the idle state, empties the address, and returns focus to the field.
+  await page.locator('[data-library-search-clear]').click();
+  await expect(searchField(page)).toHaveValue('');
+  await expect(searchField(page)).toBeFocused();
+  await expect(page).toHaveURL(/#\/library$/);
+  await expect(empty).toHaveAttribute('data-empty-kind', 'idle');
+  await expect(page.locator('#app-announcer')).toHaveText(SHELL_TEXT.library.search.announceCleared.en);
+});
+
+test('library search survives a shared link, a reload, and a locale switch', async ({ page }) => {
+  await seedSearchLibrary(page);
+
+  await searchField(page).fill('复习');
+  await expect(page).toHaveURL(/q=%E5%A4%8D%E4%B9%A0/);
+  await expect(searchResults(page)).toHaveCount(1);
+
+  // The address is the state, so a reload rebuilds the same search from the link alone.
+  await page.reload();
+  await expect(searchField(page)).toHaveValue('复习');
+  await expect(searchResults(page)).toHaveCount(1);
+  await expect(searchResults(page).first().locator('.library-result-locator')).toHaveText('anchor-notes.md#复习计划');
+
+  await page.locator('[data-locale="zh"]').click();
+  await expect(searchField(page)).toHaveValue('复习');
+  await expect(searchResults(page)).toHaveCount(1);
+  await expect(page.locator('label[for="library-search-input"]')).toHaveText(SHELL_TEXT.library.search.label.zh);
+  await expect(searchResults(page).first().locator('.library-result-kind')).toHaveText(SHELL_TEXT.library.search.badgeImported.zh);
+
+  // Switching back keeps the learner's query, which belongs to them and not to the language.
+  await page.locator('[data-locale="en"]').click();
+  await expect(searchField(page)).toHaveValue('复习');
+  await expect(searchResults(page)).toHaveCount(1);
+  await expect(page.locator('label[for="library-search-input"]')).toHaveText(SHELL_TEXT.library.search.label.en);
+
+  // A query only the other language can match is honest about finding nothing.
+  await searchField(page).fill('lifecycle');
+  await expect(searchResults(page)).not.toHaveCount(0);
+});
+
+test('library search takes the keyboard and stays announced', async ({ page }) => {
+  await seedSearchLibrary(page);
+
+  await searchField(page).click();
+  await page.keyboard.type('initState');
+  await expect(page.locator('[data-library-search-status]')).toHaveAttribute('aria-live', 'polite');
+  await expect(page.locator('[data-library-search-results]')).toBeVisible();
+
+  // Enter reaches the first result instead of submitting anything.
+  await page.keyboard.press('Enter');
+  await expect(searchResults(page).first().locator('.button')).toBeFocused();
+  await expect(page).toHaveURL(/#\/library\?q=initState$/);
+
+  await searchField(page).press('Escape');
+  await expect(searchField(page)).toHaveValue('');
+  await expect(page).toHaveURL(/#\/library$/);
+
+  // Escape elsewhere still belongs to the mobile drawer.
+  await expect(page.locator('.library-search-kinds legend')).toHaveText(SHELL_TEXT.library.search.kindLegend.en);
+  await expect(page.locator('[data-library-search-scope]')).toHaveAttribute('id', 'library-search-scope');
+  await expect(page.locator('label[for="library-search-scope"]')).toBeVisible();
+});
+
+test('library search renders hostile file text and hostile queries as text', async ({ page }) => {
+  const pageErrors = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+
+  const hostile = [
+    '# <img src=x onerror="window.__anchorPwned = true">',
+    '<script>window.__anchorPwned = true;</script>',
+    '',
+    '## Second & <b>bold</b>',
+    '</p></div><iframe src="https://example.com"></iframe>',
+  ].join('\n');
+
+  await seedSearchLibrary(page, { name: '<b>notes</b>.md', text: hostile });
+
+  await searchField(page).fill('<script>');
+  await expect(searchResults(page)).not.toHaveCount(0);
+  await expect(searchResults(page).first().locator('.library-result-text')).toContainText('<script>window.__anchorPwned = true;</script>');
+  await expect(page.locator('.library-result b, .library-result img, .library-result iframe, .library-result script')).toHaveCount(0);
+
+  // The file name reaches the result and the scope filter as text, including inside the option label.
+  await searchField(page).fill('notes');
+  await expect(searchResults(page).first().locator('.library-result-scope-name')).toHaveText('<b>notes</b>.md');
+  await expect(page.locator('[data-library-search-scope] option').last()).toHaveText('<b>notes</b>.md');
+
+  // A query is echoed into the empty state, so it has to be escaped there too.
+  await searchField(page).fill('kubernetes <img src=x onerror=alert(1)>');
+  await expect(page.locator('[data-library-search-empty]')).toHaveAttribute('data-empty-kind', 'no-results');
+  await expect(page.locator('[data-library-search-empty]')).toContainText('onerror=alert(1)');
+  await expect(page.locator('[data-library-search-empty] img')).toHaveCount(0);
+
+  // A malformed escape in a shared link must not throw while the hash is read.
+  await page.goto('/app/#/library?q=100%');
+  await expect(searchField(page)).toHaveValue('100%');
+  await expect(page.locator('[data-library-search]')).toBeVisible();
+
+  expect(await page.evaluate(() => window.__anchorPwned)).toBeUndefined();
+  expect(pageErrors).toEqual([]);
+});
+
+test('library search fits a 390px viewport and asks nothing of the network', async ({ page }) => {
+  const offOrigin = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).origin !== expectedOrigin) offOrigin.push(request.url());
+  });
+  const overflow = () => page.evaluate(() => Math.max(
+    document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    document.body.scrollWidth - document.body.clientWidth,
+  ));
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await seedSearchLibrary(page, { name: 'a-rather-long-mobile-filename-for-layout.md' });
+  expect(await overflow(), 'idle library search overflows at 390px').toBeLessThanOrEqual(0);
+
+  await searchField(page).fill('state');
+  await expect(searchResults(page)).not.toHaveCount(0);
+  expect(await overflow(), 'library results overflow at 390px').toBeLessThanOrEqual(0);
+  await expect(page.locator('.app-tabbar')).toBeVisible();
+  expect(await page.locator('.app-tabbar').evaluate((node) => getComputedStyle(node).position)).toBe('fixed');
+
+  await page.locator('[data-library-search-kind][value="imported"]').check();
+  await searchResults(page).first().locator('[data-library-result-open]').click();
+  await expect(page.locator('.local-section')).toHaveCount(3);
+  expect(await overflow(), 'expanded source below results overflows at 390px').toBeLessThanOrEqual(0);
+
+  await searchField(page).fill('a-rather-long-mobile-filename-for-layout');
+  expect(await overflow(), 'a long locator overflows at 390px').toBeLessThanOrEqual(0);
+  expect(offOrigin).toEqual([]);
+});
+
 test('a guided agent session runs on bundled content from start to completion', async ({ page }) => {
   const offOriginRequests = [];
   page.on('request', (request) => {

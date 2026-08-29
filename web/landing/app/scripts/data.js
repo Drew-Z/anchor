@@ -643,6 +643,72 @@ export const SHELL_TEXT = {
       'Verified excerpts that back the demo questions. They ship with the page and cannot be edited or removed.',
       '支撑演示题目的已校验摘录。它们随页面内置，无法编辑或删除。',
     ),
+
+    /**
+     * Search copy stays deliberately mechanical. The surface matches literal text, so it says which field
+     * matched and never claims a result is relevant, related, or best.
+     */
+    search: {
+      title: localized('Search this library', '搜索本知识库'),
+      body: localized(
+        'Matches text in the bundled excerpts and in files you imported into this browser. Substring matching runs on this page: no ranking model, no embedding, and no request leaves the browser.',
+        '在内置摘录和你导入到此浏览器的文件中匹配文本。子串匹配就在本页完成：没有排序模型，没有向量化，也不会有任何请求离开浏览器。',
+      ),
+      label: localized('Search text', '搜索文本'),
+      placeholder: localized('Word or phrase', '词或短语'),
+      hint: localized(
+        'Up to {max} characters, and every term has to appear in the same record. Enter jumps to the first result, Escape clears.',
+        '最多 {max} 个字符，且每个词都必须出现在同一条记录中。按 Enter 跳到第一条结果，按 Esc 清空。',
+      ),
+      clear: localized('Clear search', '清空搜索'),
+      kindLegend: localized('Source kind', '来源类型'),
+      kindAll: localized('All', '全部'),
+      kindBundled: localized('Bundled', '内置'),
+      kindImported: localized('Imported', '导入'),
+      scopeLabel: localized('Limit to one source', '限定单个来源'),
+      scopeAll: localized('Every source', '全部来源'),
+      scopeBundledGroup: localized('Bundled datasets', '内置数据集'),
+      scopeImportedGroup: localized('Imported files', '导入的文件'),
+      statusIdle: localized(
+        'Ready to search. Bundled excerpts: {n}. Imported sections: {m}.',
+        '可以开始搜索。内置摘录：{n} 段。导入小节：{m} 个。',
+      ),
+      statusResults: localized('Matches: {n}.', '匹配：{n} 条。'),
+      statusTruncated: localized('Matches: {total}. Showing the first {n}.', '匹配：{total} 条，显示前 {n} 条。'),
+      emptyIdle: localized(
+        'Type a word or phrase above to search source names, section headings, locators, question prompts, and excerpt text.',
+        '在上方输入词或短语，可搜索来源名称、小节标题、定位、题目内容和摘录正文。',
+      ),
+      emptyNoResults: localized(
+        'Nothing matched “{query}”. Try one word, or widen the source kind.',
+        '没有内容匹配“{query}”。可以只用一个词，或放宽来源类型。',
+      ),
+      emptyNoImported: localized(
+        'No imported files yet, so this filter has nothing to search. Import a Markdown or text file, or switch back to All for the bundled excerpts.',
+        '还没有导入文件，此筛选没有可搜索的内容。可以导入一个 Markdown 或文本文件，或切回“全部”以搜索内置摘录。',
+      ),
+      reasonLabel: localized('Matched in', '匹配位置'),
+      reasonName: localized('source name', '来源名称'),
+      reasonHeading: localized('section heading', '小节标题'),
+      reasonLocator: localized('locator', '定位'),
+      reasonPrompt: localized('question prompt', '题目内容'),
+      reasonExcerpt: localized('excerpt text', '摘录正文'),
+      badgeBundled: localized('Bundled evidence', '内置证据'),
+      badgeImported: localized('Imported text', '导入文本'),
+      noteBundled: localized(
+        'Checked excerpt behind a bundled question.',
+        '支撑内置题目的已校验摘录。',
+      ),
+      noteImported: localized(
+        'Text from a file in this browser. Not a verified claim.',
+        '来自此浏览器中某个文件的文本，不是经过核实的结论。',
+      ),
+      headingLabel: localized('Section', '小节'),
+      openBundled: localized('Practice this dataset', '练习这套数据集'),
+      openImported: localized('Show in imported sources', '在导入来源中查看'),
+      announceCleared: localized('Search cleared.', '已清空搜索。'),
+      announceOpened: localized('Showing {name} in the imported sources list.', '已在导入来源列表中显示 {name}。'),
+    },
   },
 
   profile: {
@@ -1263,6 +1329,238 @@ export function sectionLocator(source, section) {
   const base = String(source?.name ?? '').trim() || 'source';
   const anchor = section?.heading ? slugifyHeading(section.heading) : '';
   return anchor ? `${base}#${anchor}` : `${base}:L${section?.line ?? 1}`;
+}
+
+/*
+ * Library search.
+ *
+ * The index is a plain array rebuilt from the records already on the surface: bundled citations and
+ * imported file sections. Matching is literal substring matching over folded text, so every hit can be
+ * explained by naming the field it landed in. There is no embedding, no scoring model, and no request.
+ */
+
+export const LIBRARY_SEARCH_LIMITS = {
+  maxQueryChars: 80,
+  maxTerms: 8,
+  maxResults: 30,
+};
+
+export const LIBRARY_SEARCH_KINDS = ['all', 'bundled', 'imported'];
+
+/**
+ * Field order is the whole ranking rule: a hit on what a record *is* outranks a hit somewhere in its
+ * body text. Ties fall back to the earliest match offset, then to index order, so results are stable.
+ */
+export const LIBRARY_SEARCH_FIELDS = ['name', 'heading', 'locator', 'prompt', 'excerpt'];
+
+/**
+ * Folds text for comparison. NFKC so full-width and half-width forms match, lowercase for
+ * case-insensitive Latin, and collapsed whitespace so a line break in a file cannot hide a phrase.
+ * Chinese has no case and no word spacing, so one fold serves both languages without a locale branch.
+ */
+export function foldSearchText(value) {
+  return collapseWhitespace(value).normalize('NFKC').toLowerCase();
+}
+
+/** Caps and collapses a query for the address bar and for matching. The field keeps what was typed. */
+export function clampLibraryQuery(value, limits = LIBRARY_SEARCH_LIMITS) {
+  return collapseWhitespace(value).slice(0, limits.maxQueryChars);
+}
+
+/**
+ * Splits a query into the terms a record has to contain. Whitespace separates Latin words; a run of
+ * Chinese stays whole, because splitting it per character would match almost everything.
+ */
+export function librarySearchTerms(query, limits = LIBRARY_SEARCH_LIMITS) {
+  const folded = clampLibraryQuery(foldSearchText(query), limits);
+  const terms = [];
+  for (const term of folded.split(' ')) {
+    if (!term || terms.includes(term)) continue;
+    terms.push(term);
+    if (terms.length >= limits.maxTerms) break;
+  }
+  return terms;
+}
+
+function searchField(field, value) {
+  const text = collapseWhitespace(value);
+  return text ? { field, text, folded: foldSearchText(text) } : null;
+}
+
+/**
+ * One flat record per searchable passage. `kind` keeps bundled evidence and imported file text apart all
+ * the way to the renderer, so the surface never has to guess which one it is holding.
+ */
+export function buildLibraryIndex({ datasets = DATASETS, library = null, locale = 'en' } = {}) {
+  const records = [];
+
+  collectSources(datasets).forEach((group) => {
+    const scopeName = textFor(group.title, locale);
+    group.excerpts.forEach((entry, index) => {
+      const prompt = textFor(entry.prompt, locale);
+      const excerpt = textFor(entry.excerpt, locale);
+      records.push({
+        id: `bundled:${group.id}:${entry.questionId}:${index}`,
+        kind: 'bundled',
+        scope: `bundled:${group.id}`,
+        scopeId: group.id,
+        scopeName,
+        mark: group.mark,
+        locator: entry.locator,
+        detail: prompt,
+        text: excerpt,
+        sectionIndex: null,
+        fields: [
+          searchField('name', scopeName),
+          searchField('locator', entry.locator),
+          searchField('prompt', prompt),
+          searchField('excerpt', excerpt),
+        ].filter(Boolean),
+      });
+    });
+  });
+
+  // Defensive rather than trusting: this index is built straight from browser storage on every render.
+  const sources = Array.isArray(library?.sources) ? library.sources : [];
+  sources.forEach((source) => {
+    const sections = Array.isArray(source?.sections) ? source.sections : [];
+    const name = collapseWhitespace(source?.name);
+    sections.forEach((section, sectionIndex) => {
+      const locator = sectionLocator(source, section ?? {});
+      const heading = collapseWhitespace(section?.heading);
+      const excerpt = collapseWhitespace(section?.excerpt);
+      records.push({
+        id: `imported:${source?.id ?? sectionIndex}:${sectionIndex}`,
+        kind: 'imported',
+        scope: `imported:${source?.id ?? ''}`,
+        scopeId: String(source?.id ?? ''),
+        scopeName: name,
+        mark: '',
+        locator,
+        detail: heading,
+        text: excerpt,
+        sectionIndex,
+        fields: [
+          searchField('name', name),
+          searchField('heading', heading),
+          searchField('locator', locator),
+          searchField('excerpt', excerpt),
+        ].filter(Boolean),
+      });
+    });
+  });
+
+  return records;
+}
+
+/** Options for the scope filter, in the order the surface lists them. */
+export function librarySearchScopes({ datasets = DATASETS, library = null, locale = 'en' } = {}) {
+  const sources = Array.isArray(library?.sources) ? library.sources : [];
+  return [
+    ...collectSources(datasets).map((group) => ({
+      value: `bundled:${group.id}`,
+      kind: 'bundled',
+      label: textFor(group.title, locale),
+    })),
+    ...sources.map((source) => ({
+      value: `imported:${source?.id ?? ''}`,
+      kind: 'imported',
+      label: collapseWhitespace(source?.name),
+    })),
+  ];
+}
+
+/**
+ * Normalizes search state against the scopes that actually exist. A shared link naming a source this
+ * browser never imported, or one the kind filter excludes, falls back to every source instead of
+ * pinning the surface to a filter with nothing behind it.
+ */
+export function resolveLibrarySearch(state, scopes = []) {
+  const kind = LIBRARY_SEARCH_KINDS.includes(state?.kind) ? state.kind : 'all';
+  const requested = collapseWhitespace(state?.scope);
+  const match = (Array.isArray(scopes) ? scopes : []).find((entry) => entry?.value === requested);
+  return {
+    query: clampLibraryQuery(state?.query),
+    kind,
+    scope: match && (kind === 'all' || match.kind === kind) ? requested : '',
+  };
+}
+
+/**
+ * Every term has to appear somewhere in the same record, which is what makes a two-word query narrow
+ * rather than noisy. `reasons` lists the fields that were hit, ordered by field priority, so the
+ * surface can state why a record is on screen.
+ */
+export function searchLibrary(index, query, { kind = 'all', scope = '', limits = LIBRARY_SEARCH_LIMITS } = {}) {
+  const terms = librarySearchTerms(query, limits);
+  if (!terms.length) return { terms, matches: [], total: 0, truncated: false };
+
+  const hits = [];
+  (Array.isArray(index) ? index : []).forEach((record, order) => {
+    if (kind !== 'all' && record.kind !== kind) return;
+    if (scope && record.scope !== scope) return;
+
+    const reasons = [];
+    for (const term of terms) {
+      let found = false;
+      for (const field of record.fields) {
+        if (field.folded.indexOf(term) < 0) continue;
+        found = true;
+        if (!reasons.includes(field.field)) reasons.push(field.field);
+      }
+      if (!found) return;
+    }
+
+    reasons.sort((a, b) => LIBRARY_SEARCH_FIELDS.indexOf(a) - LIBRARY_SEARCH_FIELDS.indexOf(b));
+    const primary = reasons[0];
+    const folded = record.fields.find((field) => field.field === primary).folded;
+    const offset = Math.min(
+      ...terms.map((term) => {
+        const at = folded.indexOf(term);
+        return at < 0 ? Number.MAX_SAFE_INTEGER : at;
+      }),
+    );
+    hits.push({ record, reasons, primary, rank: LIBRARY_SEARCH_FIELDS.indexOf(primary), offset, order });
+  });
+
+  hits.sort((a, b) => a.rank - b.rank || a.offset - b.offset || a.order - b.order);
+  return {
+    terms,
+    total: hits.length,
+    truncated: hits.length > limits.maxResults,
+    matches: hits.slice(0, limits.maxResults),
+  };
+}
+
+/**
+ * Splits display text into plain and matched runs so the caller can escape every piece and wrap only
+ * the matches. Offsets come from the folded copy, so they only line up while folding preserves length;
+ * when a rare NFKC or lowercase expansion changes it, the text is returned unmarked rather than marked
+ * in the wrong place.
+ */
+export function highlightSegments(text, terms) {
+  const display = collapseWhitespace(text);
+  if (!display) return [];
+  const list = (Array.isArray(terms) ? terms : []).filter((term) => term);
+  const folded = foldSearchText(display);
+  if (!list.length || folded.length !== display.length) return [{ text: display, match: false }];
+
+  const marked = new Array(display.length).fill(false);
+  for (const term of list) {
+    for (let at = folded.indexOf(term); at >= 0; at = folded.indexOf(term, at + 1)) {
+      for (let i = at; i < at + term.length; i += 1) marked[i] = true;
+    }
+  }
+
+  const segments = [];
+  let start = 0;
+  for (let i = 1; i <= display.length; i += 1) {
+    if (i === display.length || marked[i] !== marked[start]) {
+      segments.push({ text: display.slice(start, i), match: marked[start] });
+      start = i;
+    }
+  }
+  return segments;
 }
 
 export function formatBytes(bytes) {

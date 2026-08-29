@@ -38,6 +38,8 @@
   --evidence-wash: #fdf3d8;
   --evidence-text: #6b5a21;
   --evidence-quote: #51491f;
+  --mark: #ffe08a;
+  --mark-text: #3f3208;
   --coral: #d85e4d;
   --coral-deep: #bf4a3a;
   --coral-soft: #fde8e4;
@@ -77,6 +79,8 @@
   --evidence-wash: #33290f;
   --evidence-text: #e6cf94;
   --evidence-quote: #ded4b0;
+  --mark: #5c4a15;
+  --mark-text: #ffe9b0;
   --coral: #e8705f;
   --coral-deep: #f08877;
   --coral-soft: #3a1f1a;
@@ -1555,6 +1559,269 @@ h3 {
   margin-bottom: 18px;
 }
 
+/* Library search. Matching is literal substring matching over the records already on this page, so the
+   surface stays a filter over what is visible rather than a second, cleverer view of it. */
+.library-search {
+  margin-bottom: 18px;
+}
+
+.library-search-field {
+  display: grid;
+  gap: 7px;
+}
+
+.library-search-label {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.library-search-row {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.library-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+}
+
+.library-search-input:focus {
+  border-color: var(--green);
+}
+
+.library-search-clear {
+  flex: 0 0 auto;
+}
+
+/* `.button` sets an explicit display, which outranks the user-agent rule for [hidden]. */
+.library-search-clear[hidden] {
+  display: none;
+}
+
+.library-search-hint {
+  max-width: 62ch;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.library-search-filters {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  align-items: end;
+  gap: 14px 24px;
+  margin-top: 16px;
+}
+
+.library-search-kinds {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.library-search-kinds legend {
+  padding: 0;
+  margin-bottom: 9px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.library-search-kind-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.library-search-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 13px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.library-search-kind:hover {
+  border-color: var(--accent-line-strong);
+}
+
+.library-search-kind:has(input:checked) {
+  border-color: var(--green);
+  background: var(--green-soft);
+}
+
+.library-search-scope {
+  display: grid;
+  gap: 7px;
+}
+
+.library-search-select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+}
+
+.library-search-select:focus {
+  border-color: var(--green);
+}
+
+.library-search-status {
+  margin: 16px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.library-search-results {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.library-search-empty {
+  max-width: 62ch;
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* A result inherits the colour of what it came from: yellow for a checked bundled excerpt, grey for
+   imported file text, the same distinction `.citation-item` and `.local-section` already carry. */
+.library-result {
+  padding: 14px 16px;
+  border-left: 3px solid var(--line);
+  background: var(--panel-muted);
+}
+
+.library-result-bundled {
+  border-left-color: var(--yellow);
+  background: var(--evidence-soft);
+}
+
+.library-result-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px 12px;
+}
+
+.library-result-kind {
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.library-result-scope {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.library-result-scope-name {
+  min-width: 0;
+}
+
+.library-result-locator {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.library-result-bundled .library-result-locator {
+  color: var(--evidence-text);
+}
+
+.library-result-detail {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.library-result-detail span {
+  margin-right: 6px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.library-result-bundled .library-result-detail {
+  color: var(--evidence-text);
+}
+
+.library-result-text {
+  margin: 8px 0 0;
+  color: var(--text);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.library-result-bundled .library-result-text {
+  color: var(--evidence-quote);
+}
+
+/* Highlight tokens of its own: `--yellow` already means "checked evidence" here, and the mark has to
+   stay legible on both the yellow bundled card and the grey imported one, in both themes. */
+.library-result mark {
+  padding: 0 1px;
+  border-radius: 3px;
+  background: var(--mark);
+  color: var(--mark-text);
+  font-weight: 800;
+}
+
+.library-result-reason {
+  margin: 10px 0 0;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.library-result-reason span {
+  margin-right: 6px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.library-result-note {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.library-result-actions {
+  margin-top: 12px;
+}
+
+.local-section:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+
 /* Guided Agent session. The Content-Security-Policy forbids inline styles, so session progress is
    expressed as decile width classes instead of a computed `style` attribute. */
 .agent-fill-0 { width: 0; }
@@ -2157,6 +2424,12 @@ h3 {
     overflow: auto;
   }
 
+  /* One column: the source select needs the full width once the kind row no longer fits beside it. */
+  .library-search-filters {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
   .back-link {
     display: none;
   }
@@ -2319,15 +2592,29 @@ h3 {
   }
 
   .citation-locator,
-  .local-section-locator {
+  .local-section-locator,
+  .library-result-head {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  /* The clear button drops below the field: side by side, a bilingual label squeezes the input to
+     nothing or pushes the row past the viewport. */
+  .library-search-row {
+    flex-direction: column;
+  }
+
+  .library-search-kind {
+    flex: 1 1 auto;
+    justify-content: center;
   }
 
   /* Full-width buttons keep the toggle and remove targets tappable without wrapping mid-label. */
   .local-source-actions,
   .local-source-actions .button,
-  .local-confirm .card-actions .button {
+  .local-confirm .card-actions .button,
+  .library-search-clear,
+  .library-result-actions .button {
     width: 100%;
   }
 

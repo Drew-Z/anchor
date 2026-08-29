@@ -8,6 +8,7 @@ import {
   BACKUP_SECTIONS,
   BACKUP_VERSION,
   DATASETS,
+  LIBRARY_SEARCH_LIMITS,
   LOCAL_IMPORT_LIMITS,
   LIBRARY_VERSION,
   THEME_VERSION,
@@ -16,8 +17,11 @@ import {
   backupCounts,
   backupFileName,
   buildAgentScript,
+  buildLibraryIndex,
   byteLength,
+  clampLibraryQuery,
   clampReflection,
+  countSources,
   createAgentSession,
   createBackup,
   createEmptyLibrary,
@@ -26,20 +30,33 @@ import {
   extractSections,
   formatBytes,
   formatImportedAt,
+  foldSearchText,
   getDataset,
+  highlightSegments,
+  librarySearchScopes,
+  librarySearchTerms,
   looksBinary,
   normalizeAgentSession,
   normalizeLocalLibrary,
   normalizeTheme,
   readBackup,
+  resolveLibrarySearch,
   resolveTheme,
+  searchLibrary,
   sectionLocator,
   truncateExcerpt,
   validateBackupCandidate,
   validateDatasets,
   validateImportCandidate,
 } from '../landing/app/scripts/data.js';
-import { createInitialProgress, isCorrect, normalizeProgress, scoreDataset } from '../landing/app/scripts/app.js';
+import {
+  createInitialProgress,
+  isCorrect,
+  normalizeProgress,
+  parseRoute,
+  routeHash,
+  scoreDataset,
+} from '../landing/app/scripts/app.js';
 
 /** Stand-in for the parts of `File` the import path actually reads. */
 function fakeFile(name, size = 1024) {
@@ -601,4 +618,296 @@ test('the system hint is only a fallback: a stored choice always wins', () => {
   assert.equal(resolveTheme('dark', false), 'dark');
   assert.equal(resolveTheme({ version: THEME_VERSION, theme: 'light' }, true), 'light');
   assert.equal(resolveTheme(undefined), 'light');
+});
+
+/** A stored library holding two files, shaped exactly as `normalizeLocalLibrary` leaves it. */
+function searchLibraryFixture() {
+  return normalizeLocalLibrary({
+    version: LIBRARY_VERSION,
+    sources: [
+      {
+        id: 'notes-1',
+        name: 'anchor-notes.md',
+        bytes: 320,
+        importedAt: 1_760_000_000_000,
+        sectionCount: 2,
+        sections: [
+          { heading: 'Widget lifecycle', level: 2, line: 1, kind: 'heading', excerpt: 'My own notes about a StatefulWidget rebuild.' },
+          { heading: null, level: 0, line: 9, kind: 'preamble', excerpt: 'Loose paragraph with no heading above it.' },
+        ],
+      },
+      {
+        id: 'plan-2',
+        name: '计划.md',
+        bytes: 210,
+        importedAt: 1_760_000_001_000,
+        sectionCount: 1,
+        sections: [
+          { heading: '复习计划', level: 1, line: 1, kind: 'heading', excerpt: '每周复习一次 Git 提交记录。' },
+        ],
+      },
+    ],
+  });
+}
+
+test('folding makes matching case-insensitive and width-insensitive without a locale branch', () => {
+  assert.equal(foldSearchText('  Stateful\n  Widget  '), 'stateful widget');
+  assert.equal(foldSearchText('ＪａｖａＳｃｒｉｐｔ'), 'javascript');
+  assert.equal(foldSearchText('Ｇｉｔ 提交'), 'git 提交');
+  assert.equal(foldSearchText(null), '');
+  assert.equal(foldSearchText(undefined), '');
+});
+
+test('a query is capped and split into terms a record must all contain', () => {
+  assert.deepEqual(librarySearchTerms('  Event   LOOP '), ['event', 'loop']);
+  assert.deepEqual(librarySearchTerms('loop loop LOOP'), ['loop']);
+  assert.deepEqual(librarySearchTerms('提交记录'), ['提交记录']);
+  assert.deepEqual(librarySearchTerms(''), []);
+  assert.deepEqual(librarySearchTerms('   '), []);
+  assert.deepEqual(librarySearchTerms(null), []);
+
+  const many = librarySearchTerms('a b c d e f g h i j k l');
+  assert.equal(many.length, LIBRARY_SEARCH_LIMITS.maxTerms);
+
+  const long = 'x'.repeat(LIBRARY_SEARCH_LIMITS.maxQueryChars + 40);
+  assert.equal(clampLibraryQuery(long).length, LIBRARY_SEARCH_LIMITS.maxQueryChars);
+  assert.equal(librarySearchTerms(long)[0].length, LIBRARY_SEARCH_LIMITS.maxQueryChars);
+});
+
+test('the index covers every bundled excerpt and every imported section, kinds kept apart', () => {
+  const index = buildLibraryIndex({ library: searchLibraryFixture(), locale: 'en' });
+  const bundled = index.filter((record) => record.kind === 'bundled');
+  const imported = index.filter((record) => record.kind === 'imported');
+
+  assert.equal(bundled.length, countSources());
+  assert.equal(imported.length, 3);
+  assert.equal(index.length, bundled.length + imported.length);
+  assert.equal(new Set(index.map((record) => record.id)).size, index.length);
+
+  const first = bundled[0];
+  assert.equal(first.scope, `bundled:${DATASETS[0].id}`);
+  assert.equal(first.locator, DATASETS[0].questions[0].citations[0].locator);
+  assert.deepEqual(first.fields.map((field) => field.field), ['name', 'locator', 'prompt', 'excerpt']);
+
+  const section = imported[0];
+  assert.equal(section.scope, 'imported:notes-1');
+  assert.equal(section.scopeName, 'anchor-notes.md');
+  assert.equal(section.locator, 'anchor-notes.md#widget-lifecycle');
+  assert.equal(section.sectionIndex, 0);
+  assert.deepEqual(section.fields.map((field) => field.field), ['name', 'heading', 'locator', 'excerpt']);
+
+  // A heading-free section drops the heading field rather than indexing an empty string.
+  assert.deepEqual(imported[1].fields.map((field) => field.field), ['name', 'locator', 'excerpt']);
+});
+
+test('the index survives malformed storage instead of throwing', () => {
+  for (const library of [null, undefined, {}, { sources: null }, { sources: 'nope' }, { sources: [null] }]) {
+    assert.equal(buildLibraryIndex({ library }).length, countSources());
+  }
+
+  const ragged = buildLibraryIndex({ library: { sources: [{ id: 'x', name: null, sections: [null, { excerpt: 'kept' }] }] } });
+  const imported = ragged.filter((record) => record.kind === 'imported');
+  assert.equal(imported.length, 2);
+  assert.equal(imported[0].locator, 'source:L1');
+  assert.equal(imported[1].text, 'kept');
+});
+
+test('bundled search reports the field it matched and keeps the source locator', () => {
+  const index = buildLibraryIndex({ locale: 'en' });
+  const found = searchLibrary(index, 'microtask');
+
+  assert.ok(found.total >= 1);
+  assert.deepEqual(found.terms, ['microtask']);
+  assert.equal(found.truncated, false);
+  const hit = found.matches[0];
+  assert.equal(hit.record.kind, 'bundled');
+  assert.equal(hit.record.scopeId, 'javascript');
+  assert.ok(hit.record.locator.startsWith('javascript/'));
+  assert.ok(hit.reasons.every((reason) => ['name', 'locator', 'prompt', 'excerpt'].includes(reason)));
+  assert.ok(hit.reasons.includes('excerpt') || hit.reasons.includes('prompt'));
+
+  // Every term has to land somewhere in the same record, so an unrelated second word narrows to none.
+  assert.equal(searchLibrary(index, 'microtask kubernetes').total, 0);
+});
+
+test('imported text is searchable by name, heading, and excerpt in either language', () => {
+  const library = searchLibraryFixture();
+  const index = buildLibraryIndex({ library, locale: 'en' });
+
+  const byName = searchLibrary(index, 'anchor-notes');
+  assert.equal(byName.total, 2);
+  assert.ok(byName.matches.every((hit) => hit.record.kind === 'imported'));
+  assert.deepEqual(byName.matches[0].reasons, ['name', 'locator']);
+
+  // "widget lifecycle" is genuinely in both a bundled dataset title and this file's heading, so the
+  // heading hit is asserted through the filter rather than by assuming it outranks a source name.
+  const byHeading = searchLibrary(index, 'widget lifecycle', { kind: 'imported' });
+  assert.equal(byHeading.total, 1);
+  assert.equal(byHeading.matches[0].record.locator, 'anchor-notes.md#widget-lifecycle');
+  assert.equal(byHeading.matches[0].primary, 'heading');
+  assert.equal(searchLibrary(index, 'widget lifecycle').matches[0].record.kind, 'bundled');
+
+  const byExcerpt = searchLibrary(index, 'loose paragraph');
+  assert.equal(byExcerpt.total, 1);
+  assert.deepEqual(byExcerpt.matches[0].reasons, ['excerpt']);
+
+  // The locator is built from the file name and the heading, so a hit on either usually shows up in
+  // the locator too. Reporting all three is the honest answer, not a bug.
+  const chinese = searchLibrary(index, '复习');
+  assert.equal(chinese.total, 1);
+  assert.equal(chinese.matches[0].record.scopeName, '计划.md');
+  assert.equal(chinese.matches[0].record.locator, '计划.md#复习计划');
+  assert.deepEqual(chinese.matches[0].reasons, ['heading', 'locator', 'excerpt']);
+});
+
+test('ranking is explainable: the field that matched decides the order, then the offset', () => {
+  const index = [
+    { id: 'a', kind: 'imported', scope: 'imported:a', fields: [{ field: 'excerpt', text: 'a token', folded: 'a token' }] },
+    { id: 'b', kind: 'imported', scope: 'imported:b', fields: [{ field: 'name', text: 'token.md', folded: 'token.md' }] },
+    { id: 'c', kind: 'imported', scope: 'imported:c', fields: [{ field: 'heading', text: 'A token', folded: 'a token' }] },
+    { id: 'd', kind: 'imported', scope: 'imported:d', fields: [{ field: 'heading', text: 'token first', folded: 'token first' }] },
+  ];
+  assert.deepEqual(searchLibrary(index, 'token').matches.map((hit) => hit.record.id), ['b', 'd', 'c', 'a']);
+
+  // Nothing matched means an empty list, and an empty query never runs a match at all.
+  assert.deepEqual(searchLibrary(index, 'absent'), { terms: ['absent'], matches: [], total: 0, truncated: false });
+  assert.deepEqual(searchLibrary(index, '  '), { terms: [], matches: [], total: 0, truncated: false });
+  assert.deepEqual(searchLibrary(null, 'token'), { terms: ['token'], matches: [], total: 0, truncated: false });
+});
+
+test('the result list is capped and says so', () => {
+  const index = Array.from({ length: LIBRARY_SEARCH_LIMITS.maxResults + 5 }, (unused, i) => ({
+    id: `r${i}`,
+    kind: 'imported',
+    scope: 'imported:one',
+    fields: [{ field: 'excerpt', text: 'token', folded: 'token' }],
+  }));
+  const found = searchLibrary(index, 'token');
+  assert.equal(found.total, LIBRARY_SEARCH_LIMITS.maxResults + 5);
+  assert.equal(found.matches.length, LIBRARY_SEARCH_LIMITS.maxResults);
+  assert.equal(found.truncated, true);
+});
+
+test('the kind and scope filters narrow the same index without changing what a match means', () => {
+  const library = searchLibraryFixture();
+  const index = buildLibraryIndex({ library, locale: 'en' });
+
+  const all = searchLibrary(index, 'git');
+  assert.ok(all.matches.some((hit) => hit.record.kind === 'bundled'));
+  assert.ok(all.matches.some((hit) => hit.record.kind === 'imported'));
+
+  const bundledOnly = searchLibrary(index, 'git', { kind: 'bundled' });
+  assert.ok(bundledOnly.total > 0);
+  assert.ok(bundledOnly.matches.every((hit) => hit.record.kind === 'bundled'));
+
+  const importedOnly = searchLibrary(index, 'git', { kind: 'imported' });
+  assert.equal(importedOnly.total, 1);
+  assert.equal(importedOnly.matches[0].record.scope, 'imported:plan-2');
+
+  const scoped = searchLibrary(index, 'git', { scope: 'bundled:git' });
+  assert.ok(scoped.total > 0);
+  assert.ok(scoped.matches.every((hit) => hit.record.scope === 'bundled:git'));
+  assert.equal(searchLibrary(index, 'git', { scope: 'imported:notes-1' }).total, 0);
+});
+
+test('scope options list every dataset and file, and a stale scope resolves away', () => {
+  const library = searchLibraryFixture();
+  const scopes = librarySearchScopes({ library, locale: 'en' });
+  assert.deepEqual(scopes.map((entry) => entry.value), [
+    'bundled:flutter',
+    'bundled:git',
+    'bundled:javascript',
+    'imported:notes-1',
+    'imported:plan-2',
+  ]);
+  assert.deepEqual(librarySearchScopes({ library, locale: 'zh' }).at(2).label, 'JavaScript 运行时');
+  assert.deepEqual(librarySearchScopes({}).filter((entry) => entry.kind === 'imported'), []);
+
+  assert.deepEqual(resolveLibrarySearch({ query: ' git  log ', kind: 'imported', scope: 'imported:plan-2' }, scopes), {
+    query: 'git log',
+    kind: 'imported',
+    scope: 'imported:plan-2',
+  });
+  // A file this browser never imported, and a scope the kind filter excludes, both fall back to all.
+  assert.equal(resolveLibrarySearch({ scope: 'imported:gone' }, scopes).scope, '');
+  assert.equal(resolveLibrarySearch({ kind: 'bundled', scope: 'imported:plan-2' }, scopes).scope, '');
+  assert.deepEqual(resolveLibrarySearch(null, scopes), { query: '', kind: 'all', scope: '' });
+  assert.equal(resolveLibrarySearch({ kind: 'semantic' }, scopes).kind, 'all');
+  assert.equal(resolveLibrarySearch({ query: 'x'.repeat(200) }, scopes).query.length, LIBRARY_SEARCH_LIMITS.maxQueryChars);
+});
+
+test('highlight segments split text without rewriting it, so the caller can escape every piece', () => {
+  assert.deepEqual(highlightSegments('Event loop basics', ['loop']), [
+    { text: 'Event ', match: false },
+    { text: 'loop', match: true },
+    { text: ' basics', match: false },
+  ]);
+  assert.deepEqual(highlightSegments('loop', ['loop']), [{ text: 'loop', match: true }]);
+  assert.deepEqual(highlightSegments('Loop the loop', ['loop']), [
+    { text: 'Loop', match: true },
+    { text: ' the ', match: false },
+    { text: 'loop', match: true },
+  ]);
+  assert.deepEqual(highlightSegments('每周复习一次', ['复习']), [
+    { text: '每周', match: false },
+    { text: '复习', match: true },
+    { text: '一次', match: false },
+  ]);
+
+  // Reassembling the segments always returns the original collapsed text, marked or not.
+  for (const terms of [[], ['loop'], ['x'], ['event', 'loop']]) {
+    assert.equal(highlightSegments('Event  loop', terms).map((part) => part.text).join(''), 'Event loop');
+  }
+  assert.deepEqual(highlightSegments('', ['loop']), []);
+  assert.deepEqual(highlightSegments('plain', null), [{ text: 'plain', match: false }]);
+
+  // A fold that changes length would misplace the marks, so the text comes back unmarked instead.
+  assert.deepEqual(highlightSegments('ﬁle', ['fi']), [{ text: 'ﬁle', match: false }]);
+});
+
+test('markup in a query or a file excerpt stays inert data, never a field of its own', () => {
+  const hostile = '<script>window.__pwned = 1</script>';
+  const index = buildLibraryIndex({
+    library: { sources: [{ id: 'h', name: '<b>bad</b>.md', sections: [{ heading: null, line: 1, kind: 'preamble', excerpt: hostile }] }] },
+  });
+  const found = searchLibrary(index, 'window.__pwned');
+  assert.equal(found.total, 1);
+  // The text is carried verbatim as a string. Escaping is the renderer's job and is asserted end to end.
+  assert.equal(found.matches[0].record.text, hostile);
+  assert.equal(highlightSegments(hostile, ['script']).map((part) => part.text).join(''), hostile);
+  const byName = searchLibrary(index, '<b>bad');
+  assert.deepEqual(byName.matches[0].reasons, ['name', 'locator']);
+  assert.equal(byName.matches[0].record.locator, '<b>bad</b>.md:L1');
+});
+
+test('library search rides in the hash without disturbing any other route', () => {
+  assert.deepEqual(parseRoute('#/library'), { view: 'library', datasetId: null, search: { query: '', kind: 'all', scope: '' } });
+  assert.deepEqual(parseRoute('#/library?q=event+loop&kind=bundled&src=bundled%3Agit').search, {
+    query: 'event loop',
+    kind: 'bundled',
+    scope: 'bundled:git',
+  });
+  assert.deepEqual(parseRoute('#/library?q=%E5%A4%8D%E4%B9%A0').search.query, '复习');
+
+  // Search state belongs to the Library alone, and junk in the query resolves to defaults.
+  assert.deepEqual(parseRoute('#/profile?q=event').search, { query: '', kind: 'all', scope: '' });
+  assert.deepEqual(parseRoute('#/library?kind=semantic').search.kind, 'all');
+  assert.deepEqual(parseRoute('#/library?q=').search.query, '');
+
+  // A hand-edited or truncated escape has to resolve to a route rather than throw before first paint.
+  assert.equal(parseRoute('#/library?q=100%').search.query, '100%');
+  assert.equal(parseRoute('#/%').view, 'home');
+  assert.equal(parseRoute('#/decks/%E2%9A%A1').view, 'decks');
+
+  assert.equal(routeHash({ view: 'library' }), '#/library');
+  assert.equal(routeHash({ view: 'library', search: { query: '  ', kind: 'all', scope: '' } }), '#/library');
+  assert.equal(routeHash({ view: 'library', search: { query: 'event loop' } }), '#/library?q=event+loop');
+  assert.equal(routeHash({ view: 'library', search: { kind: 'imported' } }), '#/library?kind=imported');
+  assert.equal(routeHash({ view: 'profile', search: { query: 'event' } }), '#/profile');
+  assert.equal(routeHash({ view: 'decks', datasetId: 'git', search: { query: 'event' } }), '#/decks/git');
+
+  // Round-tripping is what keeps `render` from rewriting the address on every pass.
+  for (const hash of ['#/library', '#/library?q=event+loop', '#/library?q=%E5%A4%8D%E4%B9%A0&kind=imported', '#/library?kind=bundled&src=bundled%3Agit']) {
+    assert.equal(routeHash(parseRoute(hash)), hash);
+  }
 });

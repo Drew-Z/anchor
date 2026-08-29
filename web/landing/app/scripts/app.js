@@ -11,6 +11,8 @@ import {
   BACKUP_VERSION,
   DATA_VERSION,
   DATASETS,
+  LIBRARY_SEARCH_KINDS,
+  LIBRARY_SEARCH_LIMITS,
   LOCAL_IMPORT_LIMITS,
   SHELL_TEXT,
   agentProgressFill,
@@ -18,7 +20,9 @@ import {
   backupCounts,
   backupFileName,
   buildAgentScript,
+  buildLibraryIndex,
   byteLength,
+  clampLibraryQuery,
   clampReflection,
   collectSources,
   countQuestions,
@@ -32,12 +36,16 @@ import {
   formatCount,
   formatImportedAt,
   getDataset,
+  highlightSegments,
+  librarySearchScopes,
   looksBinary,
   normalizeAgentSession,
   normalizeLocalLibrary,
   normalizeTheme,
   readBackup,
+  resolveLibrarySearch,
   resolveTheme,
+  searchLibrary,
   sectionLocator,
   textFor,
   validateBackupCandidate,
@@ -128,23 +136,63 @@ export function normalizeProgress(candidate) {
 export const VIEWS = ['home', 'decks', 'agent', 'library', 'profile', 'import'];
 export const DEFAULT_VIEW = 'home';
 
-/**
- * Hash routing keeps every shell surface linkable on static hosting, with no server rewrite and no
- * history API dependency beyond normalising a bare `/app/` entry.
- */
-export function parseRoute(hash, hasDataset = (id) => Boolean(getDataset(id))) {
-  const [rawView, rawDataset] = String(hash ?? '')
-    .replace(/^#\/?/, '')
-    .split('/')
-    .map((part) => decodeURIComponent(part ?? '').trim());
-  const view = VIEWS.includes(rawView) ? rawView : DEFAULT_VIEW;
-  const datasetId = view === 'decks' && rawDataset && hasDataset(rawDataset) ? rawDataset : null;
-  return { view, datasetId };
+/** Library search rides in the hash query string, so a filtered view is a link someone can send. */
+export const LIBRARY_SEARCH_PARAMS = { query: 'q', kind: 'kind', scope: 'src' };
+const EMPTY_LIBRARY_SEARCH = { query: '', kind: 'all', scope: '' };
+
+/** A hand-edited or truncated escape has to resolve to a route, not throw on the way to the first paint. */
+function decodeSegment(value) {
+  const raw = String(value ?? '');
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
 }
 
-export function routeHash({ view, datasetId } = {}) {
+/**
+ * Hash routing keeps every shell surface linkable on static hosting, with no server rewrite and no
+ * history API dependency beyond normalising a bare `/app/` entry. Anything after `?` is search state
+ * for the Library, parsed with `URLSearchParams` so malformed input degrades instead of throwing.
+ */
+export function parseRoute(hash, hasDataset = (id) => Boolean(getDataset(id))) {
+  const raw = String(hash ?? '').replace(/^#\/?/, '');
+  const cut = raw.indexOf('?');
+  const [rawView, rawDataset] = (cut < 0 ? raw : raw.slice(0, cut))
+    .split('/')
+    .map((part) => decodeSegment(part).trim());
+  const view = VIEWS.includes(rawView) ? rawView : DEFAULT_VIEW;
+  const datasetId = view === 'decks' && rawDataset && hasDataset(rawDataset) ? rawDataset : null;
+  if (view !== 'library') return { view, datasetId, search: { ...EMPTY_LIBRARY_SEARCH } };
+
+  const params = new URLSearchParams(cut < 0 ? '' : raw.slice(cut + 1));
+  const kind = params.get(LIBRARY_SEARCH_PARAMS.kind) ?? '';
+  return {
+    view,
+    datasetId,
+    search: {
+      query: clampLibraryQuery(params.get(LIBRARY_SEARCH_PARAMS.query)),
+      kind: LIBRARY_SEARCH_KINDS.includes(kind) ? kind : 'all',
+      scope: String(params.get(LIBRARY_SEARCH_PARAMS.scope) ?? '').trim().slice(0, 160),
+    },
+  };
+}
+
+export function routeHash({ view, datasetId, search } = {}) {
   const target = VIEWS.includes(view) ? view : DEFAULT_VIEW;
-  return target === 'decks' && datasetId ? `#/decks/${encodeURIComponent(datasetId)}` : `#/${target}`;
+  const path = target === 'decks' && datasetId ? `#/decks/${encodeURIComponent(datasetId)}` : `#/${target}`;
+  if (target !== 'library') return path;
+
+  // An empty search writes no query, which keeps `#/library` the canonical address it has always been.
+  const params = new URLSearchParams();
+  const query = clampLibraryQuery(search?.query);
+  if (query) params.set(LIBRARY_SEARCH_PARAMS.query, query);
+  if (LIBRARY_SEARCH_KINDS.includes(search?.kind) && search.kind !== 'all') {
+    params.set(LIBRARY_SEARCH_PARAMS.kind, search.kind);
+  }
+  if (search?.scope) params.set(LIBRARY_SEARCH_PARAMS.scope, String(search.scope));
+  const encoded = params.toString();
+  return encoded ? `${path}?${encoded}` : path;
 }
 
 function escapeHtml(value) {
@@ -857,8 +905,8 @@ if (typeof document !== 'undefined') {
    * question it explains; an imported excerpt is only file text the browser happened to read.
    */
   function renderLocalSections(source) {
-    return source.sections.map((section) => `
-      <article class="local-section">
+    return source.sections.map((section, index) => `
+      <article class="local-section" data-local-section="${index}" tabindex="-1">
         <div class="local-section-locator">
           <span>${escapeHtml(sectionLocator(source, section))}</span>
           <span class="local-section-kind">${escapeHtml(shell(SHELL_TEXT.localLibrary[SECTION_KIND_KEYS[section.kind] ?? 'kindDocument']))}</span>
@@ -952,9 +1000,221 @@ if (typeof document !== 'undefined') {
       </section>`;
   }
 
+  const SEARCH_REASON_KEYS = {
+    name: 'reasonName',
+    heading: 'reasonHeading',
+    locator: 'reasonLocator',
+    prompt: 'reasonPrompt',
+    excerpt: 'reasonExcerpt',
+  };
+
+  /**
+   * The only place search text becomes markup. Every segment is escaped on its own and only the
+   * matched runs are wrapped, so a query or a file excerpt can never contribute a tag.
+   */
+  function highlighted(value, terms) {
+    return highlightSegments(value, terms)
+      .map((segment) => (segment.match ? `<mark>${escapeHtml(segment.text)}</mark>` : escapeHtml(segment.text)))
+      .join('');
+  }
+
+  function renderSearchResult(hit, terms) {
+    const text = SHELL_TEXT.library.search;
+    const { record } = hit;
+    const bundled = record.kind === 'bundled';
+    const reasons = hit.reasons.map((field) => shell(text[SEARCH_REASON_KEYS[field]])).join(' · ');
+    const open = bundled
+      ? `<a class="button button-secondary" href="${routeHash({ view: 'decks', datasetId: record.scopeId })}">${escapeHtml(shell(text.openBundled))}</a>`
+      : `<button class="button button-secondary" type="button" data-library-result-open="${escapeHtml(record.scopeId)}" data-library-result-section="${record.sectionIndex}">${escapeHtml(shell(text.openImported))}</button>`;
+
+    return `
+      <article class="library-result library-result-${record.kind}" data-library-result="${escapeHtml(record.id)}" data-result-kind="${record.kind}">
+        <div class="library-result-head">
+          <span class="source-kind library-result-kind">${escapeHtml(shell(bundled ? text.badgeBundled : text.badgeImported))}</span>
+          <span class="library-result-scope">
+            ${bundled ? `<span class="dataset-mark">${record.mark}</span>` : ''}
+            <span class="library-result-scope-name">${highlighted(record.scopeName, terms)}</span>
+          </span>
+        </div>
+        <p class="library-result-locator">${highlighted(record.locator, terms)}</p>
+        ${record.detail ? `
+          <p class="library-result-detail">
+            <span>${escapeHtml(shell(bundled ? text.questionLabel : text.headingLabel))}</span>${highlighted(record.detail, terms)}
+          </p>` : ''}
+        ${record.text ? `<blockquote class="library-result-text">${highlighted(record.text, terms)}</blockquote>` : ''}
+        <p class="library-result-reason"><span>${escapeHtml(shell(text.reasonLabel))}</span>${escapeHtml(reasons)}</p>
+        <p class="library-result-note">${escapeHtml(shell(bundled ? text.noteBundled : text.noteImported))}</p>
+        <div class="library-result-actions">${open}</div>
+      </article>`;
+  }
+
+  /**
+   * One pass over the current records produces the status line, the empty state, and the result list
+   * together, so the announced count and what is on screen can never disagree.
+   */
+  function librarySearchOutcome(search) {
+    const text = SHELL_TEXT.library.search;
+    const index = buildLibraryIndex({ library, locale: locale() });
+    const imported = index.filter((record) => record.kind === 'imported').length;
+    const found = searchLibrary(index, search.query, { kind: search.kind, scope: search.scope });
+
+    if (!found.terms.length) {
+      return {
+        status: formatCount(shell(text.statusIdle), { n: index.length - imported, m: imported }),
+        empty: { kind: 'idle', message: shell(text.emptyIdle) },
+        results: '',
+      };
+    }
+    if (search.kind === 'imported' && !imported) {
+      return {
+        status: formatCount(shell(text.statusResults), { n: 0 }),
+        empty: { kind: 'no-imported', message: shell(text.emptyNoImported) },
+        results: '',
+      };
+    }
+    if (!found.total) {
+      return {
+        status: formatCount(shell(text.statusResults), { n: 0 }),
+        empty: { kind: 'no-results', message: formatCount(shell(text.emptyNoResults), { query: search.query }) },
+        results: '',
+      };
+    }
+    return {
+      status: found.truncated
+        ? formatCount(shell(text.statusTruncated), { total: found.total, n: found.matches.length })
+        : formatCount(shell(text.statusResults), { n: found.total }),
+      empty: null,
+      results: found.matches.map((hit) => renderSearchResult(hit, found.terms)).join(''),
+    };
+  }
+
+  function searchResultsHtml(outcome) {
+    if (!outcome.empty) return outcome.results;
+    return `<p class="library-search-empty" data-library-search-empty data-empty-kind="${outcome.empty.kind}">${escapeHtml(outcome.empty.message)}</p>`;
+  }
+
+  function searchScopeOptions(scopes, search) {
+    const text = SHELL_TEXT.library.search;
+    const groups = [
+      { kind: 'bundled', label: shell(text.scopeBundledGroup) },
+      { kind: 'imported', label: shell(text.scopeImportedGroup) },
+    ];
+    const visible = scopes.filter((entry) => search.kind === 'all' || entry.kind === search.kind);
+    return `
+      <option value="">${escapeHtml(shell(text.scopeAll))}</option>
+      ${groups.map((group) => {
+        const items = visible.filter((entry) => entry.kind === group.kind);
+        if (!items.length) return '';
+        return `
+          <optgroup label="${escapeHtml(group.label)}">
+            ${items.map((entry) => `
+              <option value="${escapeHtml(entry.value)}"${entry.value === search.scope ? ' selected' : ''}>${escapeHtml(entry.label)}</option>`).join('')}
+          </optgroup>`;
+      }).join('')}`;
+  }
+
+  /**
+   * A `role="search"` div rather than a form: the deployed policy sets `form-action 'none'`, so a form
+   * could not submit anyway, and every keystroke is handled here without a navigation.
+   */
+  function renderLibrarySearch(scopes, search) {
+    const text = SHELL_TEXT.library.search;
+    const kinds = [
+      { value: 'all', label: text.kindAll },
+      { value: 'bundled', label: text.kindBundled },
+      { value: 'imported', label: text.kindImported },
+    ];
+    const outcome = librarySearchOutcome(search);
+
+    return `
+      <section class="shell-section library-search" data-library-search role="search" aria-labelledby="library-search-title">
+        <div class="shell-card-head"><h2 id="library-search-title">${escapeHtml(shell(text.title))}</h2>${badge('local')}</div>
+        <p class="section-lead">${escapeHtml(shell(text.body))}</p>
+
+        <div class="library-search-field">
+          <label class="library-search-label" for="library-search-input">${escapeHtml(shell(text.label))}</label>
+          <div class="library-search-row">
+            <input
+              class="library-search-input"
+              id="library-search-input"
+              type="search"
+              name="library-search"
+              autocomplete="off"
+              spellcheck="false"
+              enterkeyhint="search"
+              maxlength="${LIBRARY_SEARCH_LIMITS.maxQueryChars}"
+              placeholder="${escapeHtml(shell(text.placeholder))}"
+              aria-describedby="library-search-hint"
+              value="${escapeHtml(search.query)}"
+              data-library-search-input
+            >
+            <button class="button button-secondary library-search-clear" type="button" data-library-search-clear${search.query ? '' : ' hidden'}>${escapeHtml(shell(text.clear))}</button>
+          </div>
+          <p class="library-search-hint" id="library-search-hint">${escapeHtml(formatCount(shell(text.hint), { max: LIBRARY_SEARCH_LIMITS.maxQueryChars }))}</p>
+        </div>
+
+        <div class="library-search-filters">
+          <fieldset class="library-search-kinds">
+            <legend>${escapeHtml(shell(text.kindLegend))}</legend>
+            <div class="library-search-kind-row">
+              ${kinds.map((entry) => `
+                <label class="library-search-kind">
+                  <input type="radio" name="library-search-kind" value="${entry.value}"${entry.value === search.kind ? ' checked' : ''} data-library-search-kind>
+                  <span>${escapeHtml(shell(entry.label))}</span>
+                </label>`).join('')}
+            </div>
+          </fieldset>
+          <div class="library-search-scope">
+            <label class="library-search-label" for="library-search-scope">${escapeHtml(shell(text.scopeLabel))}</label>
+            <select class="library-search-select" id="library-search-scope" data-library-search-scope>${searchScopeOptions(scopes, search)}</select>
+          </div>
+        </div>
+
+        <p class="library-search-status" data-library-search-status role="status" aria-live="polite">${escapeHtml(outcome.status)}</p>
+        <div class="library-search-results" data-library-search-results>${searchResultsHtml(outcome)}</div>
+      </section>`;
+  }
+
+  /**
+   * Recomputes the result list in place instead of re-rendering the surface: a full rebuild on every
+   * keystroke would take the caret and the composition state with it. The status node stays put so its
+   * live region keeps announcing counts.
+   */
+  function updateLibrarySearch({ rebuildScopes = false } = {}) {
+    const field = document.querySelector('[data-library-search-input]');
+    const status = document.querySelector('[data-library-search-status]');
+    const results = document.querySelector('[data-library-search-results]');
+    if (!field || !status || !results) return;
+
+    const scopes = librarySearchScopes({ library, locale: locale() });
+    const search = resolveLibrarySearch({
+      query: field.value,
+      kind: document.querySelector('[data-library-search-kind]:checked')?.value ?? 'all',
+      scope: document.querySelector('[data-library-search-scope]')?.value ?? '',
+    }, scopes);
+
+    route = { ...route, search };
+    const target = routeHash(route);
+    if (window.location.hash !== target) window.history.replaceState(null, '', target);
+
+    const outcome = librarySearchOutcome(search);
+    status.textContent = outcome.status;
+    results.innerHTML = searchResultsHtml(outcome);
+
+    const clear = document.querySelector('[data-library-search-clear]');
+    if (clear) clear.hidden = !search.query;
+    if (rebuildScopes) {
+      const select = document.querySelector('[data-library-search-scope]');
+      if (select) select.innerHTML = searchScopeOptions(scopes, search);
+    }
+  }
+
   function renderLibrary() {
     const text = SHELL_TEXT.library;
     const groups = collectSources();
+    // `render` already resolved the search against the scopes that exist, so this is a plain read.
+    const scopes = librarySearchScopes({ library, locale: locale() });
+    const search = route.search ?? { query: '', kind: 'all', scope: '' };
     content.innerHTML = `
       <section class="shell-view" data-view="library">
         ${viewHeading(
@@ -963,6 +1223,8 @@ if (typeof document !== 'undefined') {
           formatCount(shell(text.body), { n: countSources(), q: countQuestions() }),
         )}
         <p class="shell-scope">${badge('local')}<span>${escapeHtml(shell(SHELL_TEXT.browserScope))}</span></p>
+
+        ${renderLibrarySearch(scopes, search)}
 
         ${renderLocalLibrary()}
 
@@ -1553,6 +1815,12 @@ if (typeof document !== 'undefined') {
   function render() {
     route = parseRoute(window.location.hash);
 
+    // A shared link may name a source this browser never imported. Resolving before canonicalising
+    // means the dropped filter leaves the address too, rather than lingering as a dead parameter.
+    if (route.view === 'library') {
+      route.search = resolveLibrarySearch(route.search, librarySearchScopes({ library, locale: locale() }));
+    }
+
     // A bare, unknown, or unresolvable hash resolves to a real route, so the address stays
     // copyable and reloadable. `replaceState` avoids both a history entry and a reload.
     const canonicalHash = routeHash(route);
@@ -1925,6 +2193,41 @@ if (typeof document !== 'undefined') {
     return false;
   }
 
+  /** Handles the Library search controls. Returns true when the click was consumed. */
+  function handleLibrarySearchClick(event) {
+    if (event.target.closest('[data-library-search-clear]')) {
+      const field = document.querySelector('[data-library-search-input]');
+      if (field) field.value = '';
+      updateLibrarySearch();
+      field?.focus();
+      announce(shell(SHELL_TEXT.library.search.announceCleared));
+      return true;
+    }
+
+    const open = event.target.closest('[data-library-result-open]');
+    if (open) {
+      const id = open.dataset.libraryResultOpen;
+      const index = Number(open.dataset.libraryResultSection);
+      const source = library.sources.find((entry) => entry.id === id);
+      if (!source) {
+        // The source went away in another tab. Recompute rather than focus something that is gone.
+        updateLibrarySearch({ rebuildScopes: true });
+        return true;
+      }
+      // A result is a pointer, so following it expands the source and lands on that exact section.
+      expandedSources.add(id);
+      rerender({
+        focus: () => {
+          const node = localSourceNode(id);
+          return node?.querySelector(`[data-local-section="${index}"]`) ?? node?.querySelector('[data-toggle-source]');
+        },
+        message: formatCount(shell(SHELL_TEXT.library.search.announceOpened), { name: source.name }),
+      });
+      return true;
+    }
+    return false;
+  }
+
   /** Handles the browser library's expand, remove, and reset controls. Returns true when consumed. */
   function handleLocalLibraryClick(event) {
     const toggle = event.target.closest('[data-toggle-source]');
@@ -2100,6 +2403,11 @@ if (typeof document !== 'undefined') {
   }
 
   document.addEventListener('input', (event) => {
+    if (event.target.closest('[data-library-search-input]')) {
+      updateLibrarySearch();
+      return;
+    }
+
     const field = event.target.closest('[data-agent-reflection]');
     if (!field || !agentSession) return;
     const value = clampReflection(field.value);
@@ -2131,6 +2439,16 @@ if (typeof document !== 'undefined') {
   });
 
   document.addEventListener('change', (event) => {
+    if (event.target.closest('[data-library-search-kind]')) {
+      // The scope options are rebuilt because narrowing the kind can strip the source they listed.
+      updateLibrarySearch({ rebuildScopes: true });
+      return;
+    }
+    if (event.target.closest('[data-library-search-scope]')) {
+      updateLibrarySearch();
+      return;
+    }
+
     const agentDataset = event.target.closest('[data-agent-dataset]');
     if (agentDataset) {
       agentDatasetChoice = getDataset(agentDataset.value) ? agentDataset.value : null;
@@ -2199,7 +2517,8 @@ if (typeof document !== 'undefined') {
       return;
     }
 
-    if (handleProfileClick(event) || handleImportClick(event) || handleLocalLibraryClick(event) || handleAgentClick(event)) return;
+    if (handleProfileClick(event) || handleImportClick(event) || handleLibrarySearchClick(event)
+      || handleLocalLibraryClick(event) || handleAgentClick(event)) return;
 
     const context = currentContext();
     if (event.target.closest('[data-submit]') && context) {
@@ -2296,6 +2615,23 @@ if (typeof document !== 'undefined') {
     content?.focus();
   });
   window.addEventListener('keydown', (event) => {
+    const search = event.target?.closest?.('[data-library-search-input]');
+    if (search) {
+      // Enter cannot submit anything, so it does the useful thing instead: move to the first result.
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        const first = document.querySelector('[data-library-result] .button');
+        if (first) first.focus();
+        return;
+      }
+      if (event.key === 'Escape' && search.value) {
+        event.preventDefault();
+        search.value = '';
+        updateLibrarySearch();
+        announce(shell(SHELL_TEXT.library.search.announceCleared));
+        return;
+      }
+    }
     if (event.key === 'Escape') setSidebarOpen(false);
   });
 
