@@ -1140,8 +1140,10 @@ h3 {
   font-style: italic;
 }
 
-/* Both surfaces link a citation back to its passage, so both links read the same. A long locator can be the
-   whole label, so the text wraps and breaks rather than pushing the citation card past the viewport. */
+/* Every surface links a citation back to its passage, so all of them read the same: the quiz feedback panel,
+   the completion review, and both Agent panels. A long locator can be the whole label, so the text wraps and
+   breaks rather than pushing the citation card past the viewport. */
+.agent-source-link,
 .completion-source-link,
 .feedback-source-link {
   display: inline-block;
@@ -1152,6 +1154,8 @@ h3 {
   overflow-wrap: anywhere;
 }
 
+.agent-source-hint,
+.agent-source-note,
 .feedback-source-hint,
 .feedback-source-note {
   margin-top: 10px;
@@ -3025,6 +3029,7 @@ h3 {
 
   /* On a narrow screen the source link gets its own line and a taller hit area: at 12px it is otherwise a
      thin target sitting directly under the excerpt it belongs to. */
+  .agent-source-link,
   .completion-source-link,
   .feedback-source-link {
     padding-block: 6px;

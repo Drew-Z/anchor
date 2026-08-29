@@ -709,6 +709,29 @@ export const SHELL_TEXT = {
     turnFocus: localized('Focus', '本轮重点'),
     turnPrompt: localized('Question from the dataset', '来自数据集的问题'),
     sourceTitle: localized('Source passage', '原文片段'),
+    /*
+     * The passage under a turn is an excerpt, so the link offers the record it was cut from. The label is
+     * the same promise the feedback panel makes, and the aria-label names the locator because a completed
+     * session shows one of these links per turn and a name has to tell them apart.
+     */
+    sourceAction: localized('Read this source in the library', '在知识库中阅读此来源'),
+    sourceLinkLabel: localized(
+      'Read {locator} in the library',
+      '在知识库中阅读 {locator}',
+    ),
+    sourceHint: localized(
+      'Opens the bundled search for this dataset. Use your browser back button to return to this turn: your reflection, revealed hints, and progress are kept.',
+      '会打开此数据集的内置检索。使用浏览器的返回按钮即可回到本轮，你的思考、已展开的提示和进度都会保留。',
+    ),
+    recapSourceHint: localized(
+      'Each row opens the bundled search for its passage. Use your browser back button to return to this recap.',
+      '每一行都会打开对应原文的内置检索。使用浏览器的返回按钮即可回到这份回顾。',
+    ),
+    sourceMissing: localized('This turn ships without a source locator.', '本轮没有附带来源定位。'),
+    announceSource: localized(
+      'Opening {locator} in the library. Your session is kept in this browser.',
+      '正在知识库中打开 {locator}。你的流程仍保存在此浏览器中。',
+    ),
     hintAction: localized('Reveal a hint', '展开一条提示'),
     hintTitle: localized('Tutor hints', '导师提示'),
     hintAllShown: localized('All hints shown', '提示已全部展开'),
@@ -1388,18 +1411,38 @@ export function normalizeLocalLibrary(candidate, limits = LOCAL_IMPORT_LIMITS) {
  * Every field is a reference into the bundled dataset: the question prompt, its first citation, its
  * tutor hints, and its explanation. Nothing here is generated, so a dataset always yields the same
  * turns in the same order and the surface can say so honestly.
+ *
+ * `citationTarget` is the one derived field: the library search that lands on this turn's cited
+ * passage, resolved once here so the active turn and the completion recap cannot disagree about where
+ * a citation leads. It is null when the turn has no locator to search for.
  */
 export function buildAgentScript(dataset) {
   if (!dataset || !Array.isArray(dataset.questions)) return [];
+  const datasetId = dataset.id ?? '';
   return dataset.questions.map((question, index) => ({
     index,
     questionId: question.id,
     prompt: question.prompt,
     focus: question.citations[0]?.locator ?? '',
     citation: question.citations[0] ?? null,
+    citationTarget: agentCitationTarget(question.citations[0], datasetId),
     hints: question.tutorHints ?? [],
     explanation: question.explanation,
   }));
+}
+
+/**
+ * The library search one Agent turn's citation leads to, or null when it leads nowhere.
+ *
+ * Scoped to the dataset the session is running, so following a citation opens the passage this turn
+ * was built from rather than every bundled source that shares a word with it. Reuses the resolver the
+ * feedback panel and the completion review already use, which is what makes "the same passage" true
+ * across all three surfaces instead of merely likely.
+ */
+export function agentCitationTarget(citation, datasetId = '') {
+  const search = sourceRevisitSearch(citation?.locator ?? '', datasetId);
+  if (!search) return null;
+  return { locator: citation.locator, search };
 }
 
 export function createAgentSession(datasetId) {

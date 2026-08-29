@@ -14,6 +14,7 @@ import {
   LIBRARY_VERSION,
   SHELL_TEXT,
   THEME_VERSION,
+  agentCitationTarget,
   agentProgressFill,
   agentReflectionCount,
   backupCounts,
@@ -263,11 +264,86 @@ test('the guided agent script is derived from bundled dataset content only', () 
     assert.equal(turn.focus, question.citations[0].locator);
     assert.equal(turn.hints, question.tutorHints);
     assert.ok(turn.hints.length > 0);
+    // The only derived field: where this turn's citation leads, scoped to the deck the session runs.
+    assert.deepEqual(turn.citationTarget, agentCitationTarget(question.citations[0], dataset.id));
   }
 
   // A dataset always yields the same turns, which is what lets the surface call the session scripted.
   assert.deepEqual(buildAgentScript(dataset), script);
   assert.deepEqual(buildAgentScript(null), []);
+});
+
+test('every agent turn resolves to the one bundled record its citation names', () => {
+  // The turn carries the target, so the active panel and the completion recap read one value rather than
+  // each deriving its own. Both therefore link to the same passage by construction.
+  const index = buildLibraryIndex(createEmptyLibrary());
+  const scopes = librarySearchScopes(index);
+  let checked = 0;
+
+  for (const deck of DATASETS) {
+    for (const turn of buildAgentScript(deck)) {
+      const target = turn.citationTarget;
+      assert.ok(target, `${turn.questionId} offers a source link`);
+      assert.equal(target.locator, turn.citation.locator);
+      assert.equal(target.locator, turn.focus);
+
+      // Scoped to the dataset the session is running: a citation opens the passage this turn was built
+      // from, not every bundled source that shares a word with it.
+      assert.deepEqual(target.search, sourceRevisitSearch(turn.citation.locator, deck.id));
+      assert.equal(target.search.kind, 'bundled');
+      assert.equal(target.search.scope, `bundled:${deck.id}`);
+      assert.deepEqual(resolveLibrarySearch(target.search, scopes), target.search);
+
+      const found = searchLibrary(index, target.search.query, {
+        kind: target.search.kind,
+        scope: target.search.scope,
+      });
+      assert.equal(found.matches.length, 1, `${target.locator} resolves to one record`);
+      assert.equal(found.matches[0].record.locator, target.locator);
+      assert.equal(found.matches[0].record.scopeId, deck.id);
+      assert.equal(found.matches[0].record.questionId, turn.questionId);
+      assert.equal(found.matches[0].primary, 'locator');
+      checked += 1;
+    }
+  }
+  assert.equal(checked, 12);
+
+  // A turn with nothing to look up is the renderer's "say so instead of linking" state.
+  assert.equal(agentCitationTarget(null, 'flutter'), null);
+  assert.equal(agentCitationTarget(undefined), null);
+  assert.equal(agentCitationTarget({ locator: '' }, 'flutter'), null);
+  assert.equal(agentCitationTarget({ locator: '   ' }, 'flutter'), null);
+
+  // Without a deck the search stays valid and simply widens to every bundled source.
+  assert.equal(agentCitationTarget({ locator: 'flutter/widgets.md#immutability' }).search.scope, '');
+});
+
+test('the agent source link ships bilingual copy and a per-locator accessible name', () => {
+  const text = SHELL_TEXT.agent;
+  for (const key of ['sourceAction', 'sourceLinkLabel', 'sourceHint', 'recapSourceHint', 'sourceMissing', 'announceSource']) {
+    assert.ok(text[key].en.length > 0, `${key} has English copy`);
+    assert.ok(text[key].zh.length > 0, `${key} has Chinese copy`);
+    assert.notEqual(text[key].en, text[key].zh);
+  }
+
+  // A completed session shows one link per turn, so the name has to carry the locator rather than leave it
+  // to position. The placeholder is the only difference between the two locales' names.
+  const locator = 'flutter/state-lifecycle.md#initState';
+  for (const copy of [text.sourceLinkLabel.en, text.sourceLinkLabel.zh, text.announceSource.en, text.announceSource.zh]) {
+    assert.match(copy, /\{locator\}/);
+    const named = formatCount(copy, { locator });
+    assert.ok(named.includes(locator));
+    assert.doesNotMatch(named, /\{locator\}/);
+  }
+
+  // Both hints have to name the browser back button: it is the whole return path, and the turn hint also
+  // promises the session survives the trip. Nothing here points at a network destination.
+  assert.match(text.sourceHint.en, /back button/i);
+  assert.match(text.recapSourceHint.en, /back button/i);
+  assert.match(text.sourceHint.en, /reflection/i);
+  for (const copy of Object.values(text)) {
+    assert.doesNotMatch(copy.en + copy.zh, /https?:\/\//);
+  }
 });
 
 test('a new agent session starts empty at the first turn', () => {

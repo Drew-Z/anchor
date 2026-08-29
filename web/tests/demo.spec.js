@@ -2321,6 +2321,210 @@ test('the guided agent session fits a 390px viewport without horizontal overflow
   await expect(page.locator('#app-tabbar [data-tab-route="agent"]')).toHaveAttribute('aria-current', 'page');
 });
 
+/** The library search one agent turn's citation leads to, as an address. */
+const agentSourceHash = (turn) => routeHash({ view: 'library', search: turn.citationTarget.search });
+
+test('an agent turn links its citation into the library and back returns to the same turn', async ({ page }) => {
+  const offOrigin = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).origin !== expectedOrigin) offOrigin.push(request.url());
+  });
+  const agentText = SHELL_TEXT.agent;
+  const dataset = getDataset('flutter');
+  const script = buildAgentScript(dataset);
+  const turn = script[1];
+
+  await startAgentSession(page, 'flutter');
+
+  // Reach the second turn with state worth losing: a reflection behind it, a hint open on it, and a
+  // progress bar that has counted the first turn.
+  await page.locator('[data-agent-reflection]').fill('First turn, in my own words.');
+  await page.locator('[data-agent-advance]').click();
+  await expect(page.locator('[data-agent-counter]')).toHaveText(`Turn 2 of ${script.length}`);
+  await page.locator('[data-agent-hint]').click();
+  await expect(page.locator('[data-agent-hint-list] li')).toHaveCount(1);
+  await page.locator('[data-agent-reflection]').fill('Second turn, in my own words.');
+  await expect(page.locator('.agent-progress [role="progressbar"]')).toHaveAttribute('aria-valuemax', String(script.length));
+
+  // The excerpt under the turn offers the record it was cut from, with the locator in its name and the
+  // return path spelled out.
+  const link = page.locator('.agent-turn [data-agent-source]');
+  await expect(link).toHaveCount(1);
+  await expect(link).toHaveText(agentText.sourceAction.en);
+  await expect(link).toHaveAttribute('data-agent-source', turn.citation.locator);
+  await expect(link).toHaveAttribute('aria-label', `Read ${turn.citation.locator} in the library`);
+  await expect(page.locator('.agent-turn .agent-source-hint')).toHaveText(agentText.sourceHint.en);
+  const expectedHash = agentSourceHash(turn);
+  await expect(link).toHaveAttribute('href', expectedHash);
+
+  // Following it is a route change, not a fetch: the locator resolves against the bundled index in-browser,
+  // scoped to this dataset, so it lands on the one passage this turn was built from.
+  await link.click();
+  await expect(page).toHaveURL(new RegExp(`${expectedHash.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));
+  await expect(page.locator('[data-library-search]')).toBeVisible();
+  await expect(searchField(page)).toHaveValue(turn.citation.locator);
+  await expect(searchResults(page)).toHaveCount(1);
+  await expect(searchResults(page).first().locator('.library-result-locator')).toHaveText(turn.citation.locator);
+  await expect(searchResults(page).first().locator('.library-result-scope-name')).toHaveText(dataset.title.en);
+  await expect(searchResults(page).first()).toHaveAttribute('data-result-kind', 'bundled');
+  // The announcement says the one thing the address cannot: that the session was not spent to read this.
+  await expect(page.locator('#app-announcer')).toContainText(turn.citation.locator);
+
+  // Back returns to the same turn, not to the start panel: reflection, revealed hint, and progress intact.
+  await page.goBack();
+  await expect(page.locator('[data-agent-turn]')).toBeVisible();
+  await expect(page.locator('[data-agent-counter]')).toHaveText(`Turn 2 of ${script.length}`);
+  await expect(page.locator('[data-agent-prompt]')).toHaveText(turn.prompt.en);
+  await expect(page.locator('[data-agent-reflection]')).toHaveValue('Second turn, in my own words.');
+  await expect(page.locator('[data-agent-hint-list] li')).toHaveCount(1);
+  await expect(page.locator('[data-agent-hint-list] li').first()).toHaveText(turn.hints[0].en);
+  // The bar counts reflections held in storage, so on this fresh render it has both of them.
+  await expect(page.locator('.agent-progress [role="progressbar"]')).toHaveAttribute('aria-valuenow', '2');
+  await expect(page.locator('[data-agent-advance]')).not.toHaveAttribute('aria-disabled', 'true');
+  await expect(page.locator('.agent-turn [data-agent-source]')).toHaveAttribute('href', expectedHash);
+
+  // The link is a real anchor, so the keyboard follows it on the same terms.
+  const back = page.locator('.agent-turn [data-agent-source]');
+  await back.focus();
+  await expect(back).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(searchResults(page)).toHaveCount(1);
+  await page.goBack();
+  await expect(page.locator('[data-agent-reflection]')).toHaveValue('Second turn, in my own words.');
+
+  // The trip is a read, so the stored session is unchanged by it and a reload resumes the same turn.
+  const stored = await storedAgentSession(page);
+  expect(stored.datasetId).toBe(dataset.id);
+  expect(stored.turnIndex).toBe(1);
+  expect(stored.completed).toBe(false);
+  expect(stored.hints[turn.questionId]).toBe(1);
+  expect(stored.reflections[turn.questionId]).toBe('Second turn, in my own words.');
+  await page.reload();
+  await expect(page.locator('[data-agent-counter]')).toHaveText(`Turn 2 of ${script.length}`);
+  await expect(page.locator('[data-agent-reflection]')).toHaveValue('Second turn, in my own words.');
+  await expect(page.locator('[data-agent-hint-list] li')).toHaveCount(1);
+  await expect(page.locator('.agent-turn [data-agent-source]')).toHaveAttribute('href', expectedHash);
+  expect(await storedAgentSession(page)).toEqual(stored);
+
+  // Reading a source records nothing outside the agent's own key.
+  const keys = await storedKeys(page);
+  expect(keys[LOCAL_LIBRARY_STORAGE_KEY]).toBeNull();
+  expect(keys[PROGRESS_STORAGE_KEY]).toBeNull();
+  expect(keys[AGENT_SESSION_STORAGE_KEY]).not.toBeNull();
+  expect(offOrigin).toEqual([]);
+});
+
+test('every completed agent recap row links its passage and back returns to the recap', async ({ page }) => {
+  const offOrigin = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).origin !== expectedOrigin) offOrigin.push(request.url());
+  });
+  const agentText = SHELL_TEXT.agent;
+  const dataset = getDataset('git');
+  const script = buildAgentScript(dataset);
+
+  await startAgentSession(page, 'git');
+  for (const [index, turn] of script.entries()) {
+    await page.locator('[data-agent-reflection]').fill(`Turn ${index + 1}: ${turn.questionId}.`);
+    await page.locator('[data-agent-advance]').click();
+  }
+  await expect(page.locator('[data-agent-complete]')).toBeVisible();
+
+  // Every turn in the recap offers its own passage, so a finished session is reviewable row by row.
+  await expect(page.locator('[data-agent-complete] [data-agent-source]')).toHaveCount(script.length);
+  await expect(page.locator('.agent-recap .agent-source-hint')).toHaveText(agentText.recapSourceHint.en);
+
+  for (const turn of script) {
+    const row = page.locator(`[data-agent-recap="${turn.questionId}"]`);
+    const link = row.locator('[data-agent-source]');
+    await expect(link).toHaveAttribute('aria-label', `Read ${turn.citation.locator} in the library`);
+    await expect(link).toHaveAttribute('href', agentSourceHash(turn));
+  }
+
+  // Follow the last row, which is the one a learner reaches after reading the whole recap.
+  const last = script[script.length - 1];
+  const expectedHash = agentSourceHash(last);
+  await page.locator(`[data-agent-recap="${last.questionId}"] [data-agent-source]`).click();
+  await expect(page).toHaveURL(new RegExp(`${expectedHash.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));
+  await expect(searchResults(page)).toHaveCount(1);
+  await expect(searchResults(page).first().locator('.library-result-locator')).toHaveText(last.citation.locator);
+  await expect(searchResults(page).first().locator('.library-result-scope-name')).toHaveText(dataset.title.en);
+
+  // Back returns to the completed recap with every reflection and both onward links still on it.
+  await page.goBack();
+  await expect(page.locator('[data-agent-complete]')).toBeVisible();
+  await expect(page.locator('[data-agent-recap]')).toHaveCount(script.length);
+  await expect(page.locator('.agent-progress [role="progressbar"]')).toHaveAttribute('aria-valuenow', String(script.length));
+  for (const [index, turn] of script.entries()) {
+    const row = page.locator(`[data-agent-recap="${turn.questionId}"]`);
+    await expect(row).toContainText(`Turn ${index + 1}: ${turn.questionId}.`);
+    await expect(row).toContainText(turn.explanation.en);
+  }
+  await expect(page.locator(`[data-agent-complete] a[href="#/decks/${dataset.id}"]`)).toBeVisible();
+
+  // Completion is stored state, so a reload after the trip is still the recap and not a fresh session.
+  const stored = await storedAgentSession(page);
+  expect(stored.completed).toBe(true);
+  expect(Object.keys(stored.reflections)).toHaveLength(script.length);
+  await page.reload();
+  await expect(page.locator('[data-agent-complete]')).toBeVisible();
+  await expect(page.locator('[data-agent-complete] [data-agent-source]')).toHaveCount(script.length);
+  expect(await storedAgentSession(page)).toEqual(stored);
+  expect(offOrigin).toEqual([]);
+});
+
+test('the agent source link reads in both languages and fits a phone', async ({ page }) => {
+  const offOrigin = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).origin !== expectedOrigin) offOrigin.push(request.url());
+  });
+  const overflow = () =>
+    page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  const agentText = SHELL_TEXT.agent;
+  const dataset = getDataset('javascript');
+  const script = buildAgentScript(dataset);
+  const turn = script[0];
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await startAgentSession(page, 'javascript');
+  expect(await overflow(), 'an agent source link overflows at 390px').toBeLessThanOrEqual(0);
+
+  await page.locator('[data-locale="zh"]').click();
+  const link = page.locator('.agent-turn [data-agent-source]');
+  await expect(link).toHaveText(agentText.sourceAction.zh);
+  await expect(page.locator('.agent-turn .agent-source-hint')).toHaveText(agentText.sourceHint.zh);
+  await expect(link).toHaveAttribute('aria-label', `在知识库中阅读 ${turn.citation.locator}`);
+  expect(await overflow(), 'the Chinese agent source link overflows at 390px').toBeLessThanOrEqual(0);
+
+  // The locator is the same string in either language, so 中文 leads to the same passage.
+  const expectedHash = agentSourceHash(turn);
+  await expect(link).toHaveAttribute('href', expectedHash);
+  await link.click();
+  await expect(searchResults(page)).toHaveCount(1);
+  await expect(searchResults(page).first().locator('.library-result-scope-name')).toHaveText(dataset.title.zh);
+  expect(await overflow(), 'the scoped result overflows at 390px').toBeLessThanOrEqual(0);
+
+  await page.goBack();
+  await expect(page.locator('[data-agent-turn]')).toBeVisible();
+  await expect(page.locator('[data-agent-prompt]')).toHaveText(turn.prompt.zh);
+  await expect(page.locator('.agent-turn [data-agent-source]')).toHaveText(agentText.sourceAction.zh);
+
+  // The recap says it in 中文 too, and four links stacked under four excerpts still fit the width.
+  for (let index = 0; index < script.length; index += 1) {
+    await page.locator('[data-agent-reflection]').fill('用我自己的话说一遍。');
+    await page.locator('[data-agent-advance]').click();
+  }
+  await expect(page.locator('[data-agent-complete]')).toBeVisible();
+  await expect(page.locator('.agent-recap .agent-source-hint')).toHaveText(agentText.recapSourceHint.zh);
+  await expect(page.locator('[data-agent-complete] [data-agent-source]').first()).toHaveText(agentText.sourceAction.zh);
+  expect(await overflow(), 'the agent recap source links overflow at 390px').toBeLessThanOrEqual(0);
+
+  await page.locator('[data-locale="en"]').click();
+  await expect(page.locator('[data-agent-complete] [data-agent-source]').first()).toHaveText(agentText.sourceAction.en);
+  await expect(page.locator('[data-agent-complete] [data-agent-source]').first()).toHaveAttribute('href', agentSourceHash(script[0]));
+  expect(offOrigin).toEqual([]);
+});
+
 test('landing page keeps navigation and bilingual content usable on mobile', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');

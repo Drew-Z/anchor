@@ -1130,6 +1130,27 @@ if (typeof document !== 'undefined') {
       </section>`;
   }
 
+  /**
+   * The link from one Agent turn's citation to the passage it was cut from.
+   *
+   * An ordinary anchor on purpose: it is reachable and followable from the keyboard, and following it
+   * leaves a history entry, which is what makes the browser back button return to this turn. The turn
+   * already carries the resolved target, so the active panel and the completion recap render the same
+   * address. Turns without a locator get the note instead of a link that would land nowhere.
+   */
+  function renderAgentSourceLink(turn) {
+    const text = SHELL_TEXT.agent;
+    if (!turn.citationTarget) {
+      return `<p class="agent-source-note">${escapeHtml(shell(text.sourceMissing))}</p>`;
+    }
+    const { locator, search } = turn.citationTarget;
+    return `
+      <a class="agent-source-link" href="${routeHash({ view: 'library', search })}"
+        data-agent-source="${escapeHtml(locator)}"
+        aria-label="${escapeHtml(formatCount(shell(text.sourceLinkLabel), { locator }))}"
+      >${escapeHtml(shell(text.sourceAction))}</a>`;
+  }
+
   function renderAgentTurn(script) {
     const text = SHELL_TEXT.agent;
     const dataset = getDataset(agentSession.datasetId);
@@ -1169,7 +1190,9 @@ if (typeof document !== 'undefined') {
               <div class="citation-item">
                 <p class="citation-locator"><span>${escapeHtml(turn.citation.locator)}</span></p>
                 <blockquote>${escapeHtml(textFor(turn.citation.excerpt, locale()))}</blockquote>
+                ${renderAgentSourceLink(turn)}
               </div>
+              ${turn.citationTarget ? `<p class="agent-source-hint">${escapeHtml(shell(text.sourceHint))}</p>` : ''}
             </section>` : ''}
 
           ${renderAgentHints(turn, agentSession.hints[turn.questionId] ?? 0)}
@@ -1236,9 +1259,13 @@ if (typeof document !== 'undefined') {
                     <span>${escapeHtml(turn.focus)}</span>
                   </p>
                   <blockquote>${escapeHtml(textFor(turn.explanation, locale()))}</blockquote>
+                  ${renderAgentSourceLink(turn)}
                 </div>
               </li>`).join('')}
           </ol>
+          ${script.some((turn) => turn.citationTarget)
+            ? `<p class="agent-source-hint">${escapeHtml(shell(text.recapSourceHint))}</p>`
+            : ''}
         </section>
 
         <p class="tutor-disclosure">${escapeHtml(translate('app.tutorDisclosure'))}</p>
@@ -2928,6 +2955,15 @@ if (typeof document !== 'undefined') {
   /** Handles the guided Agent session controls. Returns true when consumed. */
   function handleAgentClick(event) {
     const text = SHELL_TEXT.agent;
+
+    // A citation link is an ordinary anchor, so the browser navigates and the session is left exactly as
+    // it is: nothing is written here. Announcing first is what says where the address is going and that
+    // leaving this turn does not discard it.
+    const source = event.target.closest('[data-agent-source]');
+    if (source) {
+      announce(formatCount(shell(text.announceSource), { locator: source.dataset.agentSource }));
+      return false;
+    }
 
     if (event.target.closest('[data-agent-start-session]')) {
       const dataset = getDataset(agentDatasetChoice);
