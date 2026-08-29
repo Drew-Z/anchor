@@ -2206,6 +2206,15 @@ h3 {
   outline-offset: 2px;
 }
 
+/* The section a search result addressed. Focus alone would not show it: these panels are only
+   programmatically focusable, so they draw no focus ring, and after a reload nothing on screen would say
+   which passage the link was for. Kept to the left rule and a tint, so it marks the target without
+   promoting imported file text to the yellow of a checked `.citation-item`. */
+.local-section.is-section-target {
+  border-left-color: var(--green);
+  background: var(--green-soft);
+}
+
 /* The Content-Security-Policy forbids inline styles, so any computed progress width arrives as one of
    these decile classes instead of a `style` attribute. Shared by the Agent session and the deck cards. */
 .agent-fill-0, .deck-fill-0 { width: 0; }

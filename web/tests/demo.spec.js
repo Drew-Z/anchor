@@ -8,6 +8,7 @@ import {
   SHELL_TEXT,
   buildAgentScript,
   countSources,
+  formatCount,
   getDataset,
   sourceRevisitSearch,
 } from '../landing/app/scripts/data.js';
@@ -1573,10 +1574,85 @@ test('library search matches bundled evidence and says which field matched', asy
   await expect(first.locator('.library-result-reason')).toContainText(SHELL_TEXT.library.search.reasonExcerpt.en);
   await expect(first.locator('mark').first()).toHaveText(/initState/i);
 
-  // The match carries its own way back to the dataset it came from.
+  // The match carries its own way back to the exact question it was checked against, which is the
+  // second one in this deck rather than wherever the deck was last left.
+  const cited = getDataset('flutter').questions[1];
+  await expect(first.locator('.library-result-actions a')).toHaveAttribute(
+    'href',
+    `#/decks/flutter?question=${cited.id}`,
+  );
   await first.locator('.library-result-actions a').click();
   await expect(page).toHaveURL(/#\/decks\/flutter$/);
   await expect(page.locator('.quiz-view')).toBeVisible();
+  await expect(page.locator('.quiz-view .question-index')).toContainText('Question 2 of 4');
+  await expect(page.locator('.quiz-view .question-title')).toHaveText(cited.prompt.en);
+  expect(offOrigin).toEqual([]);
+});
+
+test('a bundled result opens the cited question, and back returns to the same search', async ({ page }) => {
+  const offOrigin = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).origin !== expectedOrigin) offOrigin.push(request.url());
+  });
+  const dataset = getDataset('flutter');
+  const cited = dataset.questions[1];
+
+  // A deck already in progress somewhere else is what makes "exact" mean something: without the
+  // question in the link, this deck would reopen on its third question.
+  await answerQuestions(page, 'flutter', 3);
+  await page.goto('/app/#/decks/flutter');
+  await expect(page.locator('.quiz-view .question-index')).toContainText('Question 4 of 4');
+
+  await page.goto('/app/#/library?q=initState&kind=bundled');
+  await expect(searchResults(page)).not.toHaveCount(0);
+  const first = searchResults(page).first();
+  await expect(first.locator('.library-result-actions a')).toHaveAttribute(
+    'aria-label',
+    formatCount(SHELL_TEXT.library.search.openBundledLabel.en, { name: dataset.title.en }),
+  );
+
+  await first.locator('.library-result-actions a').click();
+  await expect(page.locator('.quiz-view .question-index')).toContainText('Question 2 of 4');
+  await expect(page.locator('.quiz-view .question-title')).toHaveText(cited.prompt.en);
+  // The announcement says the one thing the address cannot: why this question and not another.
+  await expect(page.locator('#app-announcer')).toContainText('checked against');
+
+  // The question is a pointer that gets consumed, so the address a learner ends up holding is the deck.
+  await expect(page).toHaveURL(/#\/decks\/flutter$/);
+
+  // A reload of that address resumes on the cited question, because the stored index does the
+  // remembering once the link has been followed.
+  await page.reload();
+  await expect(page.locator('.quiz-view .question-index')).toContainText('Question 2 of 4');
+
+  // Back returns to the results with the query and the kind filter still in the address.
+  await page.goBack();
+  await expect(page).toHaveURL(/#\/library\?q=initState&kind=bundled$/);
+  await expect(searchField(page)).toHaveValue('initState');
+  await expect(page.locator('[data-library-search-kind][value="bundled"]')).toBeChecked();
+  await expect(searchResults(page)).not.toHaveCount(0);
+
+  // The answer this question already had is still on it: the route moves the deck, it does not
+  // re-open the question for a second attempt.
+  await first.locator('.library-result-actions a').click();
+  await expect(page.locator('.feedback-status')).toBeVisible();
+  await expect(page.locator('.answer-list input:checked')).toHaveCount(cited.correct.length);
+  await expect(page.locator('[data-next]')).toBeVisible();
+
+  // A link naming a question this build does not ship opens the deck without moving it.
+  await page.goto('/app/#/decks/flutter?question=flutter-not-a-question');
+  await expect(page).toHaveURL(/#\/decks\/flutter$/);
+  await expect(page.locator('.quiz-view .question-index')).toContainText('Question 2 of 4');
+
+  // A finished deck reopens on the cited passage rather than on its score, because following a
+  // citation is re-reading and not re-scoring. The answers it already holds are still there.
+  await page.evaluate((key) => localStorage.removeItem(key), PROGRESS_STORAGE_KEY);
+  await page.reload();
+  await answerWholeDeck(page, 'flutter');
+  await expect(page.locator('[data-completion-row]').first()).toBeVisible();
+  await page.goto(`/app/#/decks/flutter?question=${cited.id}`);
+  await expect(page.locator('.quiz-view .question-index')).toContainText('Question 2 of 4');
+  await expect(page.locator('.answer-list input:checked')).toHaveCount(cited.correct.length);
   expect(offOrigin).toEqual([]);
 });
 
@@ -1598,6 +1674,124 @@ test('library search matches imported file text and leads back to that section',
   await expect(page.locator('[data-local-section="1"]')).toBeFocused();
   await expect(page.locator('#app-announcer')).toContainText('anchor-notes.md');
   await expect(searchField(page)).toHaveValue('StatefulWidget rebuild');
+
+  // The section is in the address, so it is a place rather than a toggle, and it is marked on screen
+  // because a programmatic focus on one of these panels draws no ring of its own.
+  await expect(page).toHaveURL(/[?&]open=[^&]+&sec=1$/);
+  await expect(page.locator('[data-section-target="true"]')).toHaveCount(1);
+  await expect(page.locator('[data-local-section="1"]')).toHaveAttribute('data-section-target', 'true');
+});
+
+test('an imported result opens the exact section, and back and reload both hold it', async ({ page }) => {
+  const offOrigin = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).origin !== expectedOrigin) offOrigin.push(request.url());
+  });
+  await seedSearchLibrary(page);
+
+  await searchField(page).fill('StatefulWidget rebuild');
+  const imported = searchResults(page).filter({ has: page.locator('[data-library-result-open]') }).first();
+  await expect(imported.locator('[data-library-result-open]')).toHaveAttribute(
+    'aria-label',
+    formatCount(SHELL_TEXT.library.search.openImportedLabel.en, { locator: 'anchor-notes.md#widget-lifecycle' }),
+  );
+
+  await imported.locator('[data-library-result-open]').click();
+  const opened = new URL(page.url()).hash;
+  expect(opened).toMatch(/[?&]q=StatefulWidget\+rebuild/);
+  expect(opened).toMatch(/&sec=1$/);
+
+  // A reload rebuilds the whole thing from the link: the query, the expansion, and the section, none
+  // of which is stored anywhere. This is the state the address exists to carry.
+  await page.reload();
+  await expect(searchField(page)).toHaveValue('StatefulWidget rebuild');
+  await expect(page.locator('[data-toggle-source]')).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.locator('[data-local-section="1"]')).toBeFocused();
+  await expect(page.locator('[data-local-section="1"]')).toHaveAttribute('data-section-target', 'true');
+  await expect(page.locator('.local-section')).toHaveCount(3);
+
+  // Back undoes the move and leaves the search that produced it, because opening was a navigation.
+  // The target goes; the panel stays open. A route can only ever expand a source, never collapse one,
+  // so going back cannot close something the learner had opened by hand.
+  await page.goBack();
+  await expect(page).toHaveURL(/#\/library\?q=StatefulWidget\+rebuild$/);
+  await expect(searchField(page)).toHaveValue('StatefulWidget rebuild');
+  await expect(searchResults(page)).not.toHaveCount(0);
+  await expect(page.locator('[data-section-target="true"]')).toHaveCount(0);
+
+  // Forward returns to it, so the two are an ordinary pair of history entries.
+  await page.goForward();
+  await expect(page.locator('[data-local-section="1"]')).toHaveAttribute('data-section-target', 'true');
+
+  // A second result in the same source moves the target rather than stacking another expansion.
+  await searchField(page).fill('复习');
+  await searchResults(page).first().locator('[data-library-result-open]').click();
+  await expect(page).toHaveURL(/&sec=2$/);
+  await expect(page.locator('[data-local-section="2"]')).toHaveAttribute('data-section-target', 'true');
+  await expect(page.locator('[data-section-target="true"]')).toHaveCount(1);
+
+  // Closing the source by hand makes the address false, so the address gives the target up.
+  await page.locator('[data-toggle-source]').click();
+  await expect(page).toHaveURL(/#\/library\?q=%E5%A4%8D%E4%B9%A0$/);
+  await expect(page.locator('[data-toggle-source]')).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('.local-section')).toHaveCount(0);
+
+  // A link naming a section this browser does not hold opens the library without one.
+  await page.goto('/app/#/library?q=%E5%A4%8D%E4%B9%A0&open=gone-from-here&sec=1');
+  await expect(page).toHaveURL(/#\/library\?q=%E5%A4%8D%E4%B9%A0$/);
+  await expect(page.locator('[data-library-search]')).toBeVisible();
+  await expect(page.locator('[data-section-target="true"]')).toHaveCount(0);
+
+  // So does one naming a section past the end of a source it does hold.
+  const sourceId = await page.locator('[data-local-source]').first().getAttribute('data-local-source');
+  await page.goto(`/app/#/library?open=${encodeURIComponent(sourceId)}&sec=99`);
+  await expect(page).toHaveURL(/#\/library$/);
+  await expect(page.locator('[data-section-target="true"]')).toHaveCount(0);
+
+  // And one naming a real section restores it, which is what makes the link shareable.
+  await page.goto(`/app/#/library?open=${encodeURIComponent(sourceId)}&sec=0`);
+  await expect(page).toHaveURL(/&sec=0$/);
+  await expect(page.locator('[data-local-section="0"]')).toHaveAttribute('data-section-target', 'true');
+  await expect(page.locator('[data-local-section="0"]')).toBeFocused();
+  expect(offOrigin).toEqual([]);
+});
+
+test('exact result navigation reads the same in Chinese', async ({ page }) => {
+  const dataset = getDataset('flutter');
+  await seedSearchLibrary(page);
+  await page.locator('[data-locale="zh"]').click();
+
+  await searchField(page).fill('StatefulWidget');
+  const imported = searchResults(page).filter({ has: page.locator('[data-library-result-open]') }).first();
+  await expect(imported.locator('[data-library-result-open]')).toHaveText(SHELL_TEXT.library.search.openImported.zh);
+  await expect(imported.locator('[data-library-result-open]')).toHaveAttribute(
+    'aria-label',
+    formatCount(SHELL_TEXT.library.search.openImportedLabel.zh, { locator: 'anchor-notes.md#widget-lifecycle' }),
+  );
+  await imported.locator('[data-library-result-open]').click();
+  await expect(page.locator('[data-local-section="1"]')).toHaveAttribute('data-section-target', 'true');
+  await expect(page.locator('#app-announcer')).toContainText('已在导入来源列表中显示');
+
+  // A locale switch keeps the target: the language changes the copy, not the place.
+  await page.locator('[data-locale="en"]').click();
+  await expect(page.locator('[data-local-section="1"]')).toHaveAttribute('data-section-target', 'true');
+  await expect(page.locator('[data-library-result-open]').first()).toHaveText(SHELL_TEXT.library.search.openImported.en);
+
+  await page.locator('[data-locale="zh"]').click();
+  await searchField(page).fill('initState');
+  const bundled = searchResults(page).filter({ has: page.locator('.library-result-actions a') }).first();
+  await expect(bundled.locator('.library-result-actions a')).toHaveText(SHELL_TEXT.library.search.openBundled.zh);
+  await expect(bundled.locator('.library-result-actions a')).toHaveAttribute(
+    'aria-label',
+    formatCount(SHELL_TEXT.library.search.openBundledLabel.zh, { name: dataset.title.zh }),
+  );
+
+  await bundled.locator('.library-result-actions a').click();
+  await expect(page.locator('.quiz-view .question-index')).toContainText('2');
+  await expect(page.locator('.quiz-view .question-title')).toHaveText(dataset.questions[1].prompt.zh);
+  await expect(page.locator('#app-announcer')).toContainText('此摘录所校验的题目');
+  await page.goBack();
+  await expect(searchField(page)).toHaveValue('initState');
 });
 
 test('library search filters by source kind and by one dataset or file', async ({ page }) => {
@@ -1772,7 +1966,13 @@ test('library search fits a 390px viewport and asks nothing of the network', asy
   await page.locator('[data-library-search-kind][value="imported"]').check();
   await searchResults(page).first().locator('[data-library-result-open]').click();
   await expect(page.locator('.local-section')).toHaveCount(3);
+  await expect(page.locator('[data-section-target="true"]')).toHaveCount(1);
   expect(await overflow(), 'expanded source below results overflows at 390px').toBeLessThanOrEqual(0);
+
+  // The marked section has to survive the reload at this width too, and stay inside it.
+  await page.reload();
+  await expect(page.locator('[data-section-target="true"]')).toHaveCount(1);
+  expect(await overflow(), 'a restored section target overflows at 390px').toBeLessThanOrEqual(0);
 
   await searchField(page).fill('a-rather-long-mobile-filename-for-layout');
   expect(await overflow(), 'a long locator overflows at 390px').toBeLessThanOrEqual(0);

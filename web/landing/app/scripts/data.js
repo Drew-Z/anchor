@@ -845,10 +845,22 @@ export const SHELL_TEXT = {
         '来自此浏览器中某个文件的文本，不是经过核实的结论。',
       ),
       headingLabel: localized('Section', '小节'),
-      openBundled: localized('Practice this dataset', '练习这套数据集'),
-      openImported: localized('Show in imported sources', '在导入来源中查看'),
+      openBundled: localized('Open the cited question', '打开引用的题目'),
+      openImported: localized('Open this section', '打开这个小节'),
+      openBundledLabel: localized(
+        'Open the question this excerpt was checked against, in {name}',
+        '打开此摘录所校验的题目（{name}）',
+      ),
+      openImportedLabel: localized('Open section {locator} in the imported sources list', '在导入来源列表中打开小节 {locator}'),
       announceCleared: localized('Search cleared.', '已清空搜索。'),
-      announceOpened: localized('Showing {name} in the imported sources list.', '已在导入来源列表中显示 {name}。'),
+      announceOpened: localized(
+        'Showing section {locator} of {name} in the imported sources list.',
+        '已在导入来源列表中显示 {name} 的小节 {locator}。',
+      ),
+      announceBundledOpened: localized(
+        'Opening question {n} of {total} in {name}, the question this excerpt was checked against.',
+        '正在打开{name}的第 {n}/{total} 题，也就是此摘录所校验的题目。',
+      ),
     },
   },
 
@@ -1531,6 +1543,10 @@ function searchField(field, value) {
 /**
  * One flat record per searchable passage. `kind` keeps bundled evidence and imported file text apart all
  * the way to the renderer, so the surface never has to guess which one it is holding.
+ *
+ * `questionId` and `sectionIndex` are the exact target behind a record: the bundled question a citation
+ * was checked against, or the section of an imported file the passage was read from. Exactly one of them
+ * is set, which is what lets a result address the passage itself rather than the deck or file holding it.
  */
 export function buildLibraryIndex({ datasets = DATASETS, library = null, locale = 'en' } = {}) {
   const records = [];
@@ -1550,6 +1566,7 @@ export function buildLibraryIndex({ datasets = DATASETS, library = null, locale 
         locator: entry.locator,
         detail: prompt,
         text: excerpt,
+        questionId: entry.questionId,
         sectionIndex: null,
         fields: [
           searchField('name', scopeName),
@@ -1580,6 +1597,7 @@ export function buildLibraryIndex({ datasets = DATASETS, library = null, locale 
         locator,
         detail: heading,
         text: excerpt,
+        questionId: null,
         sectionIndex,
         fields: [
           searchField('name', name),
@@ -1719,6 +1737,53 @@ export function sourceRevisitSearch(locator, datasetId = '') {
   if (!query) return null;
   const scopeId = collapseWhitespace(datasetId);
   return { query, kind: 'bundled', scope: scopeId ? `bundled:${scopeId}` : '' };
+}
+
+/*
+ * Exact search targets.
+ *
+ * A search result names a passage, not a surface. These two resolvers turn the bounded identifiers a
+ * route carries — a bundled question id, or an imported source id plus a section index — into the record
+ * actually present in this browser, or into null. Resolving before rendering is what keeps a shared or
+ * hand-edited link from pinning the surface to a target that is not there: the address drops the dead
+ * parameter and the surface opens at its ordinary place instead.
+ */
+
+/**
+ * The position of one bundled question inside its deck, or -1.
+ *
+ * An index rather than the question is what the quiz needs, because `currentIndex` is what progress
+ * stores. Only ids the dataset actually ships resolve, so a stale link cannot move the deck.
+ */
+export function resolveQuestionTarget(dataset, questionId) {
+  const wanted = collapseWhitespace(questionId);
+  if (!wanted) return -1;
+  const questions = Array.isArray(dataset?.questions) ? dataset.questions : [];
+  return questions.findIndex((question) => question?.id === wanted);
+}
+
+/**
+ * The imported source and section a library route points at, or null.
+ *
+ * Both halves have to hold: the source has to be one this browser imported, and the index has to name a
+ * section it still has. A file removed or re-imported since the link was made resolves away rather than
+ * expanding the wrong source or focusing a section that no longer exists.
+ */
+export function resolveLibraryFocus(focus, library = null) {
+  const wanted = collapseWhitespace(focus?.sourceId);
+  if (!wanted) return null;
+  const sources = Array.isArray(library?.sources) ? library.sources : [];
+  const source = sources.find((entry) => String(entry?.id ?? '') === wanted);
+  if (!source) return null;
+
+  // Read as digits rather than coerced with `Number`, which turns null, '' and false into a valid 0 and
+  // would resolve "no section" into the first one. A caller with no index gets no target.
+  const sections = Array.isArray(source.sections) ? source.sections : [];
+  const raw = collapseWhitespace(focus?.sectionIndex);
+  if (!/^\d+$/.test(raw)) return null;
+  const index = Number.parseInt(raw, 10);
+  if (index >= sections.length) return null;
+  return { source, sectionIndex: index, section: sections[index] };
 }
 
 /*

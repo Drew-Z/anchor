@@ -48,7 +48,9 @@ import {
   normalizeLocalLibrary,
   normalizeTheme,
   readBackup,
+  resolveLibraryFocus,
   resolveLibrarySearch,
+  resolveQuestionTarget,
   resolveTheme,
   searchDecks,
   searchLibrary,
@@ -240,6 +242,24 @@ export const DEFAULT_VIEW = 'home';
 export const LIBRARY_SEARCH_PARAMS = { query: 'q', kind: 'kind', scope: 'src' };
 const EMPTY_LIBRARY_SEARCH = { query: '', kind: 'all', scope: '' };
 
+/**
+ * The exact passage a route points at, beyond the surface holding it.
+ *
+ * `question` names one bundled question inside the deck already in the path. `open` and `sec` name one
+ * section of one imported source: the id is the same slug the scope filter already carries, and the index
+ * is a small integer, so following a search result adds no file text or answer to the address that the
+ * existing local search state did not already put there.
+ */
+export const ROUTE_TARGET_PARAMS = { question: 'question', source: 'open', section: 'sec' };
+const EMPTY_LIBRARY_FOCUS = { sourceId: '', sectionIndex: null };
+
+/** Ids in a hash are bounded before anything looks them up, so a padded link cannot grow the work. */
+const MAX_ROUTE_ID_CHARS = 160;
+
+function routeId(value) {
+  return String(value ?? '').trim().slice(0, MAX_ROUTE_ID_CHARS);
+}
+
 /** A hand-edited or truncated escape has to resolve to a route, not throw on the way to the first paint. */
 function decodeSegment(value) {
   const raw = String(value ?? '');
@@ -254,6 +274,10 @@ function decodeSegment(value) {
  * Hash routing keeps every shell surface linkable on static hosting, with no server rewrite and no
  * history API dependency beyond normalising a bare `/app/` entry. Anything after `?` is search state
  * for the Library, parsed with `URLSearchParams` so malformed input degrades instead of throwing.
+ *
+ * Parsing settles shape and bounds only. Whether a question id or an imported section is really there is
+ * a question about this browser's data, so `render` resolves it against the datasets and the stored
+ * library and drops what does not hold — the same order the scope filter has always used.
  */
 export function parseRoute(hash, hasDataset = (id) => Boolean(getDataset(id))) {
   const raw = String(hash ?? '').replace(/^#\/?/, '');
@@ -263,9 +287,17 @@ export function parseRoute(hash, hasDataset = (id) => Boolean(getDataset(id))) {
     .map((part) => decodeSegment(part).trim());
   const view = VIEWS.includes(rawView) ? rawView : DEFAULT_VIEW;
   const datasetId = view === 'decks' && rawDataset && hasDataset(rawDataset) ? rawDataset : null;
-  if (view !== 'library') return { view, datasetId, search: { ...EMPTY_LIBRARY_SEARCH } };
-
   const params = new URLSearchParams(cut < 0 ? '' : raw.slice(cut + 1));
+
+  if (view === 'decks') {
+    // A question only means something inside a deck, so it rides with one and is dropped without one.
+    const questionId = datasetId ? routeId(params.get(ROUTE_TARGET_PARAMS.question)) : '';
+    return { view, datasetId, search: { ...EMPTY_LIBRARY_SEARCH }, focus: { ...EMPTY_LIBRARY_FOCUS }, questionId };
+  }
+  if (view !== 'library') {
+    return { view, datasetId, search: { ...EMPTY_LIBRARY_SEARCH }, focus: { ...EMPTY_LIBRARY_FOCUS }, questionId: '' };
+  }
+
   const kind = params.get(LIBRARY_SEARCH_PARAMS.kind) ?? '';
   return {
     view,
@@ -273,14 +305,41 @@ export function parseRoute(hash, hasDataset = (id) => Boolean(getDataset(id))) {
     search: {
       query: clampLibraryQuery(params.get(LIBRARY_SEARCH_PARAMS.query)),
       kind: LIBRARY_SEARCH_KINDS.includes(kind) ? kind : 'all',
-      scope: String(params.get(LIBRARY_SEARCH_PARAMS.scope) ?? '').trim().slice(0, 160),
+      scope: routeId(params.get(LIBRARY_SEARCH_PARAMS.scope)),
     },
+    focus: parseLibraryFocus(params),
+    questionId: '',
   };
 }
 
-export function routeHash({ view, datasetId, search } = {}) {
+/**
+ * A section is only addressable with the source holding it, and only at a plain non-negative index.
+ *
+ * Digits only, and not `Number`: coercion turns a missing value into 0 and would read "no section" as the
+ * first one. `007` is tolerated and written back as `7`, the same tolerant-read-then-canonical-write the
+ * query and kind parameters have always used, and whether the index is in range is left to the resolver
+ * that can see how many sections the source actually has.
+ */
+function parseLibraryFocus(params) {
+  const sourceId = routeId(params.get(ROUTE_TARGET_PARAMS.source));
+  if (!sourceId) return { ...EMPTY_LIBRARY_FOCUS };
+  const raw = routeId(params.get(ROUTE_TARGET_PARAMS.section));
+  if (!/^\d+$/.test(raw)) return { ...EMPTY_LIBRARY_FOCUS };
+  return { sourceId, sectionIndex: Number.parseInt(raw, 10) };
+}
+
+export function routeHash({ view, datasetId, search, focus, questionId } = {}) {
   const target = VIEWS.includes(view) ? view : DEFAULT_VIEW;
   const path = target === 'decks' && datasetId ? `#/decks/${encodeURIComponent(datasetId)}` : `#/${target}`;
+
+  if (target === 'decks') {
+    // Encoded the same way it is read, so a question id round-trips instead of drifting on a space.
+    const question = datasetId ? routeId(questionId) : '';
+    if (!question) return path;
+    const params = new URLSearchParams();
+    params.set(ROUTE_TARGET_PARAMS.question, question);
+    return `${path}?${params.toString()}`;
+  }
   if (target !== 'library') return path;
 
   // An empty search writes no query, which keeps `#/library` the canonical address it has always been.
@@ -291,6 +350,16 @@ export function routeHash({ view, datasetId, search } = {}) {
     params.set(LIBRARY_SEARCH_PARAMS.kind, search.kind);
   }
   if (search?.scope) params.set(LIBRARY_SEARCH_PARAMS.scope, String(search.scope));
+
+  // An open section needs both halves to be addressable, so a half-set focus writes neither. The index is
+  // read as digits, not coerced: `Number(null)` is 0, which would turn "no section" into the first one.
+  const sourceId = routeId(focus?.sourceId);
+  const sectionIndex = routeId(focus?.sectionIndex);
+  if (sourceId && /^\d+$/.test(sectionIndex)) {
+    params.set(ROUTE_TARGET_PARAMS.source, sourceId);
+    params.set(ROUTE_TARGET_PARAMS.section, String(Number.parseInt(sectionIndex, 10)));
+  }
+
   const encoded = params.toString();
   return encoded ? `${path}?${encoded}` : path;
 }
@@ -1226,8 +1295,19 @@ if (typeof document !== 'undefined') {
    * question it explains; an imported excerpt is only file text the browser happened to read.
    */
   function renderLocalSections(source) {
+    // The section the address points at is marked, not just focused: programmatic focus on a
+    // `tabindex="-1"` node draws no focus ring, so after a reload nothing would show which passage the
+    // link was for. The class is the only thing the stylesheet needs, since CSP forbids an inline style.
+    const targeted = route.view === 'library' && route.focus?.sourceId === source.id
+      ? Number(route.focus.sectionIndex)
+      : -1;
     return source.sections.map((section, index) => `
-      <article class="local-section" data-local-section="${index}" tabindex="-1">
+      <article
+        class="local-section${index === targeted ? ' is-section-target' : ''}"
+        data-local-section="${index}"
+        ${index === targeted ? 'data-section-target="true"' : ''}
+        tabindex="-1"
+      >
         <div class="local-section-locator">
           <span>${escapeHtml(sectionLocator(source, section))}</span>
           <span class="local-section-kind">${escapeHtml(shell(SHELL_TEXT.localLibrary[SECTION_KIND_KEYS[section.kind] ?? 'kindDocument']))}</span>
@@ -1339,14 +1419,41 @@ if (typeof document !== 'undefined') {
       .join('');
   }
 
+  /**
+   * The action that opens the passage a result names.
+   *
+   * A bundled hit is an ordinary anchor carrying its question id: it changes the hash, leaves a history
+   * entry, and browser back returns to these results with the query and filters still in the address. An
+   * imported hit cannot be a plain anchor, because whether that section still exists is a question about
+   * stored data — so it is a button that resolves first and then navigates to the same kind of address.
+   */
+  function renderResultAction(record) {
+    const text = SHELL_TEXT.library.search;
+    if (record.kind === 'bundled') {
+      const href = routeHash({ view: 'decks', datasetId: record.scopeId, questionId: record.questionId });
+      return `<a
+        class="button button-secondary"
+        href="${href}"
+        data-library-result-question="${escapeHtml(record.questionId ?? '')}"
+        data-library-result-dataset="${escapeHtml(record.scopeId)}"
+        aria-label="${escapeHtml(formatCount(shell(text.openBundledLabel), { name: record.scopeName }))}"
+      >${escapeHtml(shell(text.openBundled))}</a>`;
+    }
+    return `<button
+      class="button button-secondary"
+      type="button"
+      data-library-result-open="${escapeHtml(record.scopeId)}"
+      data-library-result-section="${record.sectionIndex}"
+      aria-label="${escapeHtml(formatCount(shell(text.openImportedLabel), { locator: record.locator }))}"
+    >${escapeHtml(shell(text.openImported))}</button>`;
+  }
+
   function renderSearchResult(hit, terms) {
     const text = SHELL_TEXT.library.search;
     const { record } = hit;
     const bundled = record.kind === 'bundled';
     const reasons = hit.reasons.map((field) => shell(text[SEARCH_REASON_KEYS[field]])).join(' · ');
-    const open = bundled
-      ? `<a class="button button-secondary" href="${routeHash({ view: 'decks', datasetId: record.scopeId })}">${escapeHtml(shell(text.openBundled))}</a>`
-      : `<button class="button button-secondary" type="button" data-library-result-open="${escapeHtml(record.scopeId)}" data-library-result-section="${record.sectionIndex}">${escapeHtml(shell(text.openImported))}</button>`;
+    const open = renderResultAction(record);
 
     return `
       <article class="library-result library-result-${record.kind}" data-library-result="${escapeHtml(record.id)}" data-result-kind="${record.kind}">
@@ -2220,6 +2327,43 @@ if (typeof document !== 'undefined') {
     import: renderImport,
   };
 
+  /**
+   * Moves a deck to the exact question a route names, once.
+   *
+   * The question id is a pointer, not a place: it is consumed here and left out of the canonical hash, so
+   * the address a learner ends up holding is the deck they are reading and Next or Previous stays the only
+   * thing that decides where a reload resumes. The stored index does the remembering, exactly as it does
+   * after the revisit button, which clears `completed` for the same reason: the passage is being re-read,
+   * not re-scored.
+   */
+  function applyQuestionTarget(dataset) {
+    const requested = resolveQuestionTarget(dataset, route.questionId);
+    if (requested < 0) return;
+    const state = datasetProgress(dataset.id);
+    state.currentIndex = requested;
+    // A completed deck reopens on the cited question rather than on the review, otherwise `renderQuiz`
+    // would show the score instead of the passage.
+    state.completed = false;
+    saveProgress(progress);
+  }
+
+  /**
+   * Seeds the expanded set from a library route.
+   *
+   * A source named by the address is expanded on the way to the first paint, which is what makes an opened
+   * section survive a reload without persisting view state to a key. Every other expansion stays where it
+   * was, so following a result never collapses a source the learner opened by hand.
+   */
+  function applyLibraryFocus() {
+    const resolved = resolveLibraryFocus(route.focus, library);
+    if (!resolved) {
+      route.focus = { sourceId: '', sectionIndex: null };
+      return null;
+    }
+    expandedSources.add(resolved.source.id);
+    return resolved;
+  }
+
   function render() {
     route = parseRoute(window.location.hash);
 
@@ -2227,7 +2371,14 @@ if (typeof document !== 'undefined') {
     // means the dropped filter leaves the address too, rather than lingering as a dead parameter.
     if (route.view === 'library') {
       route.search = resolveLibrarySearch(route.search, librarySearchScopes({ library, locale: locale() }));
+      applyLibraryFocus();
     }
+
+    // Same order for the exact question: resolve it against the dataset, act on it, and let it leave the
+    // address either way, so a stale id cannot sit in a link that keeps re-seeking on every render.
+    const dataset = route.view === 'decks' ? getDataset(route.datasetId) : null;
+    if (dataset) applyQuestionTarget(dataset);
+    route.questionId = '';
 
     // A bare, unknown, or unresolvable hash resolves to a real route, so the address stays
     // copyable and reloadable. `replaceState` avoids both a history entry and a reload.
@@ -2239,7 +2390,6 @@ if (typeof document !== 'undefined') {
     document.body.dataset.view = route.view;
 
     if (route.view === 'decks') {
-      const dataset = getDataset(route.datasetId);
       if (dataset) {
         // The route is the only writer of the resume hint, so opening a deck from a link, a deep
         // link, or a reload all keep Home's continue card pointing at the last deck actually seen.
@@ -2255,6 +2405,22 @@ if (typeof document !== 'undefined') {
       return;
     }
     (SURFACES[route.view] ?? renderHome)();
+  }
+
+  /**
+   * Puts the caret on the section a library route names, after the surface holding it exists.
+   *
+   * Called from the two places an address arrives on its own — a hash change and the first paint — rather
+   * than from `render`, so a locale switch or a rebuild does not pull focus out from under the learner.
+   */
+  function focusRouteTarget() {
+    if (route.view !== 'library') return false;
+    const resolved = resolveLibraryFocus(route.focus, library);
+    if (!resolved) return false;
+    const node = localSourceNode(resolved.source.id);
+    const section = node?.querySelector(`[data-local-section="${resolved.sectionIndex}"]`);
+    (section ?? node?.querySelector('[data-toggle-source]'))?.focus();
+    return Boolean(section);
   }
 
   function selectDataset(datasetId) {
@@ -2621,25 +2787,52 @@ if (typeof document !== 'undefined') {
       return true;
     }
 
+    // A bundled result is an ordinary anchor, so the browser does the navigating. Announcing here is what
+    // adds the one thing the address cannot say on arrival: that this is the question the excerpt cites.
+    const question = event.target.closest('[data-library-result-question]');
+    if (question) {
+      const dataset = getDataset(question.dataset.libraryResultDataset);
+      const index = resolveQuestionTarget(dataset, question.dataset.libraryResultQuestion);
+      if (dataset && index >= 0) {
+        announce(formatCount(shell(SHELL_TEXT.library.search.announceBundledOpened), {
+          n: index + 1,
+          total: dataset.questions.length,
+          name: textFor(dataset.title, locale()),
+        }));
+      }
+      return false;
+    }
+
     const open = event.target.closest('[data-library-result-open]');
     if (open) {
       const id = open.dataset.libraryResultOpen;
-      const index = Number(open.dataset.libraryResultSection);
-      const source = library.sources.find((entry) => entry.id === id);
-      if (!source) {
-        // The source went away in another tab. Recompute rather than focus something that is gone.
+      const sectionIndex = Number.parseInt(open.dataset.libraryResultSection, 10);
+      const resolved = resolveLibraryFocus({ sourceId: id, sectionIndex }, library);
+      if (!resolved) {
+        // The source or that section went away in another tab. Recompute rather than address something
+        // that is gone: the surface reports what it can actually search now.
         updateLibrarySearch({ rebuildScopes: true });
         return true;
       }
-      // A result is a pointer, so following it expands the source and lands on that exact section.
-      expandedSources.add(id);
-      rerender({
-        focus: () => {
-          const node = localSourceNode(id);
-          return node?.querySelector(`[data-local-section="${index}"]`) ?? node?.querySelector('[data-toggle-source]');
-        },
-        message: formatCount(shell(SHELL_TEXT.library.search.announceOpened), { name: source.name }),
+
+      // Following a result is a move, not a toggle, so the target goes into the address: browser back
+      // returns to these results with the query intact, and a reload lands on the same section again.
+      const focus = { sourceId: resolved.source.id, sectionIndex: resolved.sectionIndex };
+      const message = formatCount(shell(SHELL_TEXT.library.search.announceOpened), {
+        name: resolved.source.name,
+        locator: sectionLocator(resolved.source, resolved.section),
       });
+      if (navigate({ ...route, focus })) {
+        // `hashchange` renders and focuses the section; only the reason for the move is added here.
+        announce(message);
+        return true;
+      }
+
+      // The address already names this section, so there is nothing to navigate to: re-open it in place.
+      expandedSources.add(resolved.source.id);
+      render();
+      focusRouteTarget();
+      announce(message);
       return true;
     }
     return false;
@@ -2650,8 +2843,19 @@ if (typeof document !== 'undefined') {
     const toggle = event.target.closest('[data-toggle-source]');
     if (toggle) {
       const id = toggle.dataset.toggleSource;
-      if (expandedSources.has(id)) expandedSources.delete(id);
-      else expandedSources.add(id);
+      if (expandedSources.has(id)) {
+        expandedSources.delete(id);
+        // Collapsing the source the address points at makes that address false, and `render` would
+        // otherwise expand it straight back. Dropping the target keeps the hash a description of the
+        // screen. `replaceState` because closing a panel is not a place to come back to.
+        if (route.focus?.sourceId === id) {
+          route = { ...route, focus: { sourceId: '', sectionIndex: null } };
+          const target = routeHash(route);
+          if (window.location.hash !== target) window.history.replaceState(null, '', target);
+        }
+      } else {
+        expandedSources.add(id);
+      }
       rerender({ focus: () => localSourceNode(id)?.querySelector('[data-toggle-source]') });
       return true;
     }
@@ -3053,7 +3257,9 @@ if (typeof document !== 'undefined') {
     restoreToken += 1;
     backupNotice = null;
     render();
-    content?.focus();
+    // An address that names an exact section is a request to land on it. Anything else focuses the
+    // surface, which is what every other navigation has always done.
+    if (!focusRouteTarget()) content?.focus();
   });
   window.addEventListener('keydown', (event) => {
     const deckSearch = event.target?.closest?.('[data-deck-search-input]');
@@ -3101,4 +3307,6 @@ if (typeof document !== 'undefined') {
   applyTheme();
   initializeLocale();
   render();
+  // A reload of a link that names a section lands on that section, the way a browser treats a fragment.
+  focusRouteTarget();
 }

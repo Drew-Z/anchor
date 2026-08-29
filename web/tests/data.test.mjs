@@ -51,7 +51,9 @@ import {
   normalizeLocalLibrary,
   normalizeTheme,
   readBackup,
+  resolveLibraryFocus,
   resolveLibrarySearch,
+  resolveQuestionTarget,
   resolveTheme,
   searchDecks,
   searchLibrary,
@@ -64,6 +66,7 @@ import {
   verifiedQuestionCount,
 } from '../landing/app/scripts/data.js';
 import {
+  ROUTE_TARGET_PARAMS,
   citationEvidence,
   completionReviewModel,
   createInitialProgress,
@@ -1207,7 +1210,13 @@ test('markup in a query or a file excerpt stays inert data, never a field of its
 });
 
 test('library search rides in the hash without disturbing any other route', () => {
-  assert.deepEqual(parseRoute('#/library'), { view: 'library', datasetId: null, search: { query: '', kind: 'all', scope: '' } });
+  assert.deepEqual(parseRoute('#/library'), {
+    view: 'library',
+    datasetId: null,
+    search: { query: '', kind: 'all', scope: '' },
+    focus: { sourceId: '', sectionIndex: null },
+    questionId: '',
+  });
   assert.deepEqual(parseRoute('#/library?q=event+loop&kind=bundled&src=bundled%3Agit').search, {
     query: 'event loop',
     kind: 'bundled',
@@ -1235,6 +1244,206 @@ test('library search rides in the hash without disturbing any other route', () =
   // Round-tripping is what keeps `render` from rewriting the address on every pass.
   for (const hash of ['#/library', '#/library?q=event+loop', '#/library?q=%E5%A4%8D%E4%B9%A0&kind=imported', '#/library?kind=bundled&src=bundled%3Agit']) {
     assert.equal(routeHash(parseRoute(hash)), hash);
+  }
+});
+
+test('an exact target rides in the hash next to the search it came from', () => {
+  // A bundled result addresses one question inside the deck already in the path.
+  assert.equal(parseRoute('#/decks/flutter?question=flutter-init-order').questionId, 'flutter-init-order');
+  assert.equal(
+    routeHash({ view: 'decks', datasetId: 'flutter', questionId: 'flutter-init-order' }),
+    '#/decks/flutter?question=flutter-init-order',
+  );
+
+  // An imported result addresses one section of one source, and needs both halves to be a place.
+  assert.deepEqual(parseRoute('#/library?q=notes&open=anchor-notes-abc&sec=2').focus, {
+    sourceId: 'anchor-notes-abc',
+    sectionIndex: 2,
+  });
+  assert.equal(
+    routeHash({ view: 'library', search: { query: 'notes' }, focus: { sourceId: 'anchor-notes-abc', sectionIndex: 2 } }),
+    '#/library?q=notes&open=anchor-notes-abc&sec=2',
+  );
+  assert.equal(parseRoute('#/library?open=anchor-notes-abc').focus.sourceId, '');
+  assert.equal(parseRoute('#/library?sec=2').focus.sectionIndex, null);
+  assert.equal(routeHash({ view: 'library', focus: { sourceId: 'only-an-id', sectionIndex: null } }), '#/library');
+  assert.equal(routeHash({ view: 'library', focus: { sourceId: '', sectionIndex: 3 } }), '#/library');
+
+  // A target belongs to the surface that can act on it, so neither one leaks onto the other.
+  assert.equal(parseRoute('#/library?question=flutter-init-order').questionId, '');
+  assert.equal(parseRoute('#/decks/flutter?open=anchor-notes-abc&sec=1').focus.sourceId, '');
+  assert.equal(parseRoute('#/profile?open=anchor-notes-abc&sec=1').focus.sourceId, '');
+  assert.equal(parseRoute('#/profile?question=flutter-init-order').questionId, '');
+  assert.equal(routeHash({ view: 'profile', questionId: 'flutter-init-order' }), '#/profile');
+  assert.equal(routeHash({ view: 'home', focus: { sourceId: 'anchor-notes-abc', sectionIndex: 1 } }), '#/home');
+
+  // A question without a deck has nothing to be an index into, so it is not carried.
+  assert.equal(parseRoute('#/decks?question=flutter-init-order').questionId, '');
+  assert.equal(routeHash({ view: 'decks', questionId: 'flutter-init-order' }), '#/decks');
+
+  // Only digits are a section index. Anything else degrades to no target rather than to a coerced one,
+  // so a hand-edited link cannot land on a section nobody asked for.
+  for (const raw of ['-1', '1.5', '+1', '1e0', 'two', '', ' ', 'NaN', 'Infinity', '1,2']) {
+    const focus = parseRoute(`#/library?open=anchor-notes-abc&sec=${encodeURIComponent(raw)}`).focus;
+    assert.deepEqual(focus, { sourceId: '', sectionIndex: null }, `sec=${raw} is not a section`);
+  }
+  assert.equal(parseRoute('#/library?open=anchor-notes-abc&sec=0').focus.sectionIndex, 0);
+
+  // A padded or zero-filled index is read, then written back in its one canonical form, the way the
+  // query and kind parameters have always been. `render` replaces the address, so it stops drifting.
+  assert.equal(parseRoute('#/library?open=anchor-notes-abc&sec=%201%20').focus.sectionIndex, 1);
+  assert.equal(parseRoute('#/library?open=anchor-notes-abc&sec=007').focus.sectionIndex, 7);
+  assert.equal(
+    routeHash(parseRoute('#/library?open=anchor-notes-abc&sec=007')),
+    '#/library?open=anchor-notes-abc&sec=7',
+  );
+
+  // Ids are bounded before anything looks them up, so a padded link cannot grow the work.
+  assert.equal(parseRoute(`#/library?open=${'a'.repeat(400)}&sec=1`).focus.sourceId.length, 160);
+  assert.equal(parseRoute(`#/decks/flutter?question=${'a'.repeat(400)}`).questionId.length, 160);
+
+  // A malformed escape has to resolve to a route rather than throw before the first paint.
+  assert.equal(parseRoute('#/library?open=100%&sec=1').view, 'library');
+  assert.equal(parseRoute('#/decks/flutter?question=100%').view, 'decks');
+
+  // Round-tripping keeps `render` from rewriting an address that already names its target.
+  for (const hash of [
+    '#/decks/flutter?question=flutter-init-order',
+    '#/library?open=anchor-notes-abc&sec=0',
+    '#/library?q=notes&kind=imported&src=imported%3Aanchor-notes-abc&open=anchor-notes-abc&sec=2',
+  ]) {
+    assert.equal(routeHash(parseRoute(hash)), hash);
+  }
+
+  // The parameter names are part of the link contract, so a rename has to be a deliberate edit here.
+  assert.deepEqual(ROUTE_TARGET_PARAMS, { question: 'question', source: 'open', section: 'sec' });
+});
+
+test('a bundled result resolves to the exact question its excerpt was checked against', () => {
+  const dataset = getDataset('flutter');
+  assert.equal(resolveQuestionTarget(dataset, 'flutter-init-order'), 1);
+  assert.equal(resolveQuestionTarget(dataset, dataset.questions.at(-1).id), dataset.questions.length - 1);
+
+  // -1 is the caller's "no target" state: the deck opens where it already was.
+  assert.equal(resolveQuestionTarget(dataset, 'git-staging'), -1);
+  assert.equal(resolveQuestionTarget(dataset, 'flutter-init-order-2'), -1);
+  assert.equal(resolveQuestionTarget(dataset, ''), -1);
+  assert.equal(resolveQuestionTarget(dataset, null), -1);
+  assert.equal(resolveQuestionTarget(dataset, undefined), -1);
+  assert.equal(resolveQuestionTarget(null, 'flutter-init-order'), -1);
+  assert.equal(resolveQuestionTarget({}, 'flutter-init-order'), -1);
+  assert.equal(resolveQuestionTarget({ questions: 'nope' }, 'flutter-init-order'), -1);
+
+  // Whitespace is collapsed the way every other route value is, so a padded link still resolves.
+  assert.equal(resolveQuestionTarget(dataset, '  flutter-init-order  '), 1);
+
+  // Every shipped citation has to name a question this build can open, in every dataset: the index is
+  // what carries the id to the link, so a record whose question is gone would offer a dead action.
+  const index = buildLibraryIndex({ library: createEmptyLibrary() });
+  const bundled = index.filter((record) => record.kind === 'bundled');
+  assert.equal(bundled.length, countSources());
+  for (const record of bundled) {
+    const owner = getDataset(record.scopeId);
+    const at = resolveQuestionTarget(owner, record.questionId);
+    assert.ok(at >= 0, `${record.locator} names a question in ${record.scopeId}`);
+    // The question it resolves to is the one whose citations actually include this passage.
+    assert.ok(
+      owner.questions[at].citations.some((citation) => citation.locator === record.locator),
+      `${record.locator} resolves to the question citing it`,
+    );
+    // The hash a result writes has to parse back to the same target it was built from.
+    const hash = routeHash({ view: 'decks', datasetId: record.scopeId, questionId: record.questionId });
+    assert.deepEqual(
+      [parseRoute(hash).datasetId, parseRoute(hash).questionId],
+      [record.scopeId, record.questionId],
+    );
+  }
+
+  // An imported record carries no question, so nothing can mistake it for a bundled target.
+  const imported = buildLibraryIndex({
+    library: { sources: [{ id: 's', name: 'notes.md', sections: [{ heading: 'A', line: 1, kind: 'heading', excerpt: 'x' }] }] },
+  }).filter((record) => record.kind === 'imported');
+  assert.equal(imported.length, 1);
+  assert.equal(imported[0].questionId, null);
+  assert.equal(resolveQuestionTarget(dataset, imported[0].questionId), -1);
+});
+
+test('an imported result resolves to the exact section, or to nothing this browser holds', () => {
+  const library = {
+    version: LIBRARY_VERSION,
+    sources: [
+      {
+        id: 'notes-abc',
+        name: 'notes.md',
+        sections: [
+          { heading: null, level: 0, line: 1, kind: 'preamble', excerpt: 'Opening text.' },
+          { heading: 'Widget lifecycle', level: 2, line: 4, kind: 'heading', excerpt: 'A StatefulWidget rebuild.' },
+        ],
+      },
+    ],
+  };
+
+  const resolved = resolveLibraryFocus({ sourceId: 'notes-abc', sectionIndex: 1 }, library);
+  assert.equal(resolved.source.id, 'notes-abc');
+  assert.equal(resolved.sectionIndex, 1);
+  assert.equal(resolved.section.heading, 'Widget lifecycle');
+  // The section it resolves to is the one the locator on the result names.
+  assert.equal(sectionLocator(resolved.source, resolved.section), 'notes.md#widget-lifecycle');
+  assert.equal(resolveLibraryFocus({ sourceId: 'notes-abc', sectionIndex: 0 }, library).section.kind, 'preamble');
+
+  // Null is the surface's "no target" state: the address drops it and the library opens as it was.
+  assert.equal(resolveLibraryFocus({ sourceId: 'gone', sectionIndex: 0 }, library), null);
+  assert.equal(resolveLibraryFocus({ sourceId: 'notes-abc', sectionIndex: 2 }, library), null);
+  assert.equal(resolveLibraryFocus({ sourceId: 'notes-abc', sectionIndex: -1 }, library), null);
+  assert.equal(resolveLibraryFocus({ sourceId: 'notes-abc', sectionIndex: null }, library), null);
+  assert.equal(resolveLibraryFocus({ sourceId: 'notes-abc', sectionIndex: 1.5 }, library), null);
+  assert.equal(resolveLibraryFocus({ sourceId: 'notes-abc', sectionIndex: '1' }, library).sectionIndex, 1);
+  assert.equal(resolveLibraryFocus({ sourceId: '', sectionIndex: 1 }, library), null);
+  assert.equal(resolveLibraryFocus({ sourceId: '  notes-abc  ', sectionIndex: 1 }, library).source.id, 'notes-abc');
+
+  // A link shared into a browser with no imports, or damaged storage, resolves away instead of throwing.
+  assert.equal(resolveLibraryFocus({ sourceId: 'notes-abc', sectionIndex: 0 }, createEmptyLibrary()), null);
+  assert.equal(resolveLibraryFocus({ sourceId: 'notes-abc', sectionIndex: 0 }, null), null);
+  assert.equal(resolveLibraryFocus({ sourceId: 'notes-abc', sectionIndex: 0 }, { sources: 'nope' }), null);
+  assert.equal(resolveLibraryFocus(null, library), null);
+  assert.equal(resolveLibraryFocus(undefined, library), null);
+  assert.equal(resolveLibraryFocus({}, library), null);
+
+  // A source normalization dropped for having no readable section is not addressable either.
+  const stripped = normalizeLocalLibrary({ version: LIBRARY_VERSION, sources: [{ id: 'notes-abc', name: 'notes.md', sections: [] }] });
+  assert.equal(resolveLibraryFocus({ sourceId: 'notes-abc', sectionIndex: 0 }, stripped), null);
+
+  // Every record the index built for a stored source has to be addressable through its own coordinates,
+  // which is what makes the action on a result a pointer rather than a guess.
+  for (const record of buildLibraryIndex({ library }).filter((entry) => entry.kind === 'imported')) {
+    const hit = resolveLibraryFocus({ sourceId: record.scopeId, sectionIndex: record.sectionIndex }, library);
+    assert.ok(hit, `${record.locator} is addressable`);
+    assert.equal(sectionLocator(hit.source, hit.section), record.locator);
+    const hash = routeHash({ view: 'library', focus: { sourceId: record.scopeId, sectionIndex: record.sectionIndex } });
+    assert.deepEqual(parseRoute(hash).focus, { sourceId: record.scopeId, sectionIndex: record.sectionIndex });
+  }
+});
+
+test('a result action ships bilingual copy for both exact targets', () => {
+  const text = SHELL_TEXT.library.search;
+  for (const key of ['openBundled', 'openImported', 'openBundledLabel', 'openImportedLabel', 'announceOpened', 'announceBundledOpened']) {
+    assert.ok(text[key].en.trim(), `${key} has English copy`);
+    assert.ok(text[key].zh.trim(), `${key} has Chinese copy`);
+    assert.notEqual(text[key].en, text[key].zh);
+  }
+
+  // The accessible name and the announcements name the target, so every placeholder has to be filled.
+  for (const locale of ['en', 'zh']) {
+    assert.equal(
+      formatCount(text.openBundledLabel[locale], { name: 'Flutter' }).includes('{'),
+      false,
+    );
+    assert.equal(formatCount(text.openImportedLabel[locale], { locator: 'notes.md#a' }).includes('{'), false);
+    assert.equal(formatCount(text.announceOpened[locale], { name: 'notes.md', locator: 'notes.md#a' }).includes('{'), false);
+    assert.equal(
+      formatCount(text.announceBundledOpened[locale], { n: 2, total: 4, name: 'Flutter' }).includes('{'),
+      false,
+    );
   }
 });
 
