@@ -8,6 +8,7 @@ import {
   BACKUP_SECTIONS,
   BACKUP_VERSION,
   DATASETS,
+  DECK_SEARCH_LIMITS,
   LIBRARY_SEARCH_LIMITS,
   LOCAL_IMPORT_LIMITS,
   LIBRARY_VERSION,
@@ -19,6 +20,7 @@ import {
   buildAgentScript,
   buildLibraryIndex,
   byteLength,
+  clampDeckQuery,
   clampLibraryQuery,
   clampReflection,
   countSources,
@@ -27,6 +29,9 @@ import {
   createEmptyLibrary,
   createLocalSource,
   createThemeRecord,
+  deckCardModel,
+  deckProgressFill,
+  deckSearchTerms,
   extractSections,
   formatBytes,
   formatImportedAt,
@@ -42,12 +47,14 @@ import {
   readBackup,
   resolveLibrarySearch,
   resolveTheme,
+  searchDecks,
   searchLibrary,
   sectionLocator,
   truncateExcerpt,
   validateBackupCandidate,
   validateDatasets,
   validateImportCandidate,
+  verifiedQuestionCount,
 } from '../landing/app/scripts/data.js';
 import {
   createInitialProgress,
@@ -672,6 +679,119 @@ test('a query is capped and split into terms a record must all contain', () => {
   const long = 'x'.repeat(LIBRARY_SEARCH_LIMITS.maxQueryChars + 40);
   assert.equal(clampLibraryQuery(long).length, LIBRARY_SEARCH_LIMITS.maxQueryChars);
   assert.equal(librarySearchTerms(long)[0].length, LIBRARY_SEARCH_LIMITS.maxQueryChars);
+});
+
+test('a deck query is capped and split by the same rules as the library search', () => {
+  assert.deepEqual(deckSearchTerms('  Flutter   LIFECYCLE '), ['flutter', 'lifecycle']);
+  assert.deepEqual(deckSearchTerms('运行时'), ['运行时']);
+  assert.deepEqual(deckSearchTerms(''), []);
+  assert.deepEqual(deckSearchTerms(null), []);
+
+  const long = 'x'.repeat(DECK_SEARCH_LIMITS.maxQueryChars + 25);
+  assert.equal(clampDeckQuery(long).length, DECK_SEARCH_LIMITS.maxQueryChars);
+  assert.equal(deckSearchTerms('a b c d e f g h i').length, DECK_SEARCH_LIMITS.maxTerms);
+});
+
+test('a question counts as verified only when it carries a citation', () => {
+  for (const dataset of DATASETS) {
+    // Every bundled question cites a source, so the browser demo never shows an unverified deck.
+    assert.equal(verifiedQuestionCount(dataset), dataset.questions.length);
+  }
+
+  assert.equal(verifiedQuestionCount({ questions: [{ citations: [] }, { citations: [{}] }] }), 1);
+  assert.equal(verifiedQuestionCount({ questions: [{}, { citations: null }] }), 0);
+  assert.equal(verifiedQuestionCount({}), 0);
+  assert.equal(verifiedQuestionCount(null), 0);
+});
+
+test('deck progress becomes a decile class because the deployed policy forbids inline widths', () => {
+  assert.equal(deckProgressFill(0, 4), 0);
+  assert.equal(deckProgressFill(1, 4), 30);
+  assert.equal(deckProgressFill(2, 4), 50);
+  assert.equal(deckProgressFill(4, 4), 100);
+  assert.equal(deckProgressFill(9, 4), 100);
+  assert.equal(deckProgressFill(1, 0), 0);
+});
+
+test('one pass resolves a deck card so its badge, bar, and action cannot disagree', () => {
+  const dataset = getDataset('flutter');
+
+  const untouched = deckCardModel(dataset, {});
+  assert.equal(untouched.total, dataset.questions.length);
+  assert.equal(untouched.verified, dataset.questions.length);
+  assert.equal(untouched.answered, 0);
+  assert.equal(untouched.percent, 0);
+  assert.equal(untouched.fill, 0);
+  assert.equal(untouched.tier, 'start');
+  assert.equal(untouched.action, 'start');
+  assert.equal(untouched.startable, true);
+
+  const halfway = deckCardModel(dataset, { answered: 2, correct: 1 });
+  assert.equal(halfway.percent, 50);
+  assert.equal(halfway.fill, 50);
+  assert.equal(halfway.tier, 'progress');
+  assert.equal(halfway.action, 'continue');
+
+  // Answering the last question and the stored completion flag are both ways to finish a deck.
+  for (const state of [{ answered: dataset.questions.length }, { completed: true }]) {
+    const done = deckCardModel(dataset, state);
+    assert.equal(done.completed, true);
+    assert.equal(done.action, 'review');
+  }
+  assert.equal(deckCardModel(dataset, { answered: dataset.questions.length }).tier, 'complete');
+
+  // Counts arriving from storage are clamped rather than trusted: a stale key cannot print 9/4.
+  const overshoot = deckCardModel(dataset, { answered: 99, correct: 99 });
+  assert.equal(overshoot.answered, dataset.questions.length);
+  assert.equal(overshoot.correct, dataset.questions.length);
+  assert.equal(overshoot.percent, 100);
+  const negative = deckCardModel(dataset, { answered: -3, correct: -3 });
+  assert.equal(negative.answered, 0);
+  assert.equal(negative.correct, 0);
+});
+
+test('a deck with no verified question offers no start', () => {
+  const unverified = deckCardModel({ id: 'draft', mark: 'DR', questions: [{ citations: [] }, {}] });
+  assert.equal(unverified.verified, 0);
+  assert.equal(unverified.startable, false);
+  assert.equal(unverified.action, 'pending');
+
+  const empty = deckCardModel({ id: 'empty', questions: [] });
+  assert.equal(empty.total, 0);
+  assert.equal(empty.percent, 0);
+  assert.equal(empty.action, 'pending');
+});
+
+test('deck search filters by the title in the language on screen', () => {
+  const idle = searchDecks('   ');
+  assert.deepEqual(idle.terms, []);
+  assert.equal(idle.matches.length, DATASETS.length);
+  assert.equal(idle.total, DATASETS.length);
+  assert.deepEqual(idle.matches.map((dataset) => dataset.id), DATASETS.map((dataset) => dataset.id));
+
+  // Folding covers case and width, so a shouted or full-width query still lands.
+  assert.deepEqual(searchDecks('FLUTTER').matches.map((dataset) => dataset.id), ['flutter']);
+  assert.deepEqual(searchDecks('ｇｉｔ').matches.map((dataset) => dataset.id), ['git']);
+
+  // Every term has to appear in the same title, which is what keeps a two-word query narrow.
+  assert.deepEqual(searchDecks('javascript runtime').matches.map((dataset) => dataset.id), ['javascript']);
+  assert.deepEqual(searchDecks('javascript lifecycle').matches, []);
+
+  // The title is matched in the locale on screen, so a Chinese query needs the Chinese titles.
+  assert.deepEqual(searchDecks('协作', { locale: 'zh' }).matches.map((dataset) => dataset.id), ['git']);
+  assert.deepEqual(searchDecks('协作', { locale: 'en' }).matches, []);
+  assert.deepEqual(searchDecks('生命周期', { locale: 'zh' }).matches.map((dataset) => dataset.id), ['flutter']);
+
+  // A summary word is deliberately not searched: the surface promises to match the deck name.
+  assert.deepEqual(searchDecks('staging').matches, []);
+
+  const missed = searchDecks('kotlin');
+  assert.deepEqual(missed.matches, []);
+  assert.deepEqual(missed.terms, ['kotlin']);
+  assert.equal(missed.total, DATASETS.length);
+
+  assert.deepEqual(searchDecks('flutter', { datasets: [] }).matches, []);
+  assert.equal(searchDecks('flutter', { datasets: null }).total, 0);
 });
 
 test('the index covers every bundled excerpt and every imported section, kinds kept apart', () => {

@@ -279,6 +279,271 @@ test('mobile dataset navigation works without horizontal overflow', async ({ pag
   expect(overflow).toBeLessThanOrEqual(0);
 });
 
+const deckSearch = (page) => page.locator('[data-deck-search-input]');
+const deckCards = (page) => page.locator('[data-deck-card]');
+const deckStatus = (page) => page.locator('[data-deck-status]');
+
+/** How much of one card's track the fill actually covers, measured rather than read off a class. */
+async function deckFillRatio(card) {
+  const [fill, track] = await Promise.all([
+    card.locator('.progress-bar').evaluate((node) => node.getBoundingClientRect().width),
+    card.locator('.progress-track').evaluate((node) => node.getBoundingClientRect().width),
+  ]);
+  return track > 0 ? fill / track : 0;
+}
+
+/**
+ * Answers the first `count` questions of one bundled deck through the UI and returns to the deck
+ * library. Progress is cleared first so the deck always resumes at its first question, which keeps the
+ * counts a card is asserted on exact rather than cumulative across calls.
+ */
+async function answerQuestions(page, datasetId, count) {
+  await page.goto(`/app/#/decks/${datasetId}`);
+  await page.evaluate((key) => localStorage.removeItem(key), PROGRESS_STORAGE_KEY);
+  await page.reload();
+
+  for (const question of getDataset(datasetId).questions.slice(0, count)) {
+    for (const optionId of question.correct) await page.locator(`input[value="${optionId}"]`).check();
+    await page.locator('[data-submit]').click();
+    await expect(page.locator('.feedback-status')).toBeVisible();
+    await page.locator('[data-next]').click();
+  }
+
+  await page.goto('/app/#/decks');
+  await expect(deckCards(page).first()).toBeVisible();
+}
+
+test('the deck library filters by title and counts what it is showing', async ({ page }) => {
+  await page.goto('/app/#/decks');
+  await expect(deckCards(page)).toHaveCount(DATASETS.length);
+  await expect(deckStatus(page)).toContainText(`Decks: ${DATASETS.length}`);
+  await expect(deckStatus(page)).toContainText('Verified questions: 12');
+
+  await deckSearch(page).fill('flutter');
+  await expect(deckCards(page)).toHaveCount(1);
+  await expect(deckCards(page).first()).toHaveAttribute('data-deck-card', 'flutter');
+  await expect(deckStatus(page)).toContainText(`Decks matching “flutter”: 1 of ${DATASETS.length}`);
+  // Only the part that matched is marked, so the result can be explained by pointing at the title.
+  await expect(deckCards(page).first().locator('mark')).toHaveText('Flutter');
+
+  // Folding covers case and width; every term still has to appear in the same title.
+  await deckSearch(page).fill('  GIT  ');
+  await expect(deckCards(page)).toHaveCount(1);
+  await expect(deckCards(page).first()).toHaveAttribute('data-deck-card', 'git');
+  await deckSearch(page).fill('git runtime');
+  await expect(deckCards(page)).toHaveCount(0);
+
+  // A summary word is not searched: the field says it matches the deck name, and it means it.
+  await deckSearch(page).fill('staging');
+  await expect(deckCards(page)).toHaveCount(0);
+
+  // The query is view state, not a route, so filtering never rewrites the address.
+  await expect(page).toHaveURL(/#\/decks$/);
+  await page.locator('[data-deck-search-clear]').click();
+  await expect(deckSearch(page)).toHaveValue('');
+  await expect(deckSearch(page)).toBeFocused();
+  await expect(deckCards(page)).toHaveCount(DATASETS.length);
+  await expect(page.locator('#app-announcer')).toHaveText(`Deck search cleared. Showing all ${DATASETS.length} decks.`);
+
+  // Searching and clearing wrote nothing: the query is not the learner's data to keep.
+  expect(await page.evaluate((keys) => keys.filter((key) => localStorage.getItem(key) !== null), ANCHOR_STORAGE_KEYS)).toEqual([]);
+
+  // Opening a deck and coming back keeps the query: it lives as long as the tab, not the surface.
+  await deckSearch(page).fill('git');
+  await deckCards(page).first().click();
+  await expect(page).toHaveURL(/#\/decks\/git$/);
+  await page.locator('#app-nav [data-nav-route="decks"]').click();
+  await expect(deckSearch(page)).toHaveValue('git');
+  await expect(deckCards(page)).toHaveCount(1);
+
+  // A reload starts clean, which is the honest outcome for a query that was never stored.
+  await page.reload();
+  await expect(deckSearch(page)).toHaveValue('');
+  await expect(deckCards(page)).toHaveCount(DATASETS.length);
+});
+
+test('a deck card reports verified questions and this browser\'s own progress', async ({ page }) => {
+  await page.goto('/app/#/decks');
+  const flutter = page.locator('[data-deck-card="flutter"]');
+  await expect(flutter.locator('[data-deck-verified]')).toHaveText('4 verified / 4 total');
+  await expect(flutter.locator('[data-deck-answered]')).toHaveText('0/4 answered');
+  await expect(flutter.locator('[data-deck-percent]')).toHaveText('Not started');
+  await expect(flutter.locator('[data-deck-action-label]')).toContainText('Start studying');
+  await expect(flutter).toHaveAttribute('data-deck-action', 'start');
+  await expect(flutter).toHaveAttribute('data-deck-tier', 'start');
+  await expect(flutter).toBeEnabled();
+
+  await answerQuestions(page, 'flutter', 1);
+  await expect(flutter.locator('[data-deck-answered]')).toHaveText('1/4 answered');
+  await expect(flutter.locator('[data-deck-percent]')).toHaveText('25% answered');
+  await expect(flutter.locator('[data-deck-action-label]')).toContainText('Continue studying');
+  await expect(flutter).toHaveAttribute('data-deck-action', 'continue');
+  // The bar carries no value of its own: the percentage is text beside it, so the width is a class.
+  await expect(flutter.locator('.progress-bar')).toHaveClass(/deck-fill-30/);
+  await expect(flutter.locator('.progress-track')).toHaveAttribute('aria-hidden', 'true');
+  // And it has to render at that width. The class alone proves nothing: these are spans inside a
+  // button, where an inline box would drop the width and leave an empty track.
+  expect(await deckFillRatio(flutter)).toBeGreaterThan(0.2);
+  expect(await deckFillRatio(flutter)).toBeLessThan(0.4);
+
+  // Progress belongs to one deck, so the others still read as untouched.
+  const git = page.locator('[data-deck-card="git"]');
+  await expect(git.locator('[data-deck-percent]')).toHaveText('Not started');
+  await expect(git).toHaveAttribute('data-deck-action', 'start');
+
+  await answerQuestions(page, 'flutter', 4);
+  await expect(flutter.locator('[data-deck-answered]')).toHaveText('4/4 answered');
+  await expect(flutter.locator('[data-deck-percent]')).toHaveText('100% answered');
+  await expect(flutter.locator('[data-deck-action-label]')).toContainText('Review again');
+  await expect(flutter).toHaveAttribute('data-deck-tier', 'complete');
+  await expect(flutter.locator('.progress-bar')).toHaveClass(/deck-fill-100/);
+  expect(await deckFillRatio(flutter)).toBeCloseTo(1, 2);
+
+  // A card is still the way into the deck: the action is a label on that one button, not a second target.
+  await flutter.click();
+  await expect(page).toHaveURL(/#\/decks\/flutter$/);
+
+  // Resetting progress puts every card back to its unstarted reading.
+  await page.locator('#reset-progress').click();
+  await expect(page).toHaveURL(/#\/decks$/);
+  await expect(page.locator('[data-deck-card="flutter"] [data-deck-percent]')).toHaveText('Not started');
+  await expect(page.locator('[data-deck-card="flutter"] [data-deck-answered]')).toHaveText('0/4 answered');
+});
+
+test('the deck library separates no match from an empty query, and offers a local import', async ({ page }) => {
+  await page.goto('/app/#/decks');
+  await expect(page.locator('[data-deck-empty]')).toHaveCount(0);
+
+  await deckSearch(page).fill('kubernetes');
+  const empty = page.locator('[data-deck-empty]');
+  await expect(empty).toHaveAttribute('data-empty-kind', 'no-results');
+  await expect(empty).toContainText('kubernetes');
+  await expect(empty).toContainText(String(DATASETS.length));
+  await expect(deckStatus(page)).toContainText(`0 of ${DATASETS.length}`);
+  await expect(deckCards(page)).toHaveCount(0);
+  // The grid goes away with the results rather than standing empty above the explanation.
+  await expect(page.locator('.deck-grid')).toHaveCount(0);
+
+  // The query is echoed into both, so both have to escape it.
+  await deckSearch(page).fill('<img src=x onerror=alert(1)>');
+  await expect(empty).toContainText('onerror=alert(1)');
+  await expect(empty.locator('img')).toHaveCount(0);
+  await expect(deckStatus(page).locator('img')).toHaveCount(0);
+
+  // Adding material is the way past bundled decks, and it stays inside this browser.
+  await page.locator('[data-deck-import]').click();
+  await expect(page).toHaveURL(/#\/import$/);
+  await expect(page.locator('body')).toHaveAttribute('data-view', 'import');
+});
+
+test('deck search and card status stay bilingual', async ({ page }) => {
+  await answerQuestions(page, 'git', 2);
+  await deckSearch(page).fill('git');
+  await expect(deckCards(page)).toHaveCount(1);
+
+  await page.locator('[data-locale="zh"]').click();
+  // The query belongs to the learner, not to the language, so a switch keeps it and re-matches.
+  await expect(deckSearch(page)).toHaveValue('git');
+  await expect(deckCards(page)).toHaveCount(1);
+  await expect(page.locator('label[for="deck-search-input"]')).toHaveText(SHELL_TEXT.decks.searchLabel.zh);
+  await expect(deckSearch(page)).toHaveAttribute('placeholder', SHELL_TEXT.decks.searchPlaceholder.zh);
+  await expect(page.locator('[data-deck-search-clear]')).toHaveText(SHELL_TEXT.decks.searchClear.zh);
+  await expect(page.locator('[data-deck-import]')).toHaveText(SHELL_TEXT.decks.importAction.zh);
+
+  const git = page.locator('[data-deck-card="git"]');
+  await expect(git.locator('[data-deck-verified]')).toHaveText('4 已核验 / 4 总题');
+  await expect(git.locator('[data-deck-answered]')).toHaveText('已答 2/4');
+  await expect(git.locator('[data-deck-percent]')).toHaveText('已答 50%');
+  await expect(git.locator('[data-deck-action-label]')).toContainText(SHELL_TEXT.decks.actionContinue.zh);
+  await expect(deckStatus(page)).toContainText('/ 3');
+
+  // A Chinese query matches the Chinese titles, which is what the hint promises.
+  await deckSearch(page).fill('协作');
+  await expect(deckCards(page)).toHaveCount(1);
+  await expect(deckCards(page).first()).toHaveAttribute('data-deck-card', 'git');
+  await deckSearch(page).fill('');
+  await expect(deckStatus(page)).toContainText('已核验题目：12');
+
+  await page.locator('[data-locale="en"]').click();
+  await expect(page.locator('label[for="deck-search-input"]')).toHaveText(SHELL_TEXT.decks.searchLabel.en);
+  await expect(page.locator('[data-deck-card="git"] [data-deck-percent]')).toHaveText('50% answered');
+});
+
+test('the deck library takes the keyboard and stays announced', async ({ page }) => {
+  await page.goto('/app/#/decks');
+  await expect(deckStatus(page)).toHaveAttribute('role', 'status');
+  await expect(deckStatus(page)).toHaveAttribute('aria-live', 'polite');
+  await expect(page.locator('[data-deck-search]')).toHaveAttribute('role', 'search');
+  await expect(deckSearch(page)).toHaveAttribute('aria-describedby', 'deck-search-hint');
+  await expect(page.locator('#deck-search-hint')).toContainText('60 characters');
+  // Nothing here posts anywhere, so there is no form to submit.
+  await expect(page.locator('.deck-toolbar form')).toHaveCount(0);
+
+  // The clear button only exists once there is something to clear.
+  await expect(page.locator('[data-deck-search-clear]')).toBeHidden();
+  await deckSearch(page).click();
+  await page.keyboard.type('javascript');
+  await expect(page.locator('[data-deck-search-clear]')).toBeVisible();
+  await expect(deckCards(page)).toHaveCount(1);
+
+  // Enter cannot submit anything, so it moves to the first deck that matched.
+  await page.keyboard.press('Enter');
+  await expect(deckCards(page).first()).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/#\/decks\/javascript$/);
+
+  await page.goto('/app/#/decks');
+  await deckSearch(page).fill('flutter');
+  await deckSearch(page).press('Escape');
+  await expect(deckSearch(page)).toHaveValue('');
+  await expect(deckSearch(page)).toBeFocused();
+  await expect(deckCards(page)).toHaveCount(DATASETS.length);
+  await expect(page.locator('#app-announcer')).toHaveText(`Deck search cleared. Showing all ${DATASETS.length} decks.`);
+
+  // Each card is one button whose name reads as the whole card, so the bar must not add a second
+  // widget inside it: a nested progressbar would only be flattened into that name.
+  await expect(page.locator('.deck-grid').getByRole('button', { name: /Flutter lifecycle/ })).toHaveCount(1);
+  await expect(page.locator('.deck-grid [role="progressbar"]')).toHaveCount(0);
+  await expect(page.locator('.deck-grid button')).toHaveCount(DATASETS.length);
+
+  // A capped field cannot grow a query past what matching will read.
+  await expect(deckSearch(page)).toHaveAttribute('maxlength', '60');
+  await deckSearch(page).fill('x'.repeat(120));
+  expect((await deckSearch(page).inputValue()).length).toBe(60);
+});
+
+test('the deck library fits a 390px viewport and asks nothing of the network', async ({ page }) => {
+  const offOrigin = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).origin !== expectedOrigin) offOrigin.push(request.url());
+  });
+  const overflow = () => page.evaluate(() => Math.max(
+    document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    document.body.scrollWidth - document.body.clientWidth,
+  ));
+
+  // Progress is built at the default size, then the viewport narrows: this test is about the deck
+  // layout, not about tapping the quiz under a fixed tab bar.
+  await answerQuestions(page, 'javascript', 3);
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await overflow(), 'the idle deck library overflows at 390px').toBeLessThanOrEqual(0);
+  await expect(page.locator('[data-deck-card="javascript"] [data-deck-percent]')).toHaveText('75% answered');
+
+  await deckSearch(page).fill('javascript');
+  await expect(deckCards(page)).toHaveCount(1);
+  expect(await overflow(), 'a single deck result overflows at 390px').toBeLessThanOrEqual(0);
+
+  await deckSearch(page).fill('kubernetes');
+  await expect(page.locator('[data-deck-empty]')).toBeVisible();
+  expect(await overflow(), 'the no-result state overflows at 390px').toBeLessThanOrEqual(0);
+
+  await page.locator('[data-locale="zh"]').click();
+  expect(await overflow(), 'Chinese deck copy overflows at 390px').toBeLessThanOrEqual(0);
+  await expect(page.locator('.app-tabbar')).toBeVisible();
+
+  expect(offOrigin).toEqual([]);
+});
+
 test('the shell exposes every product surface on desktop and mobile', async ({ page }) => {
   const offOriginRequests = [];
   page.on('request', (request) => {

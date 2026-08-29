@@ -11,6 +11,7 @@ import {
   BACKUP_VERSION,
   DATA_VERSION,
   DATASETS,
+  DECK_SEARCH_LIMITS,
   LIBRARY_SEARCH_KINDS,
   LIBRARY_SEARCH_LIMITS,
   LOCAL_IMPORT_LIMITS,
@@ -22,6 +23,7 @@ import {
   buildAgentScript,
   buildLibraryIndex,
   byteLength,
+  clampDeckQuery,
   clampLibraryQuery,
   clampReflection,
   collectSources,
@@ -32,6 +34,7 @@ import {
   createEmptyLibrary,
   createLocalSource,
   createThemeRecord,
+  deckCardModel,
   formatBytes,
   formatCount,
   formatImportedAt,
@@ -45,12 +48,14 @@ import {
   readBackup,
   resolveLibrarySearch,
   resolveTheme,
+  searchDecks,
   searchLibrary,
   sectionLocator,
   textFor,
   validateBackupCandidate,
   validateDatasets,
   validateImportCandidate,
+  verifiedQuestionCount,
 } from './data.js';
 
 export const PROGRESS_STORAGE_KEY = 'anchor.demo.progress.v1';
@@ -357,6 +362,14 @@ if (typeof document !== 'undefined') {
   let agentReflectionNudge = false;
   let agentClearPending = false;
 
+  /**
+   * Deck search is view state: not stored, and deliberately not in the hash. Keeping it out of the route
+   * leaves every existing link, reload, and shared address behaving exactly as before, and a query is a
+   * gesture rather than a place. It holds the raw typed value for as long as the tab is open, so a locale
+   * switch or a rebuild keeps it and a reload starts clean without writing a key.
+   */
+  let deckQuery = '';
+
   // Import is a three-step flow: select, review, confirm. Only `library` is ever persisted, so a
   // selected-but-unconfirmed file exists in memory alone and disappears on reload.
   let importDraft = null;
@@ -631,33 +644,155 @@ if (typeof document !== 'undefined') {
       </section>`;
   }
 
+  /** Bundled questions carrying a citation, counted rather than assumed so the idle line cannot overclaim. */
+  function bundledVerifiedCount() {
+    return DATASETS.reduce((sum, dataset) => sum + verifiedQuestionCount(dataset), 0);
+  }
+
+  /** One card's numbers: bundled totals plus the progress stored in this browser, nothing else. */
+  function deckCard(dataset) {
+    const state = datasetProgress(dataset.id);
+    return deckCardModel(dataset, {
+      answered: submittedCountFor(dataset),
+      correct: scoreDataset(dataset, state),
+      completed: state.completed,
+    });
+  }
+
+  /** `action` is a state on the model; the label it maps to belongs to the active locale. */
+  const DECK_ACTION_KEYS = {
+    start: 'actionStart',
+    continue: 'actionContinue',
+    review: 'actionReview',
+    pending: 'actionPending',
+  };
+
+  function renderDeckCard(dataset, terms) {
+    const text = SHELL_TEXT.decks;
+    const card = deckCard(dataset);
+    const progressLabel = card.answered > 0
+      ? formatCount(shell(text.cardProgress), { percent: card.percent })
+      : shell(text.cardNotStarted);
+
+    // The whole card stays one button so a pick is a single target for pointer and keyboard alike.
+    // The bar is `aria-hidden` because its value is already in the text beside it; a nested
+    // progressbar would only be flattened into this button's name.
+    return `
+      <button class="dataset-choice deck-card" type="button" data-select-dataset="${dataset.id}" data-deck-card="${dataset.id}" data-deck-action="${card.action}" data-deck-tier="${card.tier}"${card.startable ? '' : ' disabled aria-disabled="true"'}>
+        <span class="dataset-mark">${dataset.mark}</span>
+        <h2>${highlighted(textFor(dataset.title, locale()), terms)}</h2>
+        <p>${escapeHtml(textFor(dataset.summary, locale()))}</p>
+        <span class="deck-card-verified" data-deck-verified>${escapeHtml(formatCount(shell(text.cardVerified), { verified: card.verified, total: card.total }))}</span>
+        <span class="deck-card-progress">
+          <span class="progress-track deck-progress-track" aria-hidden="true"><span class="progress-bar deck-fill-${card.fill}"></span></span>
+          <span class="deck-card-percent" data-deck-percent>${escapeHtml(progressLabel)}</span>
+        </span>
+        <footer>
+          <span data-deck-answered>${escapeHtml(formatCount(shell(text.cardAnswered), { answered: card.answered, total: card.total }))}</span>
+          <span class="deck-card-action" data-deck-action-label>${escapeHtml(shell(text[DECK_ACTION_KEYS[card.action]]))}<span aria-hidden="true"> →</span></span>
+        </footer>
+      </button>`;
+  }
+
+  /**
+   * One pass over the datasets produces the status line, the empty state, and the cards together, so
+   * the announced count and what is on screen can never disagree. An empty query is idle, not a search.
+   */
+  function deckSearchOutcome(query) {
+    const text = SHELL_TEXT.decks;
+    const clamped = clampDeckQuery(query);
+    const found = searchDecks(clamped, { locale: locale() });
+    return {
+      clamped,
+      terms: found.terms,
+      matches: found.matches,
+      total: found.total,
+      status: found.terms.length
+        ? formatCount(shell(text.statusResults), { query: clamped, n: found.matches.length, total: found.total })
+        : formatCount(shell(text.statusIdle), { n: found.total, q: bundledVerifiedCount() }),
+      empty: found.matches.length ? null : formatCount(shell(text.emptyNoResults), { query: clamped, total: found.total }),
+    };
+  }
+
+  function deckResultsHtml(outcome) {
+    if (outcome.empty) {
+      return `<p class="deck-empty" data-deck-empty data-empty-kind="no-results">${escapeHtml(outcome.empty)}</p>`;
+    }
+    return `<div class="dataset-grid deck-grid">${outcome.matches.map((dataset) => renderDeckCard(dataset, outcome.terms)).join('')}</div>`;
+  }
+
   // The dataset chooser keeps the `welcome-view` class so the original quiz entry point, its styles,
   // and its regression coverage stay anchored to the same node inside the new shell.
   function renderDeckChooser() {
+    const text = SHELL_TEXT.decks;
+    const outcome = deckSearchOutcome(deckQuery);
     content.innerHTML = `
       <section class="shell-view welcome-view" data-view="decks">
         <div class="welcome-heading">
-          <p class="eyebrow">${escapeHtml(shell(SHELL_TEXT.decks.eyebrow))}</p>
+          <p class="eyebrow">${escapeHtml(shell(text.eyebrow))}</p>
           <h1>${escapeHtml(translate('app.chooseDataset'))}</h1>
           <p>${escapeHtml(translate('app.chooseDatasetBody'))}</p>
         </div>
-        <div class="dataset-grid">
-          ${DATASETS.map((dataset) => {
-            const submitted = submittedCountFor(dataset);
-            return `
-            <button class="dataset-choice" type="button" data-select-dataset="${dataset.id}">
-              <span class="dataset-mark">${dataset.mark}</span>
-              <h2>${escapeHtml(textFor(dataset.title, locale()))}</h2>
-              <p>${escapeHtml(textFor(dataset.summary, locale()))}</p>
-              <footer>
-                <span>${submitted}/${dataset.questions.length} ${escapeHtml(translate('app.questions'))}</span>
-                <span aria-hidden="true">→</span>
-              </footer>
-            </button>`;
-          }).join('')}
+
+        <div class="deck-toolbar" data-deck-search role="search" aria-label="${escapeHtml(shell(text.searchRegion))}">
+          <div class="deck-search-field">
+            <label class="deck-search-label" for="deck-search-input">${escapeHtml(shell(text.searchLabel))}</label>
+            <div class="deck-search-row">
+              <input
+                class="deck-search-input"
+                id="deck-search-input"
+                type="search"
+                name="deck-search"
+                autocomplete="off"
+                spellcheck="false"
+                enterkeyhint="search"
+                maxlength="${DECK_SEARCH_LIMITS.maxQueryChars}"
+                placeholder="${escapeHtml(shell(text.searchPlaceholder))}"
+                aria-describedby="deck-search-hint"
+                value="${escapeHtml(deckQuery)}"
+                data-deck-search-input
+              >
+              <button class="button button-secondary deck-search-clear" type="button" data-deck-search-clear${outcome.clamped ? '' : ' hidden'}>${escapeHtml(shell(text.searchClear))}</button>
+            </div>
+            <p class="deck-search-hint" id="deck-search-hint">${escapeHtml(formatCount(shell(text.searchHint), { max: DECK_SEARCH_LIMITS.maxQueryChars }))}</p>
+          </div>
+          <a class="button button-secondary deck-import-link" href="${routeHash({ view: 'import' })}" data-nav-route="import" data-deck-import>${escapeHtml(shell(text.importAction))}</a>
         </div>
-        <p class="shell-scope shell-scope-footer">${badge('android')}<span>${escapeHtml(shell(SHELL_TEXT.decks.note))}</span></p>
+
+        <p class="deck-status" data-deck-status role="status" aria-live="polite">${escapeHtml(outcome.status)}</p>
+        <div class="deck-results" data-deck-results>${deckResultsHtml(outcome)}</div>
+
+        <p class="shell-scope shell-scope-footer">${badge('android')}<span>${escapeHtml(shell(text.note))}</span></p>
       </section>`;
+  }
+
+  /**
+   * Recomputes the cards in place instead of re-rendering the surface: a full rebuild on every keystroke
+   * would take the caret and the composition state with it. The status node stays put so its live region
+   * keeps announcing counts.
+   */
+  function updateDeckSearch() {
+    const field = document.querySelector('[data-deck-search-input]');
+    const status = document.querySelector('[data-deck-status]');
+    const results = document.querySelector('[data-deck-results]');
+    if (!field || !status || !results) return;
+
+    deckQuery = field.value;
+    const outcome = deckSearchOutcome(deckQuery);
+    status.textContent = outcome.status;
+    results.innerHTML = deckResultsHtml(outcome);
+    const clear = document.querySelector('[data-deck-search-clear]');
+    if (clear) clear.hidden = !outcome.clamped;
+  }
+
+  /** Clears the query, keeps focus in the field, and says what is on screen now. */
+  function clearDeckSearch() {
+    const field = document.querySelector('[data-deck-search-input]');
+    if (field) field.value = '';
+    deckQuery = '';
+    updateDeckSearch();
+    field?.focus();
+    announce(formatCount(shell(SHELL_TEXT.decks.announceCleared), { total: DATASETS.length }));
   }
 
   function agentScriptFor(session) {
@@ -2193,6 +2328,15 @@ if (typeof document !== 'undefined') {
     return false;
   }
 
+  /** Handles the deck search controls. Returns true when the click was consumed. */
+  function handleDeckClick(event) {
+    if (event.target.closest('[data-deck-search-clear]')) {
+      clearDeckSearch();
+      return true;
+    }
+    return false;
+  }
+
   /** Handles the Library search controls. Returns true when the click was consumed. */
   function handleLibrarySearchClick(event) {
     if (event.target.closest('[data-library-search-clear]')) {
@@ -2403,6 +2547,11 @@ if (typeof document !== 'undefined') {
   }
 
   document.addEventListener('input', (event) => {
+    if (event.target.closest('[data-deck-search-input]')) {
+      updateDeckSearch();
+      return;
+    }
+
     if (event.target.closest('[data-library-search-input]')) {
       updateLibrarySearch();
       return;
@@ -2517,8 +2666,8 @@ if (typeof document !== 'undefined') {
       return;
     }
 
-    if (handleProfileClick(event) || handleImportClick(event) || handleLibrarySearchClick(event)
-      || handleLocalLibraryClick(event) || handleAgentClick(event)) return;
+    if (handleProfileClick(event) || handleImportClick(event) || handleDeckClick(event)
+      || handleLibrarySearchClick(event) || handleLocalLibraryClick(event) || handleAgentClick(event)) return;
 
     const context = currentContext();
     if (event.target.closest('[data-submit]') && context) {
@@ -2615,6 +2764,21 @@ if (typeof document !== 'undefined') {
     content?.focus();
   });
   window.addEventListener('keydown', (event) => {
+    const deckSearch = event.target?.closest?.('[data-deck-search-input]');
+    if (deckSearch) {
+      // Nothing here can be submitted, so Enter opens the first deck that matched.
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        document.querySelector('[data-deck-card]:not([disabled])')?.focus();
+        return;
+      }
+      if (event.key === 'Escape' && deckSearch.value) {
+        event.preventDefault();
+        clearDeckSearch();
+        return;
+      }
+    }
+
     const search = event.target?.closest?.('[data-library-search-input]');
     if (search) {
       // Enter cannot submit anything, so it does the useful thing instead: move to the first result.

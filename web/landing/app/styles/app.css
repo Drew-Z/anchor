@@ -560,6 +560,108 @@ h3 {
   font-weight: 750;
 }
 
+/* Deck library. The toolbar sits above the grid: the field filters what is already on the page, and the
+   import link is the only way out of bundled material, mirroring the Android deck list's add button. */
+.deck-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 14px 24px;
+  margin-bottom: 4px;
+}
+
+.deck-search-field {
+  max-width: 420px;
+}
+
+.deck-import-link {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.deck-status {
+  margin: 16px 0 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.deck-empty {
+  max-width: 62ch;
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* The card is one button, so its parts stack rather than relying on a nested grid the button would
+   flatten for assistive technology. */
+.deck-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.deck-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.deck-card:disabled:hover {
+  background: transparent;
+}
+
+.deck-card p {
+  margin-bottom: 14px;
+}
+
+.deck-card-verified {
+  margin-bottom: 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.deck-card-progress {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 18px;
+}
+
+/* The track and its fill are spans, because the card is a button and its content stays phrasing-level.
+   Both need an explicit box: an inline element ignores the width the decile class sets. */
+.deck-progress-track {
+  display: block;
+  grid-column: auto;
+}
+
+.deck-progress-track .progress-bar {
+  display: block;
+}
+
+.deck-card-percent {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.deck-card footer {
+  margin-top: auto;
+  gap: 12px;
+}
+
+.deck-card-action {
+  text-align: right;
+}
+
+/* A finished deck deepens the bar. The Android list shades three mastery tiers, but this palette has no
+   third bar colour that clears 3:1 against `--track` in both themes, so the tier stays in the text and
+   the action label and colour is never the only thing carrying it. */
+.deck-card[data-deck-tier='complete'] .progress-bar {
+  background: var(--green-deep);
+}
+
 .quiz-header {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -1560,29 +1662,34 @@ h3 {
 }
 
 /* Library search. Matching is literal substring matching over the records already on this page, so the
-   surface stays a filter over what is visible rather than a second, cleverer view of it. */
+   surface stays a filter over what is visible rather than a second, cleverer view of it. The deck
+   surface searches the same way, so it shares this field rather than restating its rules. */
 .library-search {
   margin-bottom: 18px;
 }
 
-.library-search-field {
+.library-search-field,
+.deck-search-field {
   display: grid;
   gap: 7px;
 }
 
-.library-search-label {
+.library-search-label,
+.deck-search-label {
   color: var(--text-muted);
   font-size: 12px;
   font-weight: 800;
 }
 
-.library-search-row {
+.library-search-row,
+.deck-search-row {
   display: flex;
   align-items: stretch;
   gap: 10px;
 }
 
-.library-search-input {
+.library-search-input,
+.deck-search-input {
   flex: 1 1 auto;
   min-width: 0;
   padding: 11px 13px;
@@ -1593,20 +1700,24 @@ h3 {
   font: inherit;
 }
 
-.library-search-input:focus {
+.library-search-input:focus,
+.deck-search-input:focus {
   border-color: var(--green);
 }
 
-.library-search-clear {
+.library-search-clear,
+.deck-search-clear {
   flex: 0 0 auto;
 }
 
 /* `.button` sets an explicit display, which outranks the user-agent rule for [hidden]. */
-.library-search-clear[hidden] {
+.library-search-clear[hidden],
+.deck-search-clear[hidden] {
   display: none;
 }
 
-.library-search-hint {
+.library-search-hint,
+.deck-search-hint {
   max-width: 62ch;
   margin: 0;
   color: var(--text-muted);
@@ -1822,19 +1933,19 @@ h3 {
   outline-offset: 2px;
 }
 
-/* Guided Agent session. The Content-Security-Policy forbids inline styles, so session progress is
-   expressed as decile width classes instead of a computed `style` attribute. */
-.agent-fill-0 { width: 0; }
-.agent-fill-10 { width: 10%; }
-.agent-fill-20 { width: 20%; }
-.agent-fill-30 { width: 30%; }
-.agent-fill-40 { width: 40%; }
-.agent-fill-50 { width: 50%; }
-.agent-fill-60 { width: 60%; }
-.agent-fill-70 { width: 70%; }
-.agent-fill-80 { width: 80%; }
-.agent-fill-90 { width: 90%; }
-.agent-fill-100 { width: 100%; }
+/* The Content-Security-Policy forbids inline styles, so any computed progress width arrives as one of
+   these decile classes instead of a `style` attribute. Shared by the Agent session and the deck cards. */
+.agent-fill-0, .deck-fill-0 { width: 0; }
+.agent-fill-10, .deck-fill-10 { width: 10%; }
+.agent-fill-20, .deck-fill-20 { width: 20%; }
+.agent-fill-30, .deck-fill-30 { width: 30%; }
+.agent-fill-40, .deck-fill-40 { width: 40%; }
+.agent-fill-50, .deck-fill-50 { width: 50%; }
+.agent-fill-60, .deck-fill-60 { width: 60%; }
+.agent-fill-70, .deck-fill-70 { width: 70%; }
+.agent-fill-80, .deck-fill-80 { width: 80%; }
+.agent-fill-90, .deck-fill-90 { width: 90%; }
+.agent-fill-100, .deck-fill-100 { width: 100%; }
 
 .agent-stack {
   gap: 14px;
@@ -2417,6 +2528,20 @@ h3 {
   .dataset-choice p {
     min-height: 0;
   }
+
+  /* The import link drops under the field: side by side, a bilingual label leaves the input too narrow. */
+  .deck-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .deck-search-field {
+    max-width: none;
+  }
+
+  .deck-import-link {
+    justify-self: start;
+  }
 }
 
 @media (max-width: 720px) {
@@ -2600,7 +2725,8 @@ h3 {
 
   /* The clear button drops below the field: side by side, a bilingual label squeezes the input to
      nothing or pushes the row past the viewport. */
-  .library-search-row {
+  .library-search-row,
+  .deck-search-row {
     flex-direction: column;
   }
 
@@ -2614,6 +2740,8 @@ h3 {
   .local-source-actions .button,
   .local-confirm .card-actions .button,
   .library-search-clear,
+  .deck-search-clear,
+  .deck-import-link,
   .library-result-actions .button {
     width: 100%;
   }

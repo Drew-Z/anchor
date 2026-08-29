@@ -540,6 +540,37 @@ export const SHELL_TEXT = {
       'These datasets are bundled with the demo. Generating new questions from your own material happens in the Android app.',
       '这些数据集随演示内置。基于你自己的资料生成新题目在 Android 应用中完成。',
     ),
+
+    /**
+     * Deck search copy. Like the library, it stays mechanical: the surface matches the deck name as
+     * literal text, so it says so rather than implying a ranked or semantic result.
+     */
+    searchLabel: localized('Find a deck', '查找题包'),
+    searchPlaceholder: localized('Deck name', '题包名称'),
+    searchHint: localized(
+      'Matches the deck name shown here, up to {max} characters. Enter opens the first deck, Escape clears.',
+      '按当前显示的题包名称匹配，最多 {max} 个字符。按 Enter 打开第一个题包，按 Esc 清空。',
+    ),
+    searchClear: localized('Clear search', '清空搜索'),
+    searchRegion: localized('Search decks', '搜索题包'),
+    statusIdle: localized('Decks: {n}. Verified questions: {q}.', '题包：{n} 个。已核验题目：{q} 道。'),
+    statusResults: localized('Decks matching “{query}”: {n} of {total}.', '匹配“{query}”的题包：{n} / {total} 个。'),
+    emptyNoResults: localized(
+      'No deck name matched “{query}”. Clear the search to see all {total}, or add your own material.',
+      '没有题包名称匹配“{query}”。清空搜索可查看全部 {total} 个，也可以添加你自己的资料。',
+    ),
+    announceCleared: localized('Deck search cleared. Showing all {total} decks.', '已清空题包搜索，显示全部 {total} 个题包。'),
+
+    /** Per-card status. Counts are bundled data plus this browser's progress, never a server. */
+    cardVerified: localized('{verified} verified / {total} total', '{verified} 已核验 / {total} 总题'),
+    cardAnswered: localized('{answered}/{total} answered', '已答 {answered}/{total}'),
+    cardProgress: localized('{percent}% answered', '已答 {percent}%'),
+    cardNotStarted: localized('Not started', '尚未开始'),
+    actionStart: localized('Start studying', '开始学习'),
+    actionContinue: localized('Continue studying', '继续学习'),
+    actionReview: localized('Review again', '再次复习'),
+    actionPending: localized('Awaiting verification', '待核验'),
+    importAction: localized('Add content', '添加内容'),
   },
 
   agent: {
@@ -1561,6 +1592,96 @@ export function highlightSegments(text, terms) {
     }
   }
   return segments;
+}
+
+/*
+ * Deck library.
+ *
+ * The deck surface is a filter over the datasets already on this page. Matching is literal substring
+ * matching on the deck name in the language on screen, which is what the Android deck list does, so a
+ * result can always be explained by pointing at the title. Every count below is derived from bundled
+ * data or from progress stored in this browser: nothing is fetched, ranked, or inferred.
+ */
+
+export const DECK_SEARCH_LIMITS = {
+  maxQueryChars: 60,
+  maxTerms: 6,
+};
+
+/** Caps and collapses a deck query. The field keeps what was typed; this is what matching sees. */
+export function clampDeckQuery(value, limits = DECK_SEARCH_LIMITS) {
+  return clampLibraryQuery(value, limits);
+}
+
+/** Same term rules as the library: whitespace splits Latin words, a run of Chinese stays whole. */
+export function deckSearchTerms(query, limits = DECK_SEARCH_LIMITS) {
+  return librarySearchTerms(query, limits);
+}
+
+/**
+ * Questions that carry at least one source citation. The Android deck list gates study on its verified
+ * question count, so the browser demo derives the same number from bundled data rather than restating
+ * the deck size under a second name.
+ */
+export function verifiedQuestionCount(dataset) {
+  const questions = Array.isArray(dataset?.questions) ? dataset.questions : [];
+  return questions.filter((question) => Array.isArray(question?.citations) && question.citations.length > 0).length;
+}
+
+/**
+ * Progress as a decile bucket, for the same reason the agent bar uses one: the deployed CSP blocks
+ * inline styles, so a width has to arrive as a class.
+ */
+export function deckProgressFill(done, total) {
+  return agentProgressFill(done, total);
+}
+
+/**
+ * Everything one deck card shows, resolved in a single pass so the badge, the bar, and the action can
+ * never disagree. `answered` and `correct` come from browser-local progress; `total` and `verified` come
+ * from bundled data. `action` is a state, not a label: the renderer maps it to text in the active locale.
+ */
+export function deckCardModel(dataset, { answered = 0, correct = 0, completed = false } = {}) {
+  const total = Array.isArray(dataset?.questions) ? dataset.questions.length : 0;
+  const verified = verifiedQuestionCount(dataset);
+  const seen = Math.min(Math.max(Number(answered) || 0, 0), total);
+  const done = completed === true || (total > 0 && seen >= total);
+  const percent = total > 0 ? Math.round((seen / total) * 100) : 0;
+
+  // No verified question means nothing to practice, so the card says so instead of offering a start
+  // that would open an empty deck. Bundled datasets always have one; an edited dataset might not.
+  const action = verified === 0 ? 'pending' : done ? 'review' : seen > 0 ? 'continue' : 'start';
+  return {
+    id: dataset?.id ?? '',
+    mark: dataset?.mark ?? '',
+    total,
+    verified,
+    answered: seen,
+    correct: Math.min(Math.max(Number(correct) || 0, 0), total),
+    completed: done,
+    percent,
+    fill: deckProgressFill(seen, total),
+    tier: percent >= 100 ? 'complete' : percent >= 50 ? 'progress' : 'start',
+    action,
+    startable: verified > 0,
+  };
+}
+
+/**
+ * Filters datasets by name in one locale. Returns the datasets themselves in bundled order, plus the
+ * terms that matched, so the caller can highlight exactly what it searched on. An empty query is not a
+ * search: every deck comes back and `terms` is empty, which is how the surface tells idle from no-match.
+ */
+export function searchDecks(query, { datasets = DATASETS, locale = 'en', limits = DECK_SEARCH_LIMITS } = {}) {
+  const list = Array.isArray(datasets) ? datasets : [];
+  const terms = deckSearchTerms(query, limits);
+  if (!terms.length) return { terms, matches: [...list], total: list.length };
+
+  const matches = list.filter((dataset) => {
+    const folded = foldSearchText(textFor(dataset?.title, locale));
+    return terms.every((term) => folded.includes(term));
+  });
+  return { terms, matches, total: list.length };
 }
 
 export function formatBytes(bytes) {
