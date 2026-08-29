@@ -40,6 +40,7 @@ import {
   formatImportedAt,
   getDataset,
   highlightSegments,
+  homeAgentModel,
   homeDashboardModel,
   librarySearchScopes,
   localDayStamp,
@@ -824,8 +825,63 @@ if (typeof document !== 'undefined') {
       </div>`;
   }
 
+  /**
+   * The Agent slot in Home's action grid: a resume card when this browser holds a replayable guided
+   * session, and the unchanged start card when it does not.
+   *
+   * One card, one link, in one slot. Home reads the stored session and never writes it, so following the
+   * link is the only thing that touches session state — which is also why the button is an ordinary
+   * anchor to the Agent route rather than a control that advances anything from here.
+   */
+  function renderHomeAgentCard(agent) {
+    const text = SHELL_TEXT.home;
+    if (agent.state === 'idle') {
+      return `
+        <article class="shell-card" data-home-action="agent" data-home-agent-state="idle">
+          <h2>${escapeHtml(shell(text.agentTitle))}</h2>
+          <p>${escapeHtml(shell(text.agentBody))}</p>
+          <a class="button button-secondary" href="${routeHash({ view: 'agent' })}">${escapeHtml(shell(text.agentAction))}</a>
+        </article>`;
+    }
+
+    const complete = agent.state === 'complete';
+    const written = complete
+      ? formatCount(shell(text.agentResumeDone), { total: agent.total })
+      : formatCount(shell(text.agentResumeWritten), { n: agent.written, total: agent.total });
+
+    return `
+      <article class="shell-card shell-card-accent home-agent-card" data-home-action="agent"
+        data-home-agent-state="${escapeHtml(agent.state)}"
+        data-home-agent="${escapeHtml(agent.datasetId)}"
+        data-home-agent-action="${escapeHtml(agent.action)}"
+      >
+        <div class="shell-card-head">
+          <span class="dataset-mark">${escapeHtml(agent.mark)}</span>
+          <div>
+            <p class="eyebrow">${escapeHtml(shell(text.agentResumeEyebrow))}</p>
+            <h2>${escapeHtml(shell(complete ? text.agentReviewTitle : text.agentResumeTitle))}</h2>
+          </div>
+        </div>
+        <p data-home-agent-detail>${escapeHtml(textFor(agent.dataset.title, locale()))}</p>
+        <p class="home-agent-counter" data-home-agent-turn>${escapeHtml(formatCount(shell(text.agentResumeTurn), { n: agent.turn, total: agent.total }))}</p>
+        <div class="progress-track home-agent-track" role="progressbar"
+          aria-label="${escapeHtml(shell(text.agentResumeProgressLabel))}"
+          aria-valuemin="0" aria-valuemax="${agent.total}" aria-valuenow="${agent.written}"
+          aria-valuetext="${escapeHtml(written)}"
+        >
+          <div class="progress-bar agent-fill-${agent.fill}"></div>
+        </div>
+        <p class="home-agent-written${complete ? ' is-done' : ''}" data-home-agent-written>${escapeHtml(written)}</p>
+        <p class="home-agent-note" data-home-agent-note>${escapeHtml(shell(text.agentResumeNote))}</p>
+        <a class="button button-secondary" href="${routeHash({ view: 'agent' })}" data-home-agent-link>
+          ${escapeHtml(shell(complete ? text.agentReviewAction : text.agentResumeAction))}
+        </a>
+      </article>`;
+  }
+
   function renderHome() {
     const { summary, rows, focus, daily } = homeDashboard();
+    const agent = homeAgentModel(agentSession);
     const text = SHELL_TEXT.home;
 
     content.innerHTML = `
@@ -852,11 +908,7 @@ if (typeof document !== 'undefined') {
               <p>${escapeHtml(shell(text.startBody))}</p>
               <a class="button button-secondary" href="${routeHash({ view: 'decks' })}">${escapeHtml(shell(text.startAction))}</a>
             </article>
-            <article class="shell-card" data-home-action="agent">
-              <h2>${escapeHtml(shell(text.agentTitle))}</h2>
-              <p>${escapeHtml(shell(text.agentBody))}</p>
-              <a class="button button-secondary" href="${routeHash({ view: 'agent' })}">${escapeHtml(shell(text.agentAction))}</a>
-            </article>
+            ${renderHomeAgentCard(agent)}
             <article class="shell-card" data-home-action="library">
               <h2>${escapeHtml(shell(text.libraryTitle))}</h2>
               <p>${escapeHtml(shell(text.libraryBody))}</p>

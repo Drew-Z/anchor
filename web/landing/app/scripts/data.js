@@ -554,6 +554,29 @@ export const SHELL_TEXT = {
       '以预设提示脚本化地展示代理的工作方式，不会调用任何模型。你的笔记只保存在此浏览器中。',
     ),
     agentAction: localized('Open the agent', '打开代理'),
+
+    /**
+     * Resume card for a guided Agent session this browser already holds. It replaces the start card in
+     * the same slot rather than sitting beside it, so Home offers one way into the Agent at a time and
+     * never invites a learner to start over on top of work they have not finished.
+     *
+     * The copy names the storage boundary because the session is nowhere else: no account holds it, and
+     * another browser on the same device will show the start card instead.
+     */
+    agentResumeEyebrow: localized('In progress', '进行中'),
+    agentResumeTitle: localized('Resume your guided session', '继续引导式流程'),
+    agentReviewTitle: localized('Review your guided session', '回顾引导式流程'),
+    agentResumeTurn: localized('Turn {n} of {total}', '第 {n} 轮 / 共 {total} 轮'),
+    agentResumeWritten: localized('{n} of {total} reflections written', '已写下 {n} / {total} 条思考'),
+    agentResumeDone: localized('All {total} reflections written', '{total} 条思考已全部写下'),
+    agentResumeNote: localized(
+      'Kept in this browser only. Opening the agent resumes it at the same turn.',
+      '仅保存在此浏览器中。打开代理即可从同一轮继续。',
+    ),
+    agentResumeAction: localized('Resume the session', '继续流程'),
+    agentReviewAction: localized('Review the session', '回顾流程'),
+    agentResumeProgressLabel: localized('Guided session progress', '引导式流程进度'),
+
     libraryTitle: localized('Check the sources', '查看来源'),
     libraryBody: localized(
       'Every bundled passage and imported file, searchable by literal text. This is where an answer’s evidence comes from.',
@@ -1987,6 +2010,62 @@ export function homeDashboardModel({ datasets = DATASETS, progressFor = () => ({
     rows,
     focus,
     daily: dailyGoalModel({ answeredToday, remainingQuestions: summary.remaining }),
+  };
+}
+
+/**
+ * What Home can honestly say about the guided Agent session stored in this browser.
+ *
+ * Home reads the session; it never writes one. Every number comes from the same two places the Agent
+ * surface itself uses — `buildAgentScript` for the turns and `agentReflectionCount` for the work done —
+ * so the resume card and the session it resumes cannot report different progress.
+ *
+ * `state` is `idle` whenever there is nothing this build could replay: no session, a dataset that has
+ * since left the bundle, an empty script, or a record whose `completed` flag outruns its reflections.
+ * Idle is also the fallback for a malformed record, which is what keeps Home on its start affordance
+ * instead of rendering a session that does not exist.
+ */
+export function homeAgentModel(session, resolveDataset = getDataset) {
+  const idle = {
+    state: 'idle',
+    action: 'start',
+    datasetId: '',
+    dataset: null,
+    mark: '',
+    turn: 0,
+    total: 0,
+    written: 0,
+    remaining: 0,
+    percent: 0,
+    fill: 0,
+  };
+  if (!session || typeof session !== 'object' || Array.isArray(session)) return idle;
+
+  const dataset = resolveDataset(session.datasetId);
+  if (!dataset) return idle;
+  const script = buildAgentScript(dataset);
+  if (!script.length) return idle;
+
+  const total = script.length;
+  const written = agentReflectionCount(session, script);
+
+  // `completed` is believed only when the reflections back it up. A stored flag that outruns the work is
+  // the one claim this card must never repeat, so it degrades to a resume rather than to a false review.
+  const complete = session.completed === true && written === total;
+  const index = Math.min(Math.max(Math.round(Number(session.turnIndex) || 0), 0), total - 1);
+
+  return {
+    state: complete ? 'complete' : 'active',
+    action: complete ? 'review' : 'resume',
+    datasetId: dataset.id,
+    dataset,
+    mark: dataset.mark ?? '',
+    turn: complete ? total : index + 1,
+    total,
+    written,
+    remaining: Math.max(total - written, 0),
+    percent: Math.round((written / total) * 100),
+    fill: agentProgressFill(written, total),
   };
 }
 

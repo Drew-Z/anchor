@@ -45,6 +45,7 @@ import {
   foldSearchText,
   getDataset,
   highlightSegments,
+  homeAgentModel,
   librarySearchScopes,
   librarySearchTerms,
   looksBinary,
@@ -1045,6 +1046,196 @@ test('the home daily goal is derived from the same progress, capped by what is u
   assert.equal(nearlyDone.daily.goal, 2);
   assert.equal(nearlyDone.daily.met, true);
   assert.equal(nearlyDone.daily.exhausted, true);
+});
+
+/** A stored session for one bundled deck with the first `written` turns reflected on. */
+function agentSessionWith(datasetId, written, { completed = false, turnIndex = null } = {}) {
+  const session = createAgentSession(datasetId);
+  const script = buildAgentScript(getDataset(datasetId));
+  for (const turn of script.slice(0, written)) session.reflections[turn.questionId] = 'what I would say';
+  session.completed = completed;
+  session.turnIndex = turnIndex ?? Math.min(written, script.length - 1);
+  return session;
+}
+
+test('home has nothing to resume until this browser holds a replayable agent session', () => {
+  // No session is the start state, and so is every record this build cannot replay. Each one has to
+  // return the same idle model, because idle is what keeps Home on its start card.
+  const idle = homeAgentModel(null);
+  assert.equal(idle.state, 'idle');
+  assert.equal(idle.action, 'start');
+  assert.equal(idle.dataset, null);
+  assert.equal(idle.datasetId, '');
+  assert.equal(idle.total, 0);
+  assert.equal(idle.written, 0);
+  assert.equal(idle.turn, 0);
+  assert.equal(idle.percent, 0);
+  assert.equal(idle.fill, 0);
+
+  for (const unusable of [undefined, false, 0, '', 'a session', [], [agentSessionWith('flutter', 1)]]) {
+    assert.deepEqual(homeAgentModel(unusable), idle, `${JSON.stringify(unusable)} reads as idle`);
+  }
+
+  // A session whose dataset has left the bundle is unplayable, so Home offers a start rather than a
+  // resume that would open the agent's own start panel and contradict this card.
+  assert.deepEqual(homeAgentModel({ ...agentSessionWith('flutter', 2), datasetId: 'retired-dataset' }), idle);
+  assert.deepEqual(homeAgentModel(agentSessionWith('flutter', 2), () => null), idle);
+
+  // A dataset that resolves but carries no turns yields no script, which is idle for the same reason.
+  assert.deepEqual(homeAgentModel(agentSessionWith('flutter', 2), () => ({ id: 'draft', mark: 'DR', questions: [] })), idle);
+  assert.deepEqual(homeAgentModel(agentSessionWith('flutter', 2), () => ({ id: 'draft', mark: 'DR' })), idle);
+});
+
+test('home reports an active agent session at the turn and reflection count it actually reached', () => {
+  const total = buildAgentScript(getDataset('flutter')).length;
+
+  // One reflection written, sitting on the second turn: the counter is the position, the bar is the work.
+  const started = homeAgentModel(agentSessionWith('flutter', 1));
+  assert.equal(started.state, 'active');
+  assert.equal(started.action, 'resume');
+  assert.equal(started.datasetId, 'flutter');
+  assert.equal(started.mark, getDataset('flutter').mark);
+  assert.equal(started.dataset.id, 'flutter');
+  assert.equal(started.turn, 2);
+  assert.equal(started.total, total);
+  assert.equal(started.written, 1);
+  assert.equal(started.remaining, total - 1);
+  assert.equal(started.percent, 25);
+  assert.equal(started.fill, agentProgressFill(1, total));
+
+  // A session opened but not written on is still a resume, at the first turn, with nothing claimed.
+  const opened = homeAgentModel(agentSessionWith('git', 0));
+  assert.equal(opened.state, 'active');
+  assert.equal(opened.datasetId, 'git');
+  assert.equal(opened.turn, 1);
+  assert.equal(opened.written, 0);
+  assert.equal(opened.percent, 0);
+  assert.equal(opened.fill, 0);
+
+  // Every turn reflected on but never finished stays active: the learner has not pressed finish, so the
+  // card cannot offer a review of a session the agent surface would still open on its last turn.
+  const unfinished = homeAgentModel(agentSessionWith('javascript', total, { turnIndex: total - 1 }));
+  assert.equal(unfinished.state, 'active');
+  assert.equal(unfinished.action, 'resume');
+  assert.equal(unfinished.written, total);
+  assert.equal(unfinished.turn, total);
+  assert.equal(unfinished.remaining, 0);
+  assert.equal(unfinished.percent, 100);
+
+  // The count is reflections, not turns walked past: the model reads the same store the agent does.
+  const script = buildAgentScript(getDataset('flutter'));
+  const skipped = createAgentSession('flutter');
+  skipped.reflections[script[2].questionId] = 'only this one';
+  skipped.turnIndex = 3;
+  const partial = homeAgentModel(skipped);
+  assert.equal(partial.written, agentReflectionCount(skipped, script));
+  assert.equal(partial.written, 1);
+  assert.equal(partial.turn, 4);
+
+  // A blank reflection is not work, so it moves neither the count nor the bar.
+  const blank = createAgentSession('flutter');
+  blank.reflections[script[0].questionId] = '';
+  assert.equal(homeAgentModel(blank).written, 0);
+  assert.equal(homeAgentModel(blank).fill, 0);
+
+  // Every bundled deck can be resumed, and each one reports its own turn count.
+  for (const dataset of DATASETS) {
+    const model = homeAgentModel(agentSessionWith(dataset.id, 1));
+    assert.equal(model.datasetId, dataset.id);
+    assert.equal(model.total, buildAgentScript(dataset).length);
+    assert.equal(model.state, 'active');
+  }
+});
+
+test('home offers a review only when the stored reflections back the completed flag', () => {
+  const total = buildAgentScript(getDataset('git')).length;
+  const done = homeAgentModel(agentSessionWith('git', total, { completed: true }));
+  assert.equal(done.state, 'complete');
+  assert.equal(done.action, 'review');
+  assert.equal(done.turn, total);
+  assert.equal(done.written, total);
+  assert.equal(done.remaining, 0);
+  assert.equal(done.percent, 100);
+  assert.equal(done.fill, 100);
+
+  // A flag that outruns the reflections is the one claim this card must not repeat. It degrades to a
+  // resume at a position the learner could have reached, never to a completion that never happened.
+  const overclaimed = homeAgentModel(agentSessionWith('git', total - 1, { completed: true }));
+  assert.equal(overclaimed.state, 'active');
+  assert.equal(overclaimed.action, 'resume');
+  assert.equal(overclaimed.written, total - 1);
+
+  const empty = homeAgentModel({ ...createAgentSession('git'), completed: true, turnIndex: 999 });
+  assert.equal(empty.state, 'active');
+  assert.equal(empty.written, 0);
+  assert.equal(empty.turn, total, 'the turn stays inside the script even when the stored pointer does not');
+
+  // Only a literal `true` completes. A truthy value from a hand-edited record does not.
+  for (const flag of ['true', 1, {}]) {
+    assert.equal(homeAgentModel({ ...agentSessionWith('git', total), completed: flag }).state, 'active');
+  }
+
+  // The model agrees with the record the loader would actually hand it: normalization drops the same
+  // overclaimed flag, so Home and the agent surface cannot disagree about whether a session is done.
+  const normalized = normalizeAgentSession({ ...agentSessionWith('git', total - 1, { completed: true }) });
+  assert.equal(normalized.completed, false);
+  assert.equal(homeAgentModel(normalized).state, 'active');
+  const honest = normalizeAgentSession(agentSessionWith('git', total, { completed: true }));
+  assert.equal(honest.completed, true);
+  assert.equal(homeAgentModel(honest).state, 'complete');
+});
+
+test('home agent resume copy is bilingual and names the browser it is stored in', () => {
+  const text = SHELL_TEXT.home;
+  const keys = [
+    'agentResumeEyebrow',
+    'agentResumeTitle',
+    'agentReviewTitle',
+    'agentResumeTurn',
+    'agentResumeWritten',
+    'agentResumeDone',
+    'agentResumeNote',
+    'agentResumeAction',
+    'agentReviewAction',
+    'agentResumeProgressLabel',
+  ];
+  for (const key of keys) {
+    assert.ok(text[key].en.length > 0, `${key} has English copy`);
+    assert.ok(text[key].zh.length > 0, `${key} has Chinese copy`);
+    assert.notEqual(text[key].en, text[key].zh, `${key} is translated, not copied`);
+  }
+
+  // Resume and review are different offers, so their titles and actions cannot collapse into one label.
+  assert.notEqual(text.agentResumeTitle.en, text.agentReviewTitle.en);
+  assert.notEqual(text.agentResumeTitle.zh, text.agentReviewTitle.zh);
+  assert.notEqual(text.agentResumeAction.en, text.agentReviewAction.en);
+
+  // Every count placeholder resolves in both locales; nothing reaches the surface as a brace.
+  const filled = [
+    formatCount(text.agentResumeTurn.en, { n: 2, total: 4 }),
+    formatCount(text.agentResumeTurn.zh, { n: 2, total: 4 }),
+    formatCount(text.agentResumeWritten.en, { n: 1, total: 4 }),
+    formatCount(text.agentResumeWritten.zh, { n: 1, total: 4 }),
+    formatCount(text.agentResumeDone.en, { total: 4 }),
+    formatCount(text.agentResumeDone.zh, { total: 4 }),
+  ];
+  for (const copy of filled) {
+    assert.doesNotMatch(copy, /[{}]/);
+    assert.match(copy, /4/);
+  }
+  assert.match(text.agentResumeTurn.en, /\{n\}/);
+  assert.match(text.agentResumeTurn.en, /\{total\}/);
+  assert.match(text.agentResumeWritten.en, /\{n\}/);
+  assert.match(text.agentResumeDone.en, /\{total\}/);
+
+  // The note is the scope promise: this browser, and resuming rather than restarting. No account, no sync.
+  assert.match(text.agentResumeNote.en, /this browser/i);
+  assert.match(text.agentResumeNote.en, /resume/i);
+  for (const key of keys) {
+    const both = `${text[key].en} ${text[key].zh}`;
+    assert.doesNotMatch(both, /https?:\/\//);
+    assert.doesNotMatch(both, /sign in|account|sync|cloud|streak/i);
+  }
 });
 
 test('deck search filters by the title in the language on screen', () => {

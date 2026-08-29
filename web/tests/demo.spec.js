@@ -1154,6 +1154,207 @@ test('home reaches every next surface, stays bilingual, and asks for nothing off
   expect(offOriginRequests).toEqual([]);
 });
 
+const homeAgentCard = (page) => page.locator('[data-home-action="agent"]');
+
+/**
+ * Writes `count` reflections through the agent UI, advancing a turn for each, and returns to Home. Any
+ * earlier session is cleared first so the start panel is on screen and the counts Home is asserted on
+ * belong to this call alone.
+ */
+async function walkAgentTurns(page, datasetId, count) {
+  await page.goto('/app/#/agent');
+  await page.evaluate((key) => localStorage.removeItem(key), AGENT_SESSION_STORAGE_KEY);
+  await page.reload();
+  await startAgentSession(page, datasetId);
+  for (let index = 0; index < count; index += 1) {
+    await page.locator('[data-agent-reflection]').fill(`My own words for turn ${index + 1}.`);
+    await page.locator('[data-agent-advance]').click();
+  }
+  await page.goto('/app/#/home');
+  await expect(homeToday(page)).toBeVisible();
+}
+
+test('home resumes the guided agent session this browser is part-way through', async ({ page }) => {
+  const pageErrors = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  const dataset = getDataset('flutter');
+  const total = buildAgentScript(dataset).length;
+  const text = SHELL_TEXT.home;
+
+  // With nothing stored, the Agent slot is the start affordance it has always been.
+  await page.goto('/app/#/home');
+  await page.evaluate((key) => localStorage.removeItem(key), AGENT_SESSION_STORAGE_KEY);
+  await page.reload();
+  await expect(homeAgentCard(page)).toHaveAttribute('data-home-agent-state', 'idle');
+  await expect(homeAgentCard(page)).toContainText(text.agentTitle.en);
+  await expect(homeAgentCard(page)).toContainText(text.agentBody.en);
+  await expect(homeAgentCard(page).locator('.button')).toContainText(text.agentAction.en);
+  await expect(page.locator('[data-home-agent-turn]')).toHaveCount(0);
+
+  // One reflection written, now sitting on turn 2: the card names the dataset, the position, and the work.
+  await walkAgentTurns(page, 'flutter', 1);
+  await expect(homeAgentCard(page)).toHaveAttribute('data-home-agent-state', 'active');
+  await expect(homeAgentCard(page)).toHaveAttribute('data-home-agent', 'flutter');
+  await expect(homeAgentCard(page)).toHaveAttribute('data-home-agent-action', 'resume');
+  await expect(homeAgentCard(page)).toContainText(text.agentResumeEyebrow.en);
+  await expect(homeAgentCard(page)).toContainText(text.agentResumeTitle.en);
+  await expect(page.locator('[data-home-agent-detail]')).toHaveText(dataset.title.en);
+  await expect(page.locator('[data-home-agent-turn]')).toHaveText(`Turn 2 of ${total}`);
+  await expect(page.locator('[data-home-agent-written]')).toHaveText(`1 of ${total} reflections written`);
+  await expect(page.locator('[data-home-agent-note]')).toHaveText(text.agentResumeNote.en);
+  await expect(homeAgentCard(page).locator('.dataset-mark')).toHaveText(dataset.mark);
+
+  // The bar is a real width and an announced value, not just a class on an empty track.
+  const meter = homeAgentCard(page).locator('[role="progressbar"]');
+  await expect(meter).toHaveAttribute('aria-valuemax', String(total));
+  await expect(meter).toHaveAttribute('aria-valuenow', '1');
+  await expect(meter).toHaveAttribute('aria-valuetext', `1 of ${total} reflections written`);
+  await expect(meter).toHaveAttribute('aria-label', text.agentResumeProgressLabel.en);
+  const ratio = await deckFillRatio(homeAgentCard(page));
+  expect(ratio).toBeGreaterThan(0.2);
+  expect(ratio).toBeLessThan(0.4);
+
+  // One link into the Agent, reachable and followable from the keyboard, landing on the same turn.
+  const link = page.locator('[data-home-agent-link]');
+  await expect(homeAgentCard(page).locator('a')).toHaveCount(1);
+  await expect(link).toHaveAttribute('href', '#/agent');
+  await expect(link).toContainText(text.agentResumeAction.en);
+  await link.focus();
+  await expect(link).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/#\/agent$/);
+  await expect(page.locator('[data-agent-counter]')).toHaveText(`Turn 2 of ${total}`);
+  await expect(page.locator('[data-agent-reflection]')).toHaveValue('');
+  await expect(page.locator('[data-agent-start]')).toHaveCount(0);
+
+  // A second reflection moves the card with it, and a reload keeps both from local storage alone.
+  await page.locator('[data-agent-reflection]').fill('Turn two in my own words.');
+  await page.locator('[data-agent-advance]').click();
+  await page.goto('/app/#/home');
+  await expect(page.locator('[data-home-agent-turn]')).toHaveText(`Turn 3 of ${total}`);
+  await expect(page.locator('[data-home-agent-written]')).toHaveText(`2 of ${total} reflections written`);
+  await page.reload();
+  await expect(homeAgentCard(page)).toHaveAttribute('data-home-agent-state', 'active');
+  await expect(page.locator('[data-home-agent-turn]')).toHaveText(`Turn 3 of ${total}`);
+  await expect(page.locator('[data-home-agent-written]')).toHaveText(`2 of ${total} reflections written`);
+
+  // Home reads the session; it never writes one. Opening Home leaves the stored record untouched.
+  const before = await storedAgentSession(page);
+  await page.goto('/app/#/decks');
+  await page.goto('/app/#/home');
+  expect(await storedAgentSession(page)).toEqual(before);
+
+  // The quiz focus card is a separate concern and still points at deck work, not at the session.
+  await expect(homeFocus(page)).toHaveAttribute('data-home-focus-action', /start|continue/);
+  await expect(homeFocus(page).locator('.button')).toHaveAttribute('href', /#\/decks\//);
+
+  // Clearing the session from Profile puts Home back on the start card, with quiz progress kept.
+  await answerQuestions(page, 'flutter', 1);
+  await page.goto('/app/#/profile');
+  await page.locator('[data-privacy-reset="agent"]').click();
+  await page.locator('[data-privacy-confirm-action="agent"]').click();
+  await page.goto('/app/#/home');
+  await expect(homeAgentCard(page)).toHaveAttribute('data-home-agent-state', 'idle');
+  await expect(homeAgentCard(page)).toContainText(text.agentAction.en);
+  await expect(page.locator('[data-home-answered]')).toHaveText('1/12');
+
+  expect(pageErrors).toEqual([]);
+});
+
+test('home offers a review of a finished agent session, in either language, on a phone', async ({ page }) => {
+  const offOrigin = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).origin !== expectedOrigin) offOrigin.push(request.url());
+  });
+  const pageErrors = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  const dataset = getDataset('git');
+  const total = buildAgentScript(dataset).length;
+  const text = SHELL_TEXT.home;
+
+  await walkAgentTurns(page, 'git', total);
+  await expect(homeAgentCard(page)).toHaveAttribute('data-home-agent-state', 'complete');
+  await expect(homeAgentCard(page)).toHaveAttribute('data-home-agent', 'git');
+  await expect(homeAgentCard(page)).toHaveAttribute('data-home-agent-action', 'review');
+  await expect(homeAgentCard(page)).toContainText(text.agentReviewTitle.en);
+  await expect(homeAgentCard(page)).not.toContainText(text.agentResumeTitle.en);
+  await expect(page.locator('[data-home-agent-detail]')).toHaveText(dataset.title.en);
+  await expect(page.locator('[data-home-agent-turn]')).toHaveText(`Turn ${total} of ${total}`);
+  await expect(page.locator('[data-home-agent-written]')).toHaveText(`All ${total} reflections written`);
+  await expect(page.locator('[data-home-agent-written]')).toHaveClass(/is-done/);
+  await expect(homeAgentCard(page).locator('[role="progressbar"]')).toHaveAttribute('aria-valuenow', String(total));
+  expect(await deckFillRatio(homeAgentCard(page))).toBeGreaterThan(0.95);
+
+  // The one link opens the recap the session already produced, not a fresh session.
+  const link = page.locator('[data-home-agent-link]');
+  await expect(link).toContainText(text.agentReviewAction.en);
+  await expect(link).toHaveAttribute('href', '#/agent');
+  await link.click();
+  await expect(page).toHaveURL(/#\/agent$/);
+  await expect(page.locator('[data-agent-complete]')).toBeVisible();
+  await expect(page.locator('[data-agent-recap]')).toHaveCount(total);
+  await expect(page.locator('[data-agent-start]')).toHaveCount(0);
+
+  // The finished card survives a reload, and the browser back button returns to it.
+  await page.goBack();
+  await expect(page).toHaveURL(/#\/home$/);
+  await expect(homeAgentCard(page)).toHaveAttribute('data-home-agent-state', 'complete');
+  await page.reload();
+  await expect(homeAgentCard(page)).toHaveAttribute('data-home-agent-state', 'complete');
+  await expect(page.locator('[data-home-agent-written]')).toHaveText(`All ${total} reflections written`);
+
+  // Every line of the card has a Chinese reading, counts included, and the session is not the locale's.
+  await page.locator('[data-locale="zh"]').click();
+  await expect(homeAgentCard(page)).toContainText(text.agentResumeEyebrow.zh);
+  await expect(homeAgentCard(page)).toContainText(text.agentReviewTitle.zh);
+  await expect(page.locator('[data-home-agent-detail]')).toHaveText(dataset.title.zh);
+  await expect(page.locator('[data-home-agent-turn]')).toHaveText(`第 ${total} 轮 / 共 ${total} 轮`);
+  await expect(page.locator('[data-home-agent-written]')).toHaveText(`${total} 条思考已全部写下`);
+  await expect(page.locator('[data-home-agent-note]')).toHaveText(text.agentResumeNote.zh);
+  await expect(link).toContainText(text.agentReviewAction.zh);
+  await expect(homeAgentCard(page).locator('[role="progressbar"]')).toHaveAttribute('aria-label', text.agentResumeProgressLabel.zh);
+  await expect(homeAgentCard(page)).toHaveAttribute('data-home-agent-state', 'complete');
+
+  // Both languages have to fit a phone, bar and dataset mark included.
+  const overflow = () =>
+    page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  for (const locale of ['zh', 'en']) {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator(`[data-locale="${locale}"]`).click();
+    await expect(homeAgentCard(page)).toBeVisible();
+    await expect(page.locator('[data-home-agent-turn]')).toBeVisible();
+    expect(await overflow(), `the home agent card overflows at 390px in ${locale}`).toBeLessThanOrEqual(0);
+    expect(await deckFillRatio(homeAgentCard(page))).toBeGreaterThan(0.95);
+  }
+
+  // A part-way session on a phone is the same card with a partial bar, and still fits.
+  await walkAgentTurns(page, 'javascript', 1);
+  await expect(homeAgentCard(page)).toHaveAttribute('data-home-agent-state', 'active');
+  await expect(homeAgentCard(page)).toHaveAttribute('data-home-agent', 'javascript');
+  expect(await overflow(), 'a resumable home agent card overflows at 390px').toBeLessThanOrEqual(0);
+
+  // A stored session this build cannot replay falls back to the start card rather than a broken resume.
+  await page.evaluate(
+    ([key, value]) => window.localStorage.setItem(key, value),
+    [AGENT_SESSION_STORAGE_KEY, `{"version":${AGENT_SESSION_VERSION},"datasetId":"retired-dataset","turnIndex":2,"completed":true}`],
+  );
+  await page.reload();
+  await expect(homeAgentCard(page)).toHaveAttribute('data-home-agent-state', 'idle');
+  await expect(homeAgentCard(page)).toContainText(SHELL_TEXT.home.agentAction.en);
+  await expect(page.locator('[data-home-agent-turn]')).toHaveCount(0);
+  await expect(homeToday(page)).toBeVisible();
+
+  for (const value of ['not json at all', 'null', '[]', '{"version":99,"datasetId":"git","turnIndex":0}']) {
+    await page.evaluate(([key, stored]) => window.localStorage.setItem(key, stored), [AGENT_SESSION_STORAGE_KEY, value]);
+    await page.reload();
+    await expect(homeAgentCard(page)).toHaveAttribute('data-home-agent-state', 'idle');
+    await expect(page.locator('#app-content h1')).toBeVisible();
+  }
+
+  expect(offOrigin, `unexpected off-origin requests: ${offOrigin.join(', ')}`).toEqual([]);
+  expect(pageErrors).toEqual([]);
+});
+
 test('the shell exposes every product surface on desktop and mobile', async ({ page }) => {
   const offOriginRequests = [];
   page.on('request', (request) => {
@@ -1192,8 +1393,8 @@ test('the shell exposes every product surface on desktop and mobile', async ({ p
   for (const optionId of resumeDataset.questions[0].correct) await page.locator(`input[value="${optionId}"]`).check();
   await page.locator('[data-submit]').click();
   await page.locator('[data-nav-route="home"]').first().click();
-  await expect(page.locator('.shell-card-accent')).toContainText(resumeDataset.title.en);
-  await expect(page.locator('.shell-card-accent .button')).toHaveAttribute('href', `#/decks/${resumeDataset.id}`);
+  await expect(homeFocus(page)).toContainText(resumeDataset.title.en);
+  await expect(homeFocus(page).locator('.button')).toHaveAttribute('href', `#/decks/${resumeDataset.id}`);
 
   await page.goto('/app/#/library');
   await expect(page.locator('#app-content')).toContainText(String(countSources()));

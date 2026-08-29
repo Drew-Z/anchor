@@ -1462,6 +1462,38 @@ h3 {
   flex: 0 0 auto;
 }
 
+/* Home's Agent slot when a guided session is stored. It sits in the four-up action grid, so the lines
+   under the head are tight: dataset, turn counter, bar, reflection count, storage scope. Selectors are
+   `.shell-card` descendants so they outrank the shared `.shell-card p` rule above. */
+.shell-card .home-agent-counter {
+  margin: 10px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.home-agent-track {
+  grid-column: auto;
+  margin-top: 8px;
+}
+
+.shell-card .home-agent-written {
+  margin: 8px 0 0;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.shell-card .home-agent-written.is-done {
+  color: var(--accent-text);
+}
+
+.shell-card .home-agent-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+
 .card-actions {
   display: flex;
   flex-wrap: wrap;
@@ -3099,6 +3131,18 @@ h3 {
   .stat-card strong {
     flex: 0 0 auto;
     font-size: 19px;
+  }
+
+  /* "Resume your guided session" is long enough to push the dataset mark onto its own line here, which
+     leaves it stranded above the eyebrow while the focus card directly above keeps its mark inline. The
+     head holds its row and the title wraps inside its own column instead. */
+  .home-agent-card .shell-card-head {
+    flex-wrap: nowrap;
+    align-items: start;
+  }
+
+  .home-agent-card .shell-card-head > div {
+    min-width: 0;
   }
 
   .plan-row {
