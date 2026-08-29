@@ -621,6 +621,51 @@ export const SHELL_TEXT = {
     importAction: localized('Add content', '添加内容'),
   },
 
+  /**
+   * Completion review. The end of a deck is where a learner finds out which answers held up, so the
+   * screen lists every question with the answer this browser stored, the answer the dataset expects,
+   * and the passage the dataset cites. Every value is read back from bundled data plus local progress:
+   * nothing is re-scored on a server, and no explanation is generated here.
+   */
+  completion: {
+    reviewTitle: localized('Question by question', '逐题回顾'),
+    reviewBody: localized(
+      'Each row is the answer stored in this browser next to the one the dataset expects. Open a source to read the passage it cites, or open the question to see it in the deck.',
+      '每一行都是此浏览器保存的答案与数据集给出的答案对照。可以打开来源阅读引用的原文，也可以在数据集中打开该题。',
+    ),
+    reviewSummary: localized(
+      '{correct} of {total} answers are supported by their source.',
+      '{total} 道题中有 {correct} 道得到来源支持。',
+    ),
+    statusCorrect: localized('Supported', '得到支持'),
+    statusIncorrect: localized('Not supported', '未得到支持'),
+    statusUnanswered: localized('No answer stored', '没有保存答案'),
+    yourAnswer: localized('Your answer', '你的答案'),
+    correctAnswer: localized('Answer from the dataset', '数据集给出的答案'),
+    noAnswer: localized('Nothing was submitted for this question.', '这道题没有提交过答案。'),
+    unansweredNote: localized(
+      'Marked complete with unanswered questions: {n}. Reset progress to answer them.',
+      '标记为完成时仍有 {n} 道题未作答。重置进度即可作答。',
+    ),
+    sourceLabel: localized('Source', '来源'),
+    sourceAction: localized('Open this source in the library', '在知识库中打开此来源'),
+    sourceMissing: localized('This question ships without a source locator.', '这道题没有附带来源定位。'),
+    /*
+     * A submitted answer is final in this demo: the deck locks its options once an answer is in, and neither
+     * this control nor Review again unlocks them. So the row offers to open the question where its feedback
+     * and citation sit, and says exactly that, rather than promising another attempt it cannot give.
+     */
+    revisitAction: localized('Open this question in the deck', '在数据集中打开这道题'),
+    localNote: localized(
+      'Answers and completion come from this browser. Nothing was uploaded, and no model reviewed your work.',
+      '答案与完成状态都来自此浏览器。没有任何内容被上传，也没有模型评阅你的作答。',
+    ),
+    announceRevisit: localized(
+      'Opened question {n} of {total}. Your stored answer and its source are shown.',
+      '已打开第 {n} / {total} 题，其中显示你保存的答案及其来源。',
+    ),
+  },
+
   agent: {
     eyebrow: localized('Agent', 'Agent'),
     title: localized('Guided help that shows its sources', '会展示来源的引导式辅导'),
@@ -1640,6 +1685,23 @@ export function highlightSegments(text, terms) {
     }
   }
   return segments;
+}
+
+/**
+ * Library search state that lands on one bundled citation, for the completion review's source link.
+ *
+ * The locator is the query because it is the one field a bundled record carries identically in both
+ * languages: a review row links to the same passage whichever locale is on screen, and the result can
+ * still explain itself by naming the field it matched. `kind` and `scope` narrow the search to the deck
+ * the question came from rather than to every source that happens to share a word.
+ *
+ * Returns null when there is no locator to search for, which is the renderer's "no link" state.
+ */
+export function sourceRevisitSearch(locator, datasetId = '') {
+  const query = clampLibraryQuery(locator);
+  if (!query) return null;
+  const scopeId = collapseWhitespace(datasetId);
+  return { query, kind: 'bundled', scope: scopeId ? `bundled:${scopeId}` : '' };
 }
 
 /*

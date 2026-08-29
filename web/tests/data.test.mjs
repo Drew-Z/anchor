@@ -54,6 +54,7 @@ import {
   searchDecks,
   searchLibrary,
   sectionLocator,
+  sourceRevisitSearch,
   truncateExcerpt,
   validateBackupCandidate,
   validateDatasets,
@@ -61,6 +62,7 @@ import {
   verifiedQuestionCount,
 } from '../landing/app/scripts/data.js';
 import {
+  completionReviewModel,
   createInitialProgress,
   isCorrect,
   normalizeProgress,
@@ -1230,5 +1232,188 @@ test('library search rides in the hash without disturbing any other route', () =
   // Round-tripping is what keeps `render` from rewriting the address on every pass.
   for (const hash of ['#/library', '#/library?q=event+loop', '#/library?q=%E5%A4%8D%E4%B9%A0&kind=imported', '#/library?kind=bundled&src=bundled%3Agit']) {
     assert.equal(routeHash(parseRoute(hash)), hash);
+  }
+});
+
+test('a review row links to the passage its answer cited', () => {
+  // The locator is the query because it is the one bundled field that reads the same in both locales, so a
+  // row resolves to the same record whichever language is on screen.
+  assert.deepEqual(sourceRevisitSearch('flutter/widgets.md#statefulwidget', 'flutter'), {
+    query: 'flutter/widgets.md#statefulwidget',
+    kind: 'bundled',
+    scope: 'bundled:flutter',
+  });
+
+  // Without a deck the search still runs, just across every bundled source.
+  assert.deepEqual(sourceRevisitSearch('git/branching.md#merge'), {
+    query: 'git/branching.md#merge',
+    kind: 'bundled',
+    scope: '',
+  });
+
+  // Null is the renderer's "no link" state, not an error to handle downstream.
+  assert.equal(sourceRevisitSearch(''), null);
+  assert.equal(sourceRevisitSearch('   '), null);
+  assert.equal(sourceRevisitSearch(null, 'flutter'), null);
+  assert.equal(sourceRevisitSearch(undefined), null);
+
+  // Whitespace is collapsed the same way the Library's own input is, so the link matches what a learner
+  // typing the locator by hand would get.
+  assert.equal(sourceRevisitSearch('  git/branching.md   #merge  ').query, 'git/branching.md #merge');
+  assert.equal(sourceRevisitSearch('flutter/widgets.md#x', '  flutter  ').scope, 'bundled:flutter');
+
+  const long = sourceRevisitSearch('a'.repeat(LIBRARY_SEARCH_LIMITS.maxQueryChars + 40), 'git');
+  assert.equal(long.query.length, LIBRARY_SEARCH_LIMITS.maxQueryChars);
+
+  // The link is only worth offering if it lands on the passage the answer cited. Run every shipped citation
+  // through the Library's own search: each has to come back as a single match, found on its locator.
+  const index = buildLibraryIndex(createEmptyLibrary());
+  const scopes = librarySearchScopes(index);
+  for (const dataset of DATASETS) {
+    for (const question of dataset.questions) {
+      for (const citation of question.citations) {
+        const search = sourceRevisitSearch(citation.locator, dataset.id);
+        // No locator is long enough to be clamped, so no row links to a truncated query that misses.
+        assert.equal(search.query, citation.locator);
+
+        // The scope the link asks for has to be one the Library actually offers, or it resolves away.
+        assert.ok(scopes.some((scope) => scope.value === search.scope), `${search.scope} is a real scope`);
+        assert.deepEqual(resolveLibrarySearch(search, scopes), search);
+
+        const found = searchLibrary(index, search.query, { kind: search.kind, scope: search.scope });
+        assert.equal(found.matches.length, 1, `${citation.locator} resolves to one record`);
+        assert.equal(found.matches[0].record.locator, citation.locator);
+        assert.equal(found.matches[0].record.scopeId, dataset.id);
+        assert.equal(found.matches[0].primary, 'locator');
+      }
+    }
+  }
+});
+
+test('completion review reports each answer against the dataset', () => {
+  const dataset = getDataset('flutter');
+  const [first, second, third, fourth] = dataset.questions;
+
+  const state = {
+    ...createInitialProgress(),
+    completed: true,
+    answers: {
+      [first.id]: [...first.correct],
+      [second.id]: ['not-an-option'],
+      [third.id]: [...third.correct],
+    },
+    submitted: { [first.id]: true, [second.id]: true, [third.id]: true },
+  };
+
+  const review = completionReviewModel(dataset, state);
+  assert.equal(review.datasetId, 'flutter');
+  assert.equal(review.rows.length, dataset.questions.length);
+
+  // The summary is derived from the same rows the screen renders, so the count and the badges cannot drift.
+  assert.deepEqual(review.summary, { total: 4, answered: 3, correct: 2, incorrect: 1, unanswered: 1 });
+  assert.equal(review.summary.correct, scoreDataset(dataset, state));
+
+  assert.deepEqual(review.rows.map((row) => row.status), ['correct', 'incorrect', 'correct', 'unanswered']);
+  assert.deepEqual(review.rows.map((row) => row.number), [1, 2, 3, 4]);
+  assert.deepEqual(review.rows.map((row) => row.index), [0, 1, 2, 3]);
+  assert.deepEqual(review.rows.map((row) => row.questionId), dataset.questions.map((q) => q.id));
+  assert.deepEqual(review.rows.map((row) => row.type), dataset.questions.map((q) => q.type));
+
+  // Rows carry resolved options, not ids, because the screen has to print labels in the active locale.
+  assert.deepEqual(review.rows[0].selected.map((option) => option.id), first.correct);
+  assert.deepEqual(review.rows[0].expected.map((option) => option.id), first.correct);
+  assert.ok(review.rows[0].selected.every((option) => option.label));
+
+  // An id that is not in the option list contributes nothing to display, and the row still reads as wrong.
+  assert.deepEqual(review.rows[1].selected, []);
+  assert.equal(review.rows[1].answered, true);
+  assert.equal(review.rows[1].correct, false);
+  assert.deepEqual(review.rows[1].expected.map((option) => option.id), second.correct);
+
+  // Nothing stored means nothing claimed: an absent answer is its own state, never reported as incorrect.
+  assert.equal(review.rows[3].answered, false);
+  assert.equal(review.rows[3].correct, false);
+  assert.deepEqual(review.rows[3].selected, []);
+  assert.deepEqual(review.rows[3].expected.map((option) => option.id), fourth.correct);
+
+  // Every row offers the citation its question ships with, already resolved to a Library search.
+  for (const [index, row] of review.rows.entries()) {
+    assert.equal(row.citations.length, dataset.questions[index].citations.length);
+    for (const [position, citation] of row.citations.entries()) {
+      const source = dataset.questions[index].citations[position];
+      assert.equal(citation.locator, source.locator);
+      assert.equal(citation.excerpt, source.excerpt);
+      assert.deepEqual(citation.search, sourceRevisitSearch(source.locator, 'flutter'));
+    }
+  }
+});
+
+test('completion review keeps multi-select order and survives damaged progress', () => {
+  const dataset = getDataset('flutter');
+  const multiple = dataset.questions.find((question) => question.type === 'multiple');
+
+  // Click order does not change the row: two learners who picked the same answers read the same line.
+  const reversed = completionReviewModel(dataset, {
+    answers: { [multiple.id]: [...multiple.correct].reverse() },
+    submitted: { [multiple.id]: true },
+  });
+  const reversedRow = reversed.rows.find((row) => row.questionId === multiple.id);
+  assert.equal(reversedRow.status, 'correct');
+  assert.deepEqual(
+    reversedRow.selected.map((option) => option.id),
+    multiple.options.filter((option) => multiple.correct.includes(option.id)).map((option) => option.id),
+  );
+
+  // A partial multi-select is wrong, and the row still shows what was picked so the gap is visible.
+  const partial = completionReviewModel(dataset, {
+    answers: { [multiple.id]: [multiple.correct[0]] },
+    submitted: { [multiple.id]: true },
+  });
+  const partialRow = partial.rows.find((row) => row.questionId === multiple.id);
+  assert.equal(partialRow.status, 'incorrect');
+  assert.deepEqual(partialRow.selected.map((option) => option.id), [multiple.correct[0]]);
+
+  // A submission flag with no stored answer, or an answer that was never submitted, both read as unanswered
+  // rather than as a wrong answer to a question the learner never saw.
+  const flagOnly = completionReviewModel(dataset, { answers: {}, submitted: { [multiple.id]: true } });
+  assert.equal(flagOnly.rows.find((row) => row.questionId === multiple.id).status, 'unanswered');
+  const draftOnly = completionReviewModel(dataset, { answers: { [multiple.id]: [...multiple.correct] }, submitted: {} });
+  assert.equal(draftOnly.rows.find((row) => row.questionId === multiple.id).status, 'unanswered');
+
+  // A restored backup or a hand-edited key can be missing whole fields; the review still renders.
+  for (const damaged of [undefined, {}, { answers: null, submitted: null }, { answers: { [multiple.id]: 'state' }, submitted: { [multiple.id]: 'yes' } }]) {
+    const review = completionReviewModel(dataset, damaged);
+    assert.equal(review.rows.length, dataset.questions.length);
+    assert.equal(review.summary.unanswered, dataset.questions.length);
+    assert.equal(review.summary.correct, 0);
+    assert.ok(review.rows.every((row) => row.status === 'unanswered' && row.selected.length === 0));
+  }
+
+  // No dataset is a bad route, not a crash: an empty review is what the renderer falls back on.
+  const empty = completionReviewModel(undefined, {});
+  assert.deepEqual(empty.rows, []);
+  assert.deepEqual(empty.summary, { total: 0, answered: 0, correct: 0, incorrect: 0, unanswered: 0 });
+  assert.equal(empty.datasetId, '');
+
+  // A fully answered deck normalized from storage reports every row supported and no gap note.
+  for (const deck of DATASETS) {
+    const finished = normalizeProgress({
+      version: 1,
+      datasets: {
+        [deck.id]: {
+          currentIndex: deck.questions.length - 1,
+          completed: true,
+          answers: Object.fromEntries(deck.questions.map((q) => [q.id, [...q.correct]])),
+          submitted: Object.fromEntries(deck.questions.map((q) => [q.id, true])),
+        },
+      },
+    });
+    const review = completionReviewModel(deck, finished.datasets[deck.id]);
+    assert.equal(review.summary.correct, deck.questions.length);
+    assert.equal(review.summary.unanswered, 0);
+    assert.equal(review.summary.incorrect, 0);
+    assert.ok(review.rows.every((row) => row.status === 'correct'));
+    // Each row can reach its source, which is what makes the review worth reading after a perfect run.
+    assert.ok(review.rows.every((row) => row.citations.length > 0 && row.citations.every((c) => c.search)));
   }
 });

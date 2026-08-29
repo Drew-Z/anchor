@@ -53,6 +53,7 @@ import {
   searchDecks,
   searchLibrary,
   sectionLocator,
+  sourceRevisitSearch,
   textFor,
   validateBackupCandidate,
   validateDatasets,
@@ -122,6 +123,62 @@ export function scoreDataset(dataset, datasetProgress) {
     if (!datasetProgress.submitted[question.id]) return score;
     return score + (isCorrect(question, datasetProgress.answers[question.id]) ? 1 : 0);
   }, 0);
+}
+
+/**
+ * Everything the completion screen shows, resolved in one pass so the score, the per-row status, and the
+ * summary line can never disagree. One row per bundled question, in dataset order, holding the selection
+ * stored in this browser, the options the dataset marks correct, and the search state that reopens the
+ * cited passage in the Library.
+ *
+ * `status` is a state, not a label: the renderer maps it to text in the active locale. `unanswered` is
+ * reachable — a restored backup or a hand-edited key can carry `completed` without every submission — so
+ * a row says the answer is missing instead of reporting it as wrong.
+ */
+export function completionReviewModel(dataset, datasetProgress = {}) {
+  const questions = Array.isArray(dataset?.questions) ? dataset.questions : [];
+  const answers = datasetProgress?.answers ?? {};
+  const submitted = datasetProgress?.submitted ?? {};
+
+  const rows = questions.map((question, index) => {
+    const selection = Array.isArray(answers[question.id]) ? answers[question.id] : [];
+    const answered = submitted[question.id] === true && selection.length > 0;
+    const correct = answered && isCorrect(question, selection);
+    const byId = new Map(question.options.map((option) => [option.id, option]));
+    return {
+      index,
+      number: index + 1,
+      questionId: question.id,
+      question,
+      type: question.type,
+      answered,
+      correct,
+      status: answered ? (correct ? 'correct' : 'incorrect') : 'unanswered',
+      // Option order comes from the dataset, not from the click order, so two learners who picked the
+      // same answers read the same row.
+      selected: question.options.filter((option) => selection.includes(option.id)),
+      expected: question.correct.map((id) => byId.get(id)).filter(Boolean),
+      citations: (Array.isArray(question.citations) ? question.citations : []).map((citation) => ({
+        locator: citation.locator,
+        excerpt: citation.excerpt,
+        search: sourceRevisitSearch(citation.locator, dataset?.id ?? ''),
+      })),
+    };
+  });
+
+  const answered = rows.filter((row) => row.answered).length;
+  const correct = rows.filter((row) => row.correct).length;
+  return {
+    datasetId: dataset?.id ?? '',
+    rows,
+    summary: {
+      total: rows.length,
+      answered,
+      correct,
+      incorrect: answered - correct,
+      unanswered: rows.length - answered,
+    },
+  };
 }
 
 export function normalizeProgress(candidate) {
@@ -2038,8 +2095,64 @@ if (typeof document !== 'undefined') {
       </section>`;
   }
 
+  /** One answer line: the options picked, or the reason there are none to list. */
+  function renderReviewAnswer(label, options, extraClass = '') {
+    const body = options.length
+      ? `<span class="completion-answer-value">${options.map((option) => escapeHtml(textFor(option.label, locale()))).join('<span class="completion-answer-sep">, </span>')}</span>`
+      : `<span class="completion-answer-value is-empty">${escapeHtml(shell(SHELL_TEXT.completion.noAnswer))}</span>`;
+    return `
+      <p class="completion-answer${extraClass ? ` ${extraClass}` : ''}">
+        <span class="completion-answer-label">${escapeHtml(shell(label))}</span>
+        ${body}
+      </p>`;
+  }
+
+  /**
+   * One review row. The locator is a link into the Library search rather than a copy of the passage's
+   * address: following it lands on the same record the answer cited, filtered to this deck.
+   */
+  function renderReviewRow(row, total) {
+    const text = SHELL_TEXT.completion;
+    const statusKeys = { correct: 'statusCorrect', incorrect: 'statusIncorrect', unanswered: 'statusUnanswered' };
+    const marks = { correct: '✓', incorrect: '!', unanswered: '–' };
+    return `
+      <li class="completion-review-row is-${row.status}" data-completion-row="${escapeHtml(row.questionId)}" data-review-status="${row.status}">
+        <div class="completion-row-head">
+          <span class="question-index">${escapeHtml(questionCounter(row.index, total))}</span>
+          <span class="completion-status">
+            <span class="completion-status-mark" aria-hidden="true">${marks[row.status]}</span>
+            <span class="completion-status-label">${escapeHtml(shell(text[statusKeys[row.status]]))}</span>
+          </span>
+          <span class="question-kind">${escapeHtml(questionKindLabel(row.type))}</span>
+        </div>
+        <p class="completion-row-prompt">${escapeHtml(textFor(row.question.prompt, locale()))}</p>
+        <div class="completion-answers">
+          ${renderReviewAnswer(text.yourAnswer, row.selected, 'completion-answer-mine')}
+          ${renderReviewAnswer(text.correctAnswer, row.expected, 'completion-answer-expected')}
+        </div>
+        ${row.citations.length ? `
+          <div class="citation-list">
+            ${row.citations.map((citation) => `
+              <article class="citation-item">
+                <div class="citation-locator">
+                  <span>${escapeHtml(citation.locator)}</span>
+                  <span class="source-kind">${escapeHtml(shell(text.sourceLabel))}</span>
+                </div>
+                <blockquote>${escapeHtml(textFor(citation.excerpt, locale()))}</blockquote>
+                ${citation.search ? `
+                  <a class="completion-source-link" href="${routeHash({ view: 'library', search: citation.search })}" data-completion-source="${escapeHtml(citation.locator)}">${escapeHtml(shell(text.sourceAction))}</a>` : ''}
+              </article>`).join('')}
+          </div>` : `<p class="completion-row-note">${escapeHtml(shell(text.sourceMissing))}</p>`}
+        <div class="completion-row-actions">
+          <button class="button button-secondary" type="button" data-completion-revisit="${row.index}">${escapeHtml(shell(text.revisitAction))}</button>
+        </div>
+      </li>`;
+  }
+
   function renderCompletion(dataset, state) {
+    const text = SHELL_TEXT.completion;
     const score = scoreDataset(dataset, state);
+    const review = completionReviewModel(dataset, state);
     content.innerHTML = `
       <section class="completion-view">
         <div class="completion-inner">
@@ -2052,6 +2165,19 @@ if (typeof document !== 'undefined') {
             <button class="button button-primary" type="button" data-review>${escapeHtml(translate('app.reviewAgain'))}</button>
             <button class="button button-secondary" type="button" data-choose-another>${escapeHtml(translate('app.chooseAnother'))}</button>
           </div>
+
+          <section class="completion-review" data-completion-review="${escapeHtml(review.datasetId)}" aria-labelledby="completion-review-title">
+            <h2 id="completion-review-title">${escapeHtml(shell(text.reviewTitle))}</h2>
+            <p class="section-lead">${escapeHtml(shell(text.reviewBody))}</p>
+            <p class="completion-review-summary" data-completion-summary>${escapeHtml(formatCount(shell(text.reviewSummary), {
+              correct: review.summary.correct,
+              total: review.summary.total,
+            }))}</p>
+            ${review.summary.unanswered ? `
+              <p class="completion-review-gap" data-completion-gap>${escapeHtml(formatCount(shell(text.unansweredNote), { n: review.summary.unanswered }))}</p>` : ''}
+            <ol class="completion-review-list">${review.rows.map((row) => renderReviewRow(row, review.summary.total)).join('')}</ol>
+            <p class="tutor-disclosure">${escapeHtml(shell(text.localNote))}</p>
+          </section>
         </div>
       </section>`;
   }
@@ -2822,6 +2948,21 @@ if (typeof document !== 'undefined') {
       else openTutorQuestions.add(questionId);
       render();
       document.querySelector(`[data-toggle-tutor="${questionId}"]`)?.focus();
+      return;
+    }
+
+    // Opening one row moves the deck to that question rather than restarting the deck. Nothing stored is
+    // cleared: the question arrives with the answer already submitted, beside its feedback and citation.
+    const revisitButton = event.target.closest('[data-completion-revisit]');
+    if (revisitButton && context) {
+      const total = context.dataset.questions.length;
+      const requested = Number.parseInt(revisitButton.dataset.completionRevisit, 10);
+      const index = Number.isInteger(requested) ? Math.min(Math.max(requested, 0), Math.max(total - 1, 0)) : 0;
+      context.state.currentIndex = index;
+      context.state.completed = false;
+      persistAndRender();
+      content?.focus();
+      announce(formatCount(shell(SHELL_TEXT.completion.announceRevisit), { n: index + 1, total }));
       return;
     }
 

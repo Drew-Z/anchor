@@ -2,12 +2,14 @@ import { expect, test } from '@playwright/test';
 import {
   AGENT_SESSION_LIMITS,
   AGENT_SESSION_VERSION,
+  DATA_VERSION,
   DATASETS,
   LOCAL_IMPORT_LIMITS,
   SHELL_TEXT,
   buildAgentScript,
   countSources,
   getDataset,
+  sourceRevisitSearch,
 } from '../landing/app/scripts/data.js';
 import {
   AGENT_SESSION_STORAGE_KEY,
@@ -15,6 +17,7 @@ import {
   LOCAL_LIBRARY_STORAGE_KEY,
   PROGRESS_STORAGE_KEY,
   THEME_STORAGE_KEY,
+  routeHash,
 } from '../landing/app/scripts/app.js';
 
 const expectedOrigin = new URL(process.env.ANCHOR_BASE_URL ?? 'http://127.0.0.1:4173').origin;
@@ -226,6 +229,227 @@ test('all bundled datasets complete with citations, tutor disclosure, recovery, 
   await page.locator('[data-privacy-confirm-action="progress"]').click();
   await expect(page.locator('#app-announcer')).toHaveText('Local demo progress was reset.');
   expect(await page.evaluate((key) => localStorage.getItem(key), PROGRESS_STORAGE_KEY)).toBeNull();
+});
+
+const reviewRows = (page) => page.locator('[data-completion-row]');
+const reviewText = SHELL_TEXT.completion;
+
+/**
+ * Writes one completed deck straight to storage so a test can pick which rows are right, wrong, and
+ * unanswered. Answering through the UI can only ever produce a fully submitted deck, and the review has to
+ * hold up on the records a restored backup or an older key can actually leave behind.
+ */
+async function seedCompletedDataset(page, datasetId, plan) {
+  const dataset = getDataset(datasetId);
+  const answers = {};
+  const submitted = {};
+  dataset.questions.forEach((question, index) => {
+    const outcome = plan[index] ?? 'correct';
+    if (outcome === 'unanswered') return;
+    const wrong = question.options.filter((option) => !question.correct.includes(option.id)).map((option) => option.id);
+    answers[question.id] = outcome === 'correct' ? [...question.correct] : [wrong[0]];
+    submitted[question.id] = true;
+  });
+
+  // Written once and picked up by a reload, the way the app reads any stored record. An init script would
+  // re-seed on every load and quietly undo whatever the review's own controls saved.
+  await page.goto(`/app/#/decks/${datasetId}`);
+  await page.evaluate(([key, record]) => localStorage.setItem(key, JSON.stringify(record)), [PROGRESS_STORAGE_KEY, {
+    version: DATA_VERSION,
+    activeDatasetId: datasetId,
+    datasets: {
+      [datasetId]: { currentIndex: dataset.questions.length - 1, completed: true, answers, submitted },
+    },
+    daily: { date: '', answered: 0 },
+  }]);
+  await page.reload();
+  await expect(page.locator('.completion-view')).toBeVisible();
+  return dataset;
+}
+
+test('the completion review shows every answer against the source that settles it', async ({ page }) => {
+  const offOrigin = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).origin !== expectedOrigin) offOrigin.push(request.url());
+  });
+
+  // Two supported, one not, one never submitted: every state the review can report, on one screen.
+  const dataset = await seedCompletedDataset(page, 'flutter', ['correct', 'incorrect', 'correct', 'unanswered']);
+  const [first, second, , fourth] = dataset.questions;
+
+  // The score keeps counting supported answers only, and the summary says the same thing in words.
+  await expect(page.locator('.completion-score strong')).toHaveText('2');
+  await expect(page.locator('[data-completion-review]')).toHaveAttribute('data-completion-review', 'flutter');
+  await expect(page.locator('[data-completion-summary]')).toHaveText('2 of 4 answers are supported by their source.');
+  await expect(page.locator('[data-completion-gap]')).toHaveText('Marked complete with unanswered questions: 1. Reset progress to answer them.');
+  await expect(reviewRows(page)).toHaveCount(dataset.questions.length);
+
+  // Rows are in dataset order, so the review reads the way the deck was taken.
+  expect(await reviewRows(page).evaluateAll((nodes) => nodes.map((node) => node.dataset.completionRow)))
+    .toEqual(dataset.questions.map((question) => question.id));
+  expect(await reviewRows(page).evaluateAll((nodes) => nodes.map((node) => node.dataset.reviewStatus)))
+    .toEqual(['correct', 'incorrect', 'correct', 'unanswered']);
+
+  const supported = reviewRows(page).nth(0);
+  await expect(supported.locator('.question-index')).toHaveText('Question 1 of 4');
+  await expect(supported.locator('.completion-status-label')).toHaveText(reviewText.statusCorrect.en);
+  await expect(supported.locator('.completion-row-prompt')).toHaveText(first.prompt.en);
+  await expect(supported.locator('.completion-answer-mine')).toContainText(reviewText.yourAnswer.en);
+  await expect(supported.locator('.completion-answer-mine .completion-answer-value'))
+    .toHaveText(first.options.find((option) => option.id === first.correct[0]).label.en);
+  await expect(supported.locator('.completion-answer-expected .completion-answer-value'))
+    .toHaveText(first.options.find((option) => option.id === first.correct[0]).label.en);
+
+  // A wrong row prints both answers, so the difference is on screen rather than left to memory.
+  const missed = reviewRows(page).nth(1);
+  await expect(missed.locator('.completion-status-label')).toHaveText(reviewText.statusIncorrect.en);
+  const wrongOption = second.options.find((option) => !second.correct.includes(option.id));
+  await expect(missed.locator('.completion-answer-mine .completion-answer-value')).toHaveText(wrongOption.label.en);
+  await expect(missed.locator('.completion-answer-expected .completion-answer-value'))
+    .toContainText(second.options.find((option) => option.id === second.correct[0]).label.en);
+
+  // Nothing stored says so plainly instead of being reported as a wrong answer.
+  const blank = reviewRows(page).nth(3);
+  await expect(blank.locator('.completion-status-label')).toHaveText(reviewText.statusUnanswered.en);
+  await expect(blank.locator('.completion-answer-mine .completion-answer-value')).toHaveText(reviewText.noAnswer.en);
+  await expect(blank.locator('.completion-answer-expected .completion-answer-value'))
+    .toContainText(fourth.options.find((option) => option.id === fourth.correct[0]).label.en);
+
+  // Every row carries the citation its question ships with, quoted, not summarized.
+  for (const [index, question] of dataset.questions.entries()) {
+    const row = reviewRows(page).nth(index);
+    await expect(row.locator('.citation-locator')).toContainText(question.citations[0].locator);
+    await expect(row.locator('.citation-item blockquote')).toHaveText(question.citations[0].excerpt.en);
+    await expect(row.locator('[data-completion-source]')).toHaveAttribute('data-completion-source', question.citations[0].locator);
+  }
+
+  await expect(page.locator('.completion-review .tutor-disclosure')).toContainText('no model reviewed your work');
+  expect(offOrigin).toEqual([]);
+});
+
+test('a review row opens its source in the library and its question in the deck', async ({ page }) => {
+  const offOrigin = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).origin !== expectedOrigin) offOrigin.push(request.url());
+  });
+
+  const dataset = await seedCompletedDataset(page, 'git', ['correct', 'incorrect', 'unanswered', 'correct']);
+  const missed = reviewRows(page).nth(1);
+  const citation = dataset.questions[1].citations[0];
+
+  // Following the source link is a route change, not a fetch: the Library resolves the same locator locally.
+  const link = missed.locator('[data-completion-source]');
+  await expect(link).toHaveText(reviewText.sourceAction.en);
+  const expectedHash = routeHash({ view: 'library', search: sourceRevisitSearch(citation.locator, dataset.id) });
+  await expect(link).toHaveAttribute('href', expectedHash);
+  await link.click();
+  await expect(page).toHaveURL(new RegExp(`${expectedHash.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));
+  await expect(page.locator('[data-library-search]')).toBeVisible();
+
+  // The link lands on the passage the answer cited, filtered to the deck it came from, with the query
+  // carried into the field so the learner can widen the search from there.
+  await expect(searchField(page)).toHaveValue(citation.locator);
+  await expect(searchResults(page)).toHaveCount(1);
+  await expect(searchResults(page).first().locator('.library-result-locator')).toHaveText(citation.locator);
+  await expect(searchResults(page).first().locator('.library-result-scope-name')).toHaveText(dataset.title.en);
+  await expect(searchResults(page).first()).toHaveAttribute('data-result-kind', 'bundled');
+
+  // Opening a row moves the deck to that question with the stored answer intact, beside the feedback and
+  // citation that explain it. A submitted answer is final here, so the options stay locked.
+  await page.goBack();
+  await expect(page.locator('.completion-view')).toBeVisible();
+  const wrongOption = dataset.questions[1].options.find((option) => !dataset.questions[1].correct.includes(option.id));
+  await reviewRows(page).nth(1).locator('[data-completion-revisit]').click();
+  await expect(page.locator('.quiz-view')).toBeVisible();
+  await expect(page.locator('.quiz-view .question-index')).toContainText('Question 2 of 4');
+  await expect(page.locator('#app-announcer'))
+    .toHaveText('Opened question 2 of 4. Your stored answer and its source are shown.');
+  await expect(page.locator(`input[value="${wrongOption.id}"]`)).toBeChecked();
+  await expect(page.locator(`input[value="${wrongOption.id}"]`)).toBeDisabled();
+  await expect(page.locator('.feedback-status')).toContainText('Review the source and try the next question');
+  await expect(page.locator('.citation-locator')).toContainText(citation.locator);
+
+  // The opened position is real state, so a reload stays on that question instead of bouncing to the review.
+  await page.reload();
+  await expect(page.locator('.quiz-view .question-index')).toContainText('Question 2 of 4');
+
+  // The gap is what a learner can still act on. Walking forward from the opened question reaches the one
+  // that was never answered, and answering it closes the gap the review reported.
+  await page.locator('[data-next]').click();
+  await expect(page.locator('.quiz-view .question-index')).toContainText('Question 3 of 4');
+  await expect(page.locator('.feedback-status')).toHaveCount(0);
+  for (const optionId of dataset.questions[2].correct) await page.locator(`input[value="${optionId}"]`).check();
+  await page.locator('[data-submit]').click();
+  await expect(page.locator('.feedback-status')).toContainText('Supported by the source');
+  await page.locator('[data-next]').click();
+
+  await expect(page.locator('.quiz-view .question-index')).toContainText('Question 4 of 4');
+  await page.locator('[data-next]').click();
+
+  await expect(page.locator('.completion-view')).toBeVisible();
+  await expect(page.locator('.completion-score strong')).toHaveText('3');
+  await expect(page.locator('[data-completion-summary]')).toHaveText('3 of 4 answers are supported by their source.');
+  await expect(page.locator('[data-completion-gap]')).toHaveCount(0);
+  expect(await reviewRows(page).evaluateAll((nodes) => nodes.map((node) => node.dataset.reviewStatus)))
+    .toEqual(['correct', 'incorrect', 'correct', 'correct']);
+
+  // The screen's original exits still work now that a review sits below them.
+  await page.locator('[data-review]').click();
+  await expect(page.locator('.quiz-view')).toBeVisible();
+  await expect(page.locator('.quiz-view .question-index')).toContainText('Question 1 of 4');
+
+  await seedCompletedDataset(page, 'git', ['correct', 'correct', 'correct', 'correct']);
+  await page.locator('[data-choose-another]').click();
+  await expect(page).toHaveURL(/#\/decks$/);
+  await expect(page.locator('.dataset-grid')).toBeVisible();
+  expect(offOrigin).toEqual([]);
+});
+
+test('the completion review reads in both languages and fits a phone', async ({ page }) => {
+  const dataset = await seedCompletedDataset(page, 'javascript', ['correct', 'incorrect', 'unanswered', 'correct']);
+
+  await page.locator('[data-locale="zh"]').click();
+  await expect(page.locator('[data-completion-review] h2')).toHaveText(reviewText.reviewTitle.zh);
+  await expect(page.locator('[data-completion-summary]')).toHaveText('4 道题中有 2 道得到来源支持。');
+  await expect(page.locator('[data-completion-gap]')).toContainText('1 道题未作答');
+  await expect(reviewRows(page).nth(0).locator('.completion-status-label')).toHaveText(reviewText.statusCorrect.zh);
+  await expect(reviewRows(page).nth(1).locator('.completion-status-label')).toHaveText(reviewText.statusIncorrect.zh);
+  await expect(reviewRows(page).nth(2).locator('.completion-status-label')).toHaveText(reviewText.statusUnanswered.zh);
+  await expect(reviewRows(page).nth(2).locator('.completion-answer-value.is-empty')).toHaveText(reviewText.noAnswer.zh);
+  await expect(reviewRows(page).nth(0).locator('.completion-row-prompt')).toHaveText(dataset.questions[0].prompt.zh);
+  await expect(reviewRows(page).nth(0).locator('[data-completion-source]')).toHaveText(reviewText.sourceAction.zh);
+  await expect(reviewRows(page).nth(0).locator('[data-completion-revisit]')).toHaveText(reviewText.revisitAction.zh);
+
+  // The locator is the same string in either language, so a row leads to the same passage.
+  await expect(reviewRows(page).nth(0).locator('.citation-locator'))
+    .toContainText(dataset.questions[0].citations[0].locator);
+  await expect(reviewRows(page).nth(0).locator('.citation-item blockquote'))
+    .toHaveText(dataset.questions[0].citations[0].excerpt.zh);
+
+  // 中文 announces the opened question too, in the language on screen.
+  await reviewRows(page).nth(1).locator('[data-completion-revisit]').click();
+  await expect(page.locator('#app-announcer')).toHaveText('已打开第 2 / 4 题，其中显示你保存的答案及其来源。');
+
+  await page.locator('[data-locale="en"]').click();
+  await seedCompletedDataset(page, 'javascript', ['correct', 'incorrect', 'unanswered', 'correct']);
+
+  // A review this tall must not centre itself out of reach: the score has to be at the top of the scroll.
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const scoreTop = await page.locator('.completion-score').evaluate((node) => node.getBoundingClientRect().top);
+  expect(scoreTop).toBeGreaterThan(0);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(reviewRows(page)).toHaveCount(dataset.questions.length);
+  await expect(reviewRows(page).nth(0).locator('[data-completion-revisit]')).toBeVisible();
+  await expect(reviewRows(page).nth(0).locator('[data-completion-source]')).toBeVisible();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+
+  // Only the progress key is touched by a review; the source link never writes library state.
+  const keys = await storedKeys(page);
+  expect(keys[LOCAL_LIBRARY_STORAGE_KEY]).toBeNull();
+  expect(keys[AGENT_SESSION_STORAGE_KEY]).toBeNull();
+  expect(keys[PROGRESS_STORAGE_KEY]).not.toBeNull();
 });
 
 test('malformed or incompatible progress returns safely to dataset selection', async ({ page }) => {

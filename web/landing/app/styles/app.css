@@ -960,10 +960,15 @@ h3 {
   margin-top: 8px;
 }
 
+/*
+ * The completion screen carries a full per-question review, so it is taller than the viewport on every
+ * deck. `flex-start` keeps the score and the first review row reachable: centring a list this tall inside a
+ * scrolling parent pushes its top edge above the scroll origin, where it cannot be scrolled back to.
+ */
 .completion-view {
   display: flex;
   min-height: calc(100vh - var(--header-height));
-  align-items: center;
+  align-items: flex-start;
 }
 
 .completion-inner {
@@ -992,6 +997,169 @@ h3 {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+/* Completion review: one row per question, with the stored answer beside the dataset's own */
+
+.completion-review {
+  margin-top: 44px;
+  padding-top: 32px;
+  border-top: 1px solid var(--line);
+}
+
+.completion-review h2 {
+  margin-bottom: 8px;
+  font-size: 22px;
+}
+
+.completion-review-summary {
+  margin-top: 14px;
+  color: var(--text);
+  font-weight: 750;
+}
+
+.completion-review-gap {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--yellow);
+  background: var(--evidence-soft);
+  color: var(--evidence-text);
+  font-size: 13px;
+}
+
+.completion-review-list {
+  display: grid;
+  gap: 16px;
+  margin: 22px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * The left border is the status: green for supported, coral for not, grey when nothing was stored. It repeats
+ * what the label already says in words, so colour is never the only carrier.
+ */
+.completion-review-row {
+  min-width: 0;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--text-muted);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.completion-review-row.is-correct {
+  border-left-color: var(--green);
+}
+
+.completion-review-row.is-incorrect {
+  border-left-color: var(--coral);
+}
+
+.completion-row-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.completion-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: 4px;
+  background: var(--panel-muted);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.is-correct .completion-status {
+  background: var(--green-soft);
+  color: var(--accent-ink);
+}
+
+.is-incorrect .completion-status {
+  background: var(--coral-soft);
+  color: var(--coral-deep);
+}
+
+.completion-status-mark {
+  font-size: 12px;
+}
+
+.completion-row-prompt {
+  margin-bottom: 14px;
+  font-size: 16px;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+.completion-answers {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.completion-answer {
+  padding: 10px 12px;
+  border-left: 3px solid var(--line);
+  background: var(--panel-muted);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.completion-answer-mine {
+  border-left-color: var(--text-muted);
+}
+
+.is-correct .completion-answer-mine {
+  border-left-color: var(--green);
+}
+
+.is-incorrect .completion-answer-mine {
+  border-left-color: var(--coral);
+}
+
+.completion-answer-expected {
+  border-left-color: var(--green);
+}
+
+.completion-answer-label {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.completion-answer-value.is-empty {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.completion-source-link {
+  display: inline-block;
+  margin-top: 10px;
+  color: var(--accent-text);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.completion-row-note {
+  margin-bottom: 14px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.completion-row-actions {
+  margin-top: 14px;
+}
+
+.completion-review .tutor-disclosure {
+  margin-top: 20px;
 }
 
 .app-tabbar {
@@ -2760,6 +2928,15 @@ h3 {
     align-items: stretch;
   }
 
+  .completion-review {
+    margin-top: 34px;
+    padding-top: 26px;
+  }
+
+  .completion-review-row {
+    padding: 16px;
+  }
+
   .question-title {
     font-size: 23px;
   }
@@ -2855,6 +3032,15 @@ h3 {
 
   .completion-score strong {
     font-size: 52px;
+  }
+
+  /* At this width the row head wraps; the retry button spans the row so it stays a comfortable tap target. */
+  .completion-review-row {
+    padding: 14px;
+  }
+
+  .completion-row-actions .button {
+    width: 100%;
   }
 
   .stat-grid,
