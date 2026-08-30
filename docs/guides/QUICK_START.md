@@ -135,4 +135,4 @@ final questionsPerPoint = 3; // 每个知识点生成的题目数
 
 ---
 
-**遇到问题?** 在 [GitHub Issues](https://github.com/Drew-Z/anchor/issues) 提出,或查看 [常见问题文档](FAQ.md)
+**遇到问题?** 在 [GitHub Issues](https://github.com/Drew-Z/anchor/issues) 提出,或查看 [常见问题文档](../../FAQ.md)

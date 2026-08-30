@@ -255,10 +255,10 @@ Dart 中实现单例可以使用 factory 构造函数...
 - [快速开始](QUICK_START.md)
 - [自定义 AI Prompts](CUSTOMIZE_PROMPTS.md)
 - [数据模型说明](../architecture/DATA_MODEL.md)
-- [贡献导入器插件](../../CONTRIBUTING.md#import-plugins)
+- [贡献指南](../../CONTRIBUTING.md)
 
 ---
 
 **需要帮助?** 
-- 查看 [常见问题](FAQ.md)
+- 查看 [常见问题](../../FAQ.md)
 - 在 [GitHub Discussions](https://github.com/Drew-Z/anchor/discussions) 分享你的使用案例
