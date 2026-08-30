@@ -1,1 +1,3 @@
+# The demo has one canonical entry, /app/. Every other spelling of it redirects there permanently.
 /app /app/ 301
+/app/index.html /app/ 301

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { existsSync, readFileSync } from 'node:fs';
 import {
   AGENT_SESSION_LIMITS,
   AGENT_SESSION_VERSION,
@@ -1975,4 +1976,51 @@ test('completion review keeps multi-select order and survives damaged progress',
     // Each row can reach its source, which is what makes the review worth reading after a perfect run.
     assert.ok(review.rows.every((row) => row.citations.length > 0 && row.citations.every((c) => c.search)));
   }
+});
+
+/* ------------------------------------------------------------------ *
+ * The published redirect table: a deployment contract, read from disk.
+ * ------------------------------------------------------------------ */
+
+const LANDING_DIR = new URL('../landing/', import.meta.url);
+
+/** Rules in the published `_redirects`, in file order, with comments and blank lines dropped. */
+function publishedRedirects() {
+  return readFileSync(new URL('_redirects', LANDING_DIR), 'utf8')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith('#'))
+    .map((line) => {
+      const [from, to, status] = line.split(/\s+/);
+      return { from, to, status: Number(status) };
+    });
+}
+
+test('the published redirect table sends both spellings of the demo entry to /app/ permanently', () => {
+  // `npm run serve` is an ordinary static file server: it neither reads `_redirects` nor implements
+  // Cloudflare's redirect semantics, so no local request can prove this rule fires. The published file
+  // is the contract and is asserted here; the status and Location are re-checked against the
+  // deployment by the smoke check in DEPLOYMENT.md.
+  const rules = publishedRedirects();
+
+  // Both spellings are required. `/app` is the bare path a visitor types; `/app/index.html` is the
+  // document an old bookmark or a search result can name directly. 301 is what makes `/app/` canonical
+  // rather than merely reachable: a temporary status would leave both spellings indexable.
+  // Cloudflare takes the first matching rule, so these two lead the table and nothing above can shadow them.
+  assert.deepEqual(rules.slice(0, 2), [
+    { from: '/app', to: '/app/', status: 301 },
+    { from: '/app/index.html', to: '/app/', status: 301 },
+  ]);
+
+  // And nothing further down the table redefines either path.
+  assert.equal(rules.filter((rule) => rule.from === '/app' || rule.from === '/app/index.html').length, 2);
+
+  // No rule may leave this origin. The deployment is static and makes no network request of its own,
+  // so a destination with a scheme, or a protocol-relative one, would be a new external dependency.
+  for (const rule of rules) {
+    assert.match(rule.to, /^\/(?!\/)/, `${rule.from} stays on this origin`);
+  }
+
+  // The canonical path has to resolve to a document this deployment ships, or the redirect is a dead end.
+  assert.ok(existsSync(new URL('app/index.html', LANDING_DIR)), 'the demo document ships at landing/app/index.html');
 });
