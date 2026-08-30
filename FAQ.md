@@ -271,19 +271,19 @@ Anchor Learning 默认不向 Anchor Learning 自有服务器收集或同步账�
 - 🐛 **报告 Bug**: [创建 Issue](https://github.com/Drew-Z/anchor/issues/new?template=bug_report.yml)
 - 💡 **提出建议**: [创建 Feature Request](https://github.com/Drew-Z/anchor/issues/new?template=feature_request.yml)
 - 📝 **改进文档**: 提交文档 PR
-- 💻 **贡献代码**: 阅读 [贡献指南](../CONTRIBUTING.md)
+- 💻 **贡献代码**: 阅读 [贡献指南](CONTRIBUTING.md)
 - 🌐 **翻译**: 帮助国际化 (计划中)
 
 ### Q25: 如何获取帮助?
 
-- 📖 **文档**: 先查看 [README](../README.md) 和本 FAQ
+- 📖 **文档**: 先查看 [README](README.md) 和本 FAQ
 - 💬 **Discussions**: [GitHub Discussions](https://github.com/Drew-Z/anchor/discussions)
 - 🐛 **Bug 报告**: [GitHub Issues](https://github.com/Drew-Z/anchor/issues)
 - **反馈**: [GitHub Issues](https://github.com/Drew-Z/anchor/issues)
 
 ### Q26: 项目的未来规划是什么?
 
-查看 [ROADMAP.md](../ROADMAP.md) 了解详细规划,亮点包括:
+查看 [ROADMAP.md](ROADMAP.md) 了解详细规划,亮点包括:
 
 - **v0.2**: 云同步、多模型支持、国际化
 - **v0.3**: 插件系统、自定义 Prompt、协作学习
