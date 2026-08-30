@@ -1,3 +1,5 @@
+# Every response carries the security baseline. `no-transform` is part of it: no intermediary may
+# rewrite a document, script, stylesheet, or image this deployment serves.
 /*
   Cache-Control: no-transform
   Content-Security-Policy: default-src 'self'; base-uri 'none'; connect-src 'none'; font-src 'self'; form-action 'none'; frame-ancestors 'none'; img-src 'self' data:; object-src 'none'; script-src 'self'; style-src 'self'
@@ -6,5 +8,41 @@
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
 
+# Images and icons are the one long-lived class: a change ships as a new file rather than as an edit
+# to a published one, so a day of caching cannot pair a stale image with a current document.
 /assets/*
   Cache-Control: public, max-age=86400, stale-while-revalidate=604800, no-transform
+
+# Nothing below is content-hashed, and the `?v=` stamps that do exist are partial: `app.js` is
+# versioned but the `data.js` it imports is not, and `i18n.js` is fetched both with a stamp and
+# without. A cached copy can therefore outlive the build it shipped with and pair a new document
+# with a stale module. Each of these paths revalidates instead: the response stays cacheable, and a
+# cache may reuse it only after the origin confirms it is still current. Every pattern here is an
+# exact path or the same prefix form `/assets/*` already uses; each rule states its whole
+# Cache-Control value, so none of them depends on inheriting one from the baseline above.
+/
+  Cache-Control: public, max-age=0, must-revalidate, no-transform
+
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate, no-transform
+
+/404.html
+  Cache-Control: public, max-age=0, must-revalidate, no-transform
+
+/app/
+  Cache-Control: public, max-age=0, must-revalidate, no-transform
+
+/app/index.html
+  Cache-Control: public, max-age=0, must-revalidate, no-transform
+
+/scripts/*
+  Cache-Control: public, max-age=0, must-revalidate, no-transform
+
+/styles/*
+  Cache-Control: public, max-age=0, must-revalidate, no-transform
+
+/app/scripts/*
+  Cache-Control: public, max-age=0, must-revalidate, no-transform
+
+/app/styles/*
+  Cache-Control: public, max-age=0, must-revalidate, no-transform

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import {
   AGENT_SESSION_LIMITS,
   AGENT_SESSION_VERSION,
@@ -2023,4 +2023,181 @@ test('the published redirect table sends both spellings of the demo entry to /ap
 
   // The canonical path has to resolve to a document this deployment ships, or the redirect is a dead end.
   assert.ok(existsSync(new URL('app/index.html', LANDING_DIR)), 'the demo document ships at landing/app/index.html');
+});
+
+/* ------------------------------------------------------------------ *
+ * The published header table: a deployment contract, read from disk.
+ * ------------------------------------------------------------------ */
+
+/** What a document, script, or stylesheet must send: cacheable, reusable only after a revalidation. */
+const REVALIDATE = 'public, max-age=0, must-revalidate, no-transform';
+
+/** What an image or icon must send: the one class this deployment lets a cache answer from directly. */
+const ASSET_CACHE = 'public, max-age=86400, stale-while-revalidate=604800, no-transform';
+
+/** Blocks in the published `_headers`, in file order: a path pattern and the headers it sets. */
+function publishedHeaders() {
+  const blocks = [];
+  for (const raw of readFileSync(new URL('_headers', LANDING_DIR), 'utf8').split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line || line.startsWith('#')) continue;
+    if (!/^\s/.test(raw)) {
+      blocks.push({ path: line, headers: new Map() });
+      continue;
+    }
+    // The first colon separates the name from the value: a CSP value contains `data:` and must survive.
+    const at = line.indexOf(':');
+    assert.ok(at > 0, `"${line}" is a header line`);
+    assert.ok(blocks.length > 0, `"${line}" follows a path`);
+    blocks.at(-1).headers.set(line.slice(0, at).trim(), line.slice(at + 1).trim());
+  }
+  return blocks;
+}
+
+/**
+ * Does a `_headers` path pattern cover this URL path? `*` is read as "any characters", which is the
+ * widest reading Cloudflare could give it, so a rule this says matches cannot match less in production.
+ */
+function headerPatternCovers(pattern, path) {
+  const source = pattern.replace(/[.*+?^${}()|[\]\\]/g, (char) => (char === '*' ? '[\\s\\S]*' : `\\${char}`));
+  return new RegExp(`^${source}$`).test(path);
+}
+
+/** Every file under the Pages output directory, as the path it is served at. */
+function publishedFiles(dir = LANDING_DIR, prefix = '/') {
+  const found = [];
+  for (const name of readdirSync(dir).sort()) {
+    if (statSync(new URL(name, dir)).isDirectory()) {
+      found.push(...publishedFiles(new URL(`${name}/`, dir), `${prefix}${name}/`));
+      continue;
+    }
+    found.push({ path: `${prefix}${name}`, name });
+  }
+  return found;
+}
+
+test('the published header table keeps one security baseline and adds only caching below it', () => {
+  // `npm run serve` is an ordinary static file server: it does not read `_headers`, so no local request
+  // can prove any of these values reach a browser. The published file is the contract asserted here; the
+  // response headers are re-checked against the deployment by the smoke check in DEPLOYMENT.md.
+  const blocks = publishedHeaders();
+
+  assert.equal(blocks[0].path, '/*', 'the baseline leads the table');
+  assert.deepEqual([...blocks[0].headers.keys()].sort(), [
+    'Cache-Control',
+    'Content-Security-Policy',
+    'Permissions-Policy',
+    'Referrer-Policy',
+    'X-Content-Type-Options',
+    'X-Frame-Options',
+  ]);
+  assert.match(blocks[0].headers.get('Content-Security-Policy'), /(^|; )default-src 'self'(;|$)/);
+  assert.match(blocks[0].headers.get('Content-Security-Policy'), /(^|; )connect-src 'none'(;|$)/);
+  assert.equal(blocks[0].headers.get('Permissions-Policy'), 'camera=(), geolocation=(), microphone=()');
+  assert.equal(blocks[0].headers.get('Referrer-Policy'), 'strict-origin-when-cross-origin');
+  assert.equal(blocks[0].headers.get('X-Content-Type-Options'), 'nosniff');
+  assert.equal(blocks[0].headers.get('X-Frame-Options'), 'DENY');
+
+  // Nothing below the baseline touches security. A cache rule that also restated a policy header would
+  // be a second place to keep it correct, and a place one path could quietly fall out of step.
+  for (const block of blocks.slice(1)) {
+    assert.deepEqual([...block.headers.keys()], ['Cache-Control'], `${block.path} sets caching only`);
+  }
+
+  // Every block states a whole Cache-Control value, and every one ends in `no-transform`. That makes the
+  // baseline's own value a subset of each specific value, so the directives that reach the browser are
+  // the same whether Cloudflare replaces the header for a more specific path or merges the two.
+  assert.equal(blocks[0].headers.get('Cache-Control'), 'no-transform');
+  for (const block of blocks) {
+    const value = block.headers.get('Cache-Control');
+    assert.ok(value, `${block.path} states a Cache-Control`);
+    assert.match(value, /(^|, )no-transform$/, `${block.path} keeps no-transform`);
+  }
+});
+
+test('the published header table names every document, script, and stylesheet path it revalidates', () => {
+  const blocks = publishedHeaders();
+  const byPath = new Map(blocks.map((block) => [block.path, block.headers.get('Cache-Control')]));
+
+  // The pre-existing image rule is unchanged: assets are the one class a cache may answer from directly.
+  assert.equal(byPath.get('/assets/*'), ASSET_CACHE);
+
+  // Both spellings of each document, and both the landing and app code directories. The bare `/` and
+  // `/app/` are the paths a visitor requests; the `index.html` spellings are what a bookmark can name.
+  for (const path of [
+    '/',
+    '/index.html',
+    '/404.html',
+    '/app/',
+    '/app/index.html',
+    '/scripts/*',
+    '/styles/*',
+    '/app/scripts/*',
+    '/app/styles/*',
+  ]) {
+    assert.equal(byPath.get(path), REVALIDATE, `${path} revalidates`);
+  }
+
+  // Exactly one rule lets a cache reuse a response without asking the origin first. Anything else that
+  // grew a non-zero lifetime would be serving an unversioned file from a build that may have moved on.
+  const longLived = blocks.filter((block) => /max-age=(?!0(,|$))\d+/.test(block.headers.get('Cache-Control')));
+  assert.deepEqual(longLived.map((block) => block.path), ['/assets/*']);
+
+  // No rule is stated twice, so the effective policy for a path does not depend on which copy wins.
+  assert.equal(byPath.size, blocks.length);
+});
+
+test('every published document, script, and stylesheet is covered, and no two rules disagree', () => {
+  // Derived from the output directory rather than from a list, so a file added to the deployment cannot
+  // pick up the permissive default by being forgotten here: it arrives with no rule and fails.
+  const documents = [];
+  const code = [];
+  const assets = [];
+  for (const { path, name } of publishedFiles()) {
+    if (path.startsWith('/assets/')) {
+      assets.push(path);
+    } else if (name.endsWith('.html')) {
+      documents.push(path);
+      // Cloudflare serves a directory from its index document, so that path needs the rule too.
+      if (name === 'index.html') documents.push(path.slice(0, -name.length));
+    } else if (name.endsWith('.js') || name.endsWith('.css')) {
+      code.push(path);
+    }
+  }
+
+  assert.deepEqual(documents.sort(), ['/', '/404.html', '/app/', '/app/index.html', '/index.html']);
+  assert.deepEqual(code.sort(), [
+    '/app/scripts/app.js',
+    '/app/scripts/data.js',
+    '/app/styles/app.css',
+    '/scripts/i18n.js',
+    '/scripts/main.js',
+    '/styles/main.css',
+  ]);
+  assert.ok(assets.length > 0, 'the deployment ships images');
+
+  // The baseline matches everything by design, so coverage is judged on the rules below it.
+  const rules = publishedHeaders().slice(1);
+  const expected = new Map([
+    ...[...documents, ...code].map((path) => [path, REVALIDATE]),
+    ...assets.map((path) => [path, ASSET_CACHE]),
+  ]);
+
+  for (const [path, value] of expected) {
+    const matched = rules.filter((rule) => headerPatternCovers(rule.path, path));
+    assert.ok(matched.length > 0, `${path} is named by a cache rule`);
+    // More than one rule may cover a path. They have to agree, because which one Cloudflare applies is
+    // not something a test on this side of a deploy can observe.
+    for (const rule of matched) {
+      assert.equal(rule.headers.get('Cache-Control'), value, `${rule.path} agrees on ${path}`);
+    }
+  }
+
+  // And the rules earn their place: each one covers something this deployment actually publishes.
+  for (const rule of rules) {
+    assert.ok(
+      [...expected.keys()].some((path) => headerPatternCovers(rule.path, path)),
+      `${rule.path} covers a published path`,
+    );
+  }
 });
