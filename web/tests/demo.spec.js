@@ -130,6 +130,40 @@ test('landing and demo share a persistent bilingual locale', async ({ page }) =>
   await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
 });
 
+test('the 404 page follows the stored locale and returns home without leaving origin', async ({ page }) => {
+  const offOriginRequests = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).origin !== expectedOrigin) offOriginRequests.push(request.url());
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+
+  await page.evaluate((key) => localStorage.setItem(key, 'zh'), LOCALE_STORAGE_KEY);
+  const chineseResponse = await page.goto('/missing/nested/page');
+  expect(chineseResponse.status()).toBe(404);
+  await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
+  await expect(page).toHaveTitle('页面不存在 - Anchor Learning 锚学');
+  await expect(page.locator('.not-found-page p')).toHaveText('你访问的页面不存在。');
+  await expect(page.locator('.not-found-page .button')).toHaveText('返回 Anchor Learning 锚学');
+  await expect(page.locator('.not-found-page')).not.toContainText('The page you requested does not exist.');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+
+  await page.locator('.not-found-page .button').click();
+  await expect(page).toHaveURL(`${expectedOrigin}/`);
+  await expect(page.locator('.hero-lead')).toContainText('技术文档和代码');
+
+  await page.evaluate((key) => localStorage.setItem(key, 'en'), LOCALE_STORAGE_KEY);
+  const englishResponse = await page.goto('/another-missing-page');
+  expect(englishResponse.status()).toBe(404);
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(page).toHaveTitle('Page not found - Anchor Learning');
+  await expect(page.locator('.not-found-page p')).toHaveText('The page you requested does not exist.');
+  await expect(page.locator('.not-found-page .button')).toHaveText('Go to Anchor Learning');
+  await expect(page.locator('.not-found-page')).not.toContainText('你访问的页面不存在。');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  expect(offOriginRequests, `unexpected off-origin requests: ${offOriginRequests.join(', ')}`).toEqual([]);
+});
+
 test('landing separates the Android Private Alpha from the static browser demo', async ({ page }) => {
   const offOriginRequests = [];
   page.on('request', (request) => {

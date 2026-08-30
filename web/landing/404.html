@@ -1,11 +1,18 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
-  <title>404 - Anchor Learning</title>
+  <title data-i18n="notFound.metaTitle">Page not found - Anchor Learning</title>
   <link rel="stylesheet" href="/styles/main.css">
+  <script type="module" src="/scripts/main.js"></script>
 </head>
-<body class="not-found-page"><main><h1>404</h1><p>页面不存在。The page you requested does not exist.</p><a class="button button-primary" href="/">返回 Anchor Learning / Go home</a></main></body>
+<body class="not-found-page" data-surface="not-found">
+  <main>
+    <h1>404</h1>
+    <p data-i18n="notFound.message">The page you requested does not exist.</p>
+    <a class="button button-primary" href="/" data-i18n="notFound.home">Go to Anchor Learning</a>
+  </main>
+</body>
 </html>

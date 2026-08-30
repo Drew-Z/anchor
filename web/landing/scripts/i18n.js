@@ -83,6 +83,9 @@ const translations = {
     'final.title': 'See how traceable practice feels',
     'footer.tagline': 'Traceable, local-first learning for developers.',
     'footer.architecture': 'Architecture',
+    'notFound.metaTitle': 'Page not found - Anchor Learning',
+    'notFound.message': 'The page you requested does not exist.',
+    'notFound.home': 'Go to Anchor Learning',
     'app.metaTitle': 'Interactive Demo - Anchor Learning',
     'app.metaDescription': 'Try the Anchor Learning source-traced quiz demo with bundled datasets.',
     'app.back': 'Product site',
@@ -204,6 +207,9 @@ const translations = {
     'final.title': '体验来源可溯源的练习方式',
     'footer.tagline': '面向开发者的可溯源、本地优先学习工具。',
     'footer.architecture': '架构文档',
+    'notFound.metaTitle': '页面不存在 - Anchor Learning 锚学',
+    'notFound.message': '你访问的页面不存在。',
+    'notFound.home': '返回 Anchor Learning 锚学',
     'app.metaTitle': '交互演示 - Anchor Learning 锚学',
     'app.metaDescription': '使用内置数据体验 Anchor Learning 带来源引用的答题流程。',
     'app.back': '返回产品站',
@@ -272,7 +278,8 @@ export function translate(key, locale = activeLocale) {
 export function applyLocale(locale, root = document) {
   activeLocale = normalizeLocale(locale);
   root.documentElement.lang = activeLocale === 'zh' ? 'zh-CN' : 'en';
-  root.title = translate(root.body?.dataset.surface === 'app' ? 'app.metaTitle' : 'meta.title');
+  const surface = root.body?.dataset.surface;
+  root.title = translate(surface === 'app' ? 'app.metaTitle' : surface === 'not-found' ? 'notFound.metaTitle' : 'meta.title');
 
   const description = root.querySelector('meta[name="description"]');
   if (description) description.content = translate(root.body?.dataset.surface === 'app' ? 'app.metaDescription' : 'meta.description');
