@@ -665,6 +665,147 @@ test('mobile dataset navigation works without horizontal overflow', async ({ pag
   expect(overflow).toBeLessThanOrEqual(0);
 });
 
+const drawer = (page) => page.locator('#dataset-sidebar');
+const drawerScrim = (page) => page.locator('#app-scrim');
+const drawerTrigger = (page) => page.locator('#dataset-menu-button');
+
+/** Opens the mobile drawer the way a learner does, and waits for it to take focus. */
+async function openDrawer(page) {
+  await drawerTrigger(page).click();
+  await expect(drawer(page)).toHaveClass(/is-open/);
+  await expect(drawerTrigger(page)).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.locator('#dataset-menu-close')).toBeFocused();
+}
+
+/** The id of whatever a click would land on out in the content area, beside the drawer. */
+function topmostBesideDrawer(page) {
+  return page.evaluate(() => document.elementFromPoint(window.innerWidth - 24, window.innerHeight / 2)?.id ?? null);
+}
+
+test('the mobile drawer opens over a scrim that holds focus until it is dismissed', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/app/');
+  await expect(drawerScrim(page)).toBeHidden();
+
+  await openDrawer(page);
+  await expect(drawerScrim(page)).toBeVisible();
+  // The scrim is a surface to dismiss through, not something to read: the trigger and the close button
+  // already say everything it would, so it stays out of the accessibility tree.
+  await expect(drawerScrim(page)).toHaveAttribute('aria-hidden', 'true');
+  await expect(drawerScrim(page)).toBeEmpty();
+  expect(await topmostBesideDrawer(page)).toBe('app-scrim');
+
+  // Tab stays in the drawer while the scrim covers everything else. The primary links live in the tab
+  // bar at this width, so the drawer runs from its close button to the reset button.
+  await page.keyboard.press('Shift+Tab');
+  await expect(page.locator('#reset-progress')).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(page.locator('#dataset-menu-close')).toBeFocused();
+
+  await page.keyboard.press('Escape');
+  await expect(drawer(page)).not.toHaveClass(/is-open/);
+  await expect(drawerScrim(page)).toBeHidden();
+  await expect(drawerTrigger(page)).toHaveAttribute('aria-expanded', 'false');
+  await expect(drawerTrigger(page)).toBeFocused();
+
+  // A click at the content is a dismissal too, and it hands focus back the same way Escape does.
+  await openDrawer(page);
+  await drawerScrim(page).click({ position: { x: 360, y: 400 } });
+  await expect(drawer(page)).not.toHaveClass(/is-open/);
+  await expect(drawerScrim(page)).toBeHidden();
+  await expect(drawerTrigger(page)).toBeFocused();
+  expect(await topmostBesideDrawer(page)).not.toBe('app-scrim');
+
+  // The close button is a dismissal as well, so it restores the trigger rather than leaving focus in a
+  // drawer that is no longer on screen.
+  await openDrawer(page);
+  await page.locator('#dataset-menu-close').click();
+  await expect(drawer(page)).not.toHaveClass(/is-open/);
+  await expect(drawerTrigger(page)).toBeFocused();
+
+  // The scrim has to actually dim the content, in either palette: a token that failed to resolve would
+  // leave a fully transparent overlay that still passes every other check here.
+  await openDrawer(page);
+  const lightScrim = await drawerScrim(page).evaluate((node) => getComputedStyle(node).backgroundColor);
+  expect(lightScrim).not.toBe('rgba(0, 0, 0, 0)');
+
+  await page.evaluate((key) => localStorage.setItem(key, JSON.stringify({ version: 1, theme: 'dark' })), THEME_STORAGE_KEY);
+  await page.reload();
+  await openDrawer(page);
+  const darkScrim = await drawerScrim(page).evaluate((node) => getComputedStyle(node).backgroundColor);
+  expect(darkScrim).not.toBe('rgba(0, 0, 0, 0)');
+  expect(darkScrim).not.toBe(lightScrim);
+});
+
+test('choosing a surface from the mobile drawer closes it and leaves focus on that surface', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/app/#/import');
+
+  // The drawer's own link to the surface already on screen: no address change, so nothing else can be
+  // relied on to close it.
+  await openDrawer(page);
+  await page.locator('#sidebar-import [data-nav-route="import"]').click();
+  await expect(drawer(page)).not.toHaveClass(/is-open/);
+  await expect(drawerScrim(page)).toBeHidden();
+  await expect(page).toHaveURL(/#\/import$/);
+  await expect(page.locator('#app-content')).toBeFocused();
+  await expect(drawerTrigger(page)).not.toBeFocused();
+
+  // A dataset is a navigation too: the deck takes focus and the trigger does not take it back.
+  await page.goto('/app/');
+  await openDrawer(page);
+  await page.locator('#dataset-list [data-select-dataset="git"]').click();
+  await expect(drawer(page)).not.toHaveClass(/is-open/);
+  await expect(drawerScrim(page)).toBeHidden();
+  await expect(page).toHaveURL(/#\/decks\/git$/);
+  await expect(page.locator('#app-content')).toBeFocused();
+  await expect(drawerTrigger(page)).not.toBeFocused();
+
+  // The tab bar is the primary navigation at this width and stays above the scrim, so reaching for it
+  // while the drawer is open has to close the drawer rather than be swallowed by it.
+  await openDrawer(page);
+  await page.locator('#app-tabbar [data-tab-route="library"]').click();
+  await expect(drawer(page)).not.toHaveClass(/is-open/);
+  await expect(drawerScrim(page)).toBeHidden();
+  await expect(page).toHaveURL(/#\/library$/);
+  await expect(page.locator('#app-content')).toBeFocused();
+  await expect(drawerTrigger(page)).not.toBeFocused();
+
+  // The tab for the surface already on screen is the case with no address change at all, so the drawer has
+  // to close on the click itself.
+  await openDrawer(page);
+  await page.locator('#app-tabbar [data-tab-route="library"]').click();
+  await expect(drawer(page)).not.toHaveClass(/is-open/);
+  await expect(drawerScrim(page)).toBeHidden();
+  await expect(page).toHaveURL(/#\/library$/);
+  await expect(page.locator('#app-content')).toBeFocused();
+  await expect(drawerTrigger(page)).not.toBeFocused();
+});
+
+test('the desktop sidebar keeps its column behaviour with no scrim and no focus moves', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/app/');
+  await expect(drawer(page)).toBeVisible();
+  await expect(drawerTrigger(page)).toBeHidden();
+  await expect(drawerScrim(page)).toBeHidden();
+  expect(await topmostBesideDrawer(page)).not.toBe('app-scrim');
+
+  // Escape belongs to the drawer, so on a permanent column it must not pull focus out of the surface.
+  const current = page.locator('#app-nav [data-nav-route="library"]');
+  await current.click();
+  await expect(page.locator('#app-content')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#app-content')).toBeFocused();
+  await expect(drawer(page)).toBeVisible();
+  await expect(drawerScrim(page)).toBeHidden();
+
+  // The link to the surface already on screen changes nothing here: no drawer to close, no focus to move.
+  await current.focus();
+  await current.click();
+  await expect(current).toBeFocused();
+  await expect(page).toHaveURL(/#\/library$/);
+});
+
 const deckSearch = (page) => page.locator('[data-deck-search-input]');
 const deckCards = (page) => page.locator('[data-deck-card]');
 const deckStatus = (page) => page.locator('[data-deck-status]');

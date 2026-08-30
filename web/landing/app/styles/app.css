@@ -48,6 +48,7 @@
   --line: #ccd5d0;
   --line-dark: #2c4139;
   --track: #dde3df;
+  --scrim: rgba(11, 18, 16, 0.44);
   --radius: 8px;
   --header-height: 64px;
   --sidebar-width: 286px;
@@ -88,6 +89,7 @@
   --line: #2c3b35;
   --line-dark: #24352e;
   --track: #253630;
+  --scrim: rgba(2, 7, 5, 0.62);
 }
 
 html,
@@ -291,6 +293,20 @@ h3 {
   background: var(--panel-muted);
   flex-direction: column;
   gap: 18px;
+}
+
+/*
+ * The drawer's scrim. It never paints outside the drawer breakpoint, where the sidebar is a permanent
+ * column with nothing to dim, and it sits under the drawer (90) while staying over the content. The
+ * header (100) and the tab bar (95) remain above it, so the trigger that closes the drawer and the
+ * primary navigation are still reachable while it is up.
+ */
+.app-scrim {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 88;
+  background: var(--scrim);
 }
 
 .sidebar-top {
@@ -2905,6 +2921,11 @@ h3 {
 
   .app-sidebar.is-open {
     transform: translateX(0);
+  }
+
+  /* Open is the only state that shows the scrim, and `hidden` is what the script toggles. */
+  .app-scrim:not([hidden]) {
+    display: block;
   }
 
   /* Primary navigation moves to the bottom tab bar, so the drawer keeps only secondary controls. */

@@ -493,6 +493,7 @@ if (typeof document !== 'undefined') {
   const datasetList = document.querySelector('#dataset-list');
   const announcer = document.querySelector('#app-announcer');
   const sidebar = document.querySelector('#dataset-sidebar');
+  const scrim = document.querySelector('#app-scrim');
   const menuButton = document.querySelector('#dataset-menu-button');
   const closeButton = document.querySelector('#dataset-menu-close');
   const navList = document.querySelector('#app-nav');
@@ -508,6 +509,13 @@ if (typeof document !== 'undefined') {
   // Theme state. `storedTheme` stays null until the learner chooses, so the platform hint keeps
   // applying; once set, the stored value wins even if the system preference later changes.
   let storedTheme = loadTheme();
+
+  /**
+   * The control that opened the mobile drawer, so dismissing it can hand focus back. Null whenever the
+   * drawer is closed, which is also how a close tells a real dismissal from the repeated `setSidebarOpen`
+   * calls that every navigation makes.
+   */
+  let sidebarReturnFocus = null;
 
   /**
    * Restore is review-first, like import: choosing a file only builds an in-memory draft. Nothing is
@@ -620,10 +628,57 @@ if (typeof document !== 'undefined') {
     document.documentElement.dataset.theme = activeTheme();
   }
 
-  function setSidebarOpen(open) {
+  /**
+   * True while the sidebar behaves as a drawer rather than a permanent column. The trigger is only
+   * rendered at the drawer breakpoint, so asking whether it is on screen keeps the breakpoint itself in
+   * the stylesheet instead of repeating the width here.
+   */
+  function drawerMode() {
+    return (menuButton?.getClientRects().length ?? 0) > 0;
+  }
+
+  function sidebarIsOpen() {
+    return sidebar?.classList.contains('is-open') === true;
+  }
+
+  /** Controls a keyboard can reach inside the drawer, in document order. */
+  function drawerFocusables() {
+    const nodes = sidebar?.querySelectorAll('a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])') ?? [];
+    // The primary links move to the tab bar at this width, so what is focusable is what is displayed.
+    return [...nodes].filter((node) => node.getClientRects().length > 0);
+  }
+
+  /**
+   * Opens or closes the sidebar. At the drawer breakpoint it is modal over a scrim, so opening moves
+   * focus inside it and a dismissal hands focus back to whatever opened it. A close that comes from
+   * navigation passes `restoreFocus: false`: the new surface claims focus itself, and the trigger would
+   * only take it straight back. Desktop is untouched, where the sidebar is a column that never closes.
+   */
+  function setSidebarOpen(open, { restoreFocus = true } = {}) {
+    const wasOpen = sidebarIsOpen();
     sidebar?.classList.toggle('is-open', open);
+    if (scrim) scrim.hidden = !open;
     menuButton?.setAttribute('aria-expanded', String(open));
     menuButton?.setAttribute('aria-label', translate(open ? 'app.closeMenu' : 'app.menu'));
+
+    if (!drawerMode()) {
+      sidebarReturnFocus = null;
+      return;
+    }
+    if (open && !wasOpen) {
+      const opener = document.activeElement;
+      // The trigger is the only way in, and a browser that does not focus a clicked button leaves the
+      // active element somewhere the learner never asked to return to, so that falls back to the trigger.
+      sidebarReturnFocus = opener instanceof HTMLElement && !sidebar?.contains(opener)
+        && opener.matches('a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])') ? opener : menuButton;
+      closeButton?.focus();
+      return;
+    }
+    if (!open && wasOpen) {
+      const opener = sidebarReturnFocus;
+      sidebarReturnFocus = null;
+      if (restoreFocus) (opener?.isConnected ? opener : menuButton)?.focus();
+    }
   }
 
   function persistAndRender() {
@@ -2504,7 +2559,7 @@ if (typeof document !== 'undefined') {
 
   function selectDataset(datasetId) {
     if (!getDataset(datasetId)) return;
-    setSidebarOpen(false);
+    setSidebarOpen(false, { restoreFocus: false });
     if (!navigate({ view: 'decks', datasetId })) render();
     content?.focus();
   }
@@ -3209,6 +3264,17 @@ if (typeof document !== 'undefined') {
   });
 
   document.addEventListener('click', (event) => {
+    // Choosing a surface while the drawer is open closes it, whether the link came from the drawer or from
+    // the tab bar that stays reachable above the scrim. A link to the surface already on screen needs this
+    // most: the address does not change there, so `hashchange` never fires to close the drawer for us.
+    // Focus follows the surface rather than returning to the trigger, which is what navigation already does.
+    const drawerLink = event.target.closest('[data-nav-route], [data-tab-route]');
+    if (drawerLink && sidebarIsOpen() && (sidebar?.contains(drawerLink) || tabBar?.contains(drawerLink))) {
+      setSidebarOpen(false, { restoreFocus: false });
+      content?.focus();
+      return;
+    }
+
     const datasetButton = event.target.closest('[data-select-dataset]');
     if (datasetButton) {
       selectDataset(datasetButton.dataset.selectDataset);
@@ -3330,10 +3396,12 @@ if (typeof document !== 'undefined') {
 
   menuButton?.addEventListener('click', () => setSidebarOpen(menuButton.getAttribute('aria-expanded') !== 'true'));
   closeButton?.addEventListener('click', () => setSidebarOpen(false));
+  // A click on the scrim is a click at the content, which the drawer is covering: treat it as dismissal.
+  scrim?.addEventListener('click', () => setSidebarOpen(false));
 
   window.addEventListener('anchor:localechange', render);
   window.addEventListener('hashchange', () => {
-    setSidebarOpen(false);
+    setSidebarOpen(false, { restoreFocus: false });
     // A half-answered confirmation should not be waiting when the learner comes back to a surface.
     pendingDelete = null;
     importError = null;
@@ -3382,6 +3450,21 @@ if (typeof document !== 'undefined') {
         return;
       }
     }
+
+    // An open drawer is modal: the scrim covers the content, so Tab stays inside rather than walking onto
+    // controls the learner cannot see or click.
+    if (event.key === 'Tab' && sidebarIsOpen() && drawerMode()) {
+      const focusables = drawerFocusables();
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      if (first && (active === (event.shiftKey ? first : last) || !sidebar?.contains(active))) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      }
+      return;
+    }
+
     if (event.key === 'Escape') setSidebarOpen(false);
   });
 

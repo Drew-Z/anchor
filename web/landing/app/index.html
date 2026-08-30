@@ -9,7 +9,7 @@
   <link rel="canonical" href="https://anchor.playlab.eu.cc/app/">
   <link rel="icon" type="image/svg+xml" href="../assets/anchor-icon.svg">
   <link rel="stylesheet" href="styles/app.css">
-  <script type="module" src="scripts/app.js?v=20260830-3"></script>
+  <script type="module" src="scripts/app.js?v=20260830-4"></script>
 </head>
 <body data-surface="app">
   <a class="skip-link" href="#app-content" data-i18n="a11y.skip">Skip to content</a>
@@ -55,6 +55,11 @@
 
     <main id="app-content" class="app-content" tabindex="-1"></main>
   </div>
+
+  <!-- Dims the content behind the mobile drawer and takes the click that dismisses it. Presentational
+       only: the trigger and the close button already say everything it would, so it stays out of the
+       accessibility tree, and the stylesheet keeps it away from the desktop sidebar entirely. -->
+  <div id="app-scrim" class="app-scrim" aria-hidden="true" hidden></div>
 
   <nav id="app-tabbar" class="app-tabbar"></nav>
   <div id="app-announcer" class="visually-hidden" role="status" aria-live="polite"></div>
