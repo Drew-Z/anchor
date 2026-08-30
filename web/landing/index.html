@@ -50,6 +50,11 @@
     </div>
   </header>
 
+  <!-- Dims the page behind the open mobile menu and takes the click that dismisses it. Presentational
+       only: the trigger already says everything it would, so it stays out of the accessibility tree, and
+       the stylesheet keeps it away from the desktop header row entirely. -->
+  <div id="nav-scrim" class="nav-scrim" aria-hidden="true" hidden></div>
+
   <main id="main">
     <section id="top" class="hero">
       <div class="hero-media" aria-hidden="true"></div>

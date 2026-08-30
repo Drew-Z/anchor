@@ -19,6 +19,7 @@
   --coral: #f0806b;
   --line-dark: #2b4038;
   --line-light: #cbd5cf;
+  --scrim: rgba(2, 7, 5, 0.62);
   --shadow: 0 18px 56px rgba(1, 12, 8, 0.22);
   --radius: 8px;
   --shell: 1180px;
@@ -222,6 +223,19 @@ h3 {
   height: 2px;
   margin: 4px auto;
   background: var(--text);
+}
+
+/*
+ * The open menu's scrim. It never paints outside the menu breakpoint, where the navigation is a header row
+ * with nothing to dim, and it sits under the header (100) so the trigger and the language switch stay
+ * reachable while it is up. Everything else on the page, including the hero content (1), falls behind it.
+ */
+.nav-scrim {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 88;
+  background: var(--scrim);
 }
 
 .hero {
@@ -854,6 +868,11 @@ h3 {
   }
 
   .menu-button {
+    display: block;
+  }
+
+  /* Open is the only state that shows the scrim, and `hidden` is what the script toggles. */
+  .nav-scrim:not([hidden]) {
     display: block;
   }
 }

@@ -20,6 +20,8 @@ import {
   THEME_STORAGE_KEY,
   routeHash,
 } from '../landing/app/scripts/app.js';
+// The landing page and the demo share one locale key, so the menu tests can prove they left it alone.
+import { STORAGE_KEY as LOCALE_STORAGE_KEY } from '../landing/scripts/i18n.js';
 
 const expectedOrigin = new URL(process.env.ANCHOR_BASE_URL ?? 'http://127.0.0.1:4173').origin;
 
@@ -2877,6 +2879,184 @@ test('landing page keeps navigation and bilingual content usable on mobile', asy
   expect(overflow).toBeLessThanOrEqual(0);
   const screenshot = await page.screenshot({ fullPage: true, path: 'test-results/evidence/anchor-landing-mobile.png' });
   expect(screenshot.byteLength).toBeGreaterThan(20_000);
+});
+
+const landingMenu = (page) => page.locator('.primary-nav');
+const landingScrim = (page) => page.locator('#nav-scrim');
+const landingTrigger = (page) => page.locator('.menu-button');
+const landingLinks = (page) => landingMenu(page).locator('a');
+
+/** Opens the landing menu the way a reader does, and waits for it to take focus. */
+async function openLandingMenu(page) {
+  await landingTrigger(page).click();
+  await expect(landingMenu(page)).toHaveClass(/is-open/);
+  await expect(landingTrigger(page)).toHaveAttribute('aria-expanded', 'true');
+  await expect(landingLinks(page).first()).toBeFocused();
+}
+
+/** The id of whatever a click would land on down the page, below the open menu. */
+function topmostBelowLandingMenu(page) {
+  return page.evaluate(() => document.elementFromPoint(window.innerWidth / 2, window.innerHeight - 24)?.id ?? null);
+}
+
+/** True while a click at the trigger's own position would still reach the trigger. */
+function triggerStaysClickable(page) {
+  return landingTrigger(page).evaluate((node) => {
+    const box = node.getBoundingClientRect();
+    return node.contains(document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2));
+  });
+}
+
+test('the landing menu opens over a scrim that holds focus until it is dismissed', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await expect(landingScrim(page)).toBeHidden();
+  expect(await topmostBelowLandingMenu(page)).not.toBe('nav-scrim');
+
+  await openLandingMenu(page);
+  await expect(landingScrim(page)).toBeVisible();
+  // The scrim is a surface to dismiss through, not something to read: the trigger already says everything
+  // it would, so it stays out of the accessibility tree.
+  await expect(landingScrim(page)).toHaveAttribute('aria-hidden', 'true');
+  await expect(landingScrim(page)).toBeEmpty();
+  expect(await topmostBelowLandingMenu(page)).toBe('nav-scrim');
+  // It has to actually dim the page: a token that failed to resolve would leave a fully transparent
+  // overlay that still passes every other check here.
+  const scrimPaint = await landingScrim(page).evaluate((node) => getComputedStyle(node).backgroundColor);
+  expect(scrimPaint).not.toBe('rgba(0, 0, 0, 0)');
+  // The header stays above the scrim, so the trigger and the language switch remain reachable by pointer,
+  // and the trigger says what pressing it does now in the wording the page already ships.
+  expect(await triggerStaysClickable(page)).toBe(true);
+  await expect(landingTrigger(page)).toHaveAttribute('aria-label', 'Close menu');
+
+  // Tab walks the panel and stays there: the last link leads back to the first rather than onto the
+  // language switch sitting above the scrim.
+  const links = landingLinks(page);
+  const count = await links.count();
+  expect(count).toBeGreaterThan(1);
+  await page.keyboard.press('Tab');
+  await expect(links.nth(1)).toBeFocused();
+  await links.nth(count - 1).focus();
+  await page.keyboard.press('Tab');
+  await expect(links.first()).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(links.nth(count - 1)).toBeFocused();
+  await expect(landingTrigger(page)).not.toBeFocused();
+
+  // Escape is the keyboard dismissal, and it hands focus back to the trigger that opened the panel.
+  await page.keyboard.press('Escape');
+  await expect(landingMenu(page)).not.toHaveClass(/is-open/);
+  await expect(landingScrim(page)).toBeHidden();
+  await expect(landingTrigger(page)).toHaveAttribute('aria-expanded', 'false');
+  await expect(landingTrigger(page)).toHaveAttribute('aria-label', 'Open menu');
+  await expect(landingTrigger(page)).toBeFocused();
+
+  // A click at the page is a dismissal too, and it restores focus the same way Escape does.
+  await openLandingMenu(page);
+  await landingScrim(page).click({ position: { x: 195, y: 700 } });
+  await expect(landingMenu(page)).not.toHaveClass(/is-open/);
+  await expect(landingScrim(page)).toBeHidden();
+  await expect(landingTrigger(page)).toBeFocused();
+  expect(await topmostBelowLandingMenu(page)).not.toBe('nav-scrim');
+
+  // Escape with nothing open leaves focus where the reader put it: a closed panel has no dismissal to
+  // report, so it must not pull focus onto the trigger.
+  const heroAction = page.locator('.hero-actions .button-primary');
+  await heroAction.focus();
+  await page.keyboard.press('Escape');
+  await expect(heroAction).toBeFocused();
+  await expect(landingTrigger(page)).not.toBeFocused();
+});
+
+test('choosing a landing link or a language closes the menu without taking focus back', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+
+  // An in-page link is a choice, not a dismissal: focus stays with the section the reader picked instead of
+  // jumping back to a trigger they are done with.
+  await openLandingMenu(page);
+  await landingMenu(page).locator('a[href="#workflow"]').click();
+  await expect(landingMenu(page)).not.toHaveClass(/is-open/);
+  await expect(landingScrim(page)).toBeHidden();
+  await expect(landingTrigger(page)).toHaveAttribute('aria-expanded', 'false');
+  await expect(landingTrigger(page)).not.toBeFocused();
+  await expect(page).toHaveURL(/#workflow$/);
+
+  // The language switch sits above the scrim, so it is still clickable while the panel is open. Choosing a
+  // language closes the panel, keeps focus on the switch that made the choice, and relabels the trigger.
+  await openLandingMenu(page);
+  const chinese = page.locator('[data-locale="zh"]');
+  await chinese.click();
+  await expect(landingMenu(page)).not.toHaveClass(/is-open/);
+  await expect(landingScrim(page)).toBeHidden();
+  await expect(chinese).toBeFocused();
+  await expect(landingTrigger(page)).not.toBeFocused();
+  await expect(landingTrigger(page)).toHaveAttribute('aria-label', '打开菜单');
+
+  // The wording holds in 中文 while it is open, and Escape still restores the trigger.
+  await openLandingMenu(page);
+  await expect(landingTrigger(page)).toHaveAttribute('aria-label', '关闭菜单');
+  await page.keyboard.press('Escape');
+  await expect(landingTrigger(page)).toBeFocused();
+  await expect(landingTrigger(page)).toHaveAttribute('aria-label', '打开菜单');
+
+  // Opening and dismissing the panel writes nothing: the language choice is the only key the page stored.
+  expect(await page.evaluate(() => Object.keys(localStorage).sort())).toEqual([LOCALE_STORAGE_KEY]);
+  expect(await page.evaluate((key) => localStorage.getItem(key), LOCALE_STORAGE_KEY)).toBe('zh');
+});
+
+test('the landing scrim and its focus trap stay inside the menu breakpoint', async ({ page }) => {
+  await page.goto('/');
+  await page.setViewportSize({ width: 820, height: 900 });
+  await expect(landingTrigger(page)).toBeVisible();
+  await openLandingMenu(page);
+  await expect(landingScrim(page)).toBeVisible();
+
+  // One pixel wider is the header row again: the navigation returns to the header and the scrim cannot
+  // paint, even though the panel was left open, because the stylesheet owns that boundary.
+  await page.setViewportSize({ width: 821, height: 900 });
+  await expect(landingTrigger(page)).toBeHidden();
+  await expect(landingScrim(page)).toBeHidden();
+  await expect(landingMenu(page)).toBeVisible();
+  expect(await topmostBelowLandingMenu(page)).not.toBe('nav-scrim');
+
+  // With no panel on screen there is nothing to contain, so Tab leaves the navigation for the header.
+  const links = landingLinks(page);
+  await links.nth((await links.count()) - 1).focus();
+  await page.keyboard.press('Tab');
+  await expect(page.locator('[data-locale="zh"]')).toBeFocused();
+});
+
+test('the desktop landing navigation keeps its header row with no scrim and no focus moves', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/');
+  await expect(landingMenu(page)).toBeVisible();
+  await expect(landingTrigger(page)).toBeHidden();
+  await expect(landingScrim(page)).toBeHidden();
+  expect(await topmostBelowLandingMenu(page)).not.toBe('nav-scrim');
+
+  // The navigation is a row inside the header, not a panel hanging below it.
+  const headerBox = await page.locator('.site-header').boundingBox();
+  const navBox = await landingMenu(page).boundingBox();
+  expect(navBox.y).toBeGreaterThanOrEqual(headerBox.y);
+  expect(navBox.y + navBox.height).toBeLessThanOrEqual(headerBox.y + headerBox.height);
+
+  // Escape belongs to the panel, so on a header row it must not pull focus onto a trigger that is not even
+  // on screen.
+  const demoLink = landingMenu(page).locator('a[href="#demo"]');
+  await demoLink.focus();
+  await page.keyboard.press('Escape');
+  await expect(demoLink).toBeFocused();
+  await expect(landingMenu(page)).toBeVisible();
+  await expect(landingScrim(page)).toBeHidden();
+
+  // A link still navigates, and nothing closes or reaches for the trigger behind it. Focus belongs to the
+  // fragment the browser just targeted, which is where a reader's next Tab should carry on from.
+  await demoLink.click();
+  await expect(page).toHaveURL(/#demo$/);
+  await expect(landingTrigger(page)).not.toBeFocused();
+  await expect(landingMenu(page)).toBeVisible();
+  await expect(landingScrim(page)).toBeHidden();
 });
 
 test.describe('browser locale default', () => {
