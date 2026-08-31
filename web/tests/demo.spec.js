@@ -3656,3 +3656,190 @@ test('a restore left half-finished never leaks into another surface', async ({ p
   await expect(page.locator('[data-restore-error]')).toHaveCount(0);
   await expect(page.locator('[data-restore-review]')).toBeVisible();
 });
+
+/*
+ * Visual token contract between the landing page and the demo. These guard the shared
+ * palette and the radius scale against drift, and they check contrast against what the
+ * browser actually paints rather than against a table copied out of the stylesheets.
+ * Deliberately no pixel snapshots: the point is the tokens, not the layout.
+ */
+
+/** WCAG 2.1 relative luminance of an `rgb()` string. */
+function relativeLuminance(colour) {
+  const [r, g, b] = colour
+    .match(/[\d.]+/g)
+    .slice(0, 3)
+    .map(Number)
+    .map((channel) => {
+      const srgb = channel / 255;
+      return srgb <= 0.03928 ? srgb / 12.92 : ((srgb + 0.055) / 1.055) ** 2.4;
+    });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function contrastRatio(foreground, background) {
+  const [lighter, darker] = [relativeLuminance(foreground), relativeLuminance(background)]
+    .sort((a, b) => b - a);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+/**
+ * The two colours a pixel of this element's text actually lands between: its own colour,
+ * and the nearest ancestor background that is not transparent.
+ */
+function paintedPair(page, selector) {
+  return page.locator(selector).first().evaluate((node) => {
+    const isOpaque = (value) => Boolean(value) && value !== 'transparent' && !/,\s*0\)$/.test(value);
+    let element = node;
+    let background = getComputedStyle(node).backgroundColor;
+    while (!isOpaque(background) && element.parentElement) {
+      element = element.parentElement;
+      background = getComputedStyle(element).backgroundColor;
+    }
+    return { foreground: getComputedStyle(node).color, background };
+  });
+}
+
+/** Reads the custom properties a surface resolves, so the two files can be compared. */
+function resolvedTokens(page, names, selector = ':root') {
+  return page.evaluate(([target, tokens]) => {
+    const style = getComputedStyle(document.querySelector(target));
+    return Object.fromEntries(tokens.map((token) => [token, style.getPropertyValue(token).trim()]));
+  }, [selector, names]);
+}
+
+// Roles both stylesheets name. A change to any of these on one surface has to be made on
+// the other, and this list is what makes forgetting fail.
+const SHARED_TOKENS = [
+  '--ink', '--ink-raised', '--paper', '--green-bright', '--green', '--green-deep',
+  '--on-bright', '--yellow', '--line', '--line-dark', '--radius-sm', '--radius',
+];
+
+test('the landing and the demo resolve one shared set of visual tokens', async ({ page }) => {
+  await page.goto('/');
+  const landing = await resolvedTokens(page, SHARED_TOKENS);
+  // The landing is permanently dark, so its light bands are where it holds the demo's
+  // light-theme polarity.
+  const landingOnPaper = await resolvedTokens(
+    page,
+    ['--text', '--text-muted', '--accent-text', '--accent-fill'],
+    '.band-demo',
+  );
+
+  await page.goto('/app/');
+  const demo = await resolvedTokens(page, SHARED_TOKENS);
+  const demoOnPaper = await resolvedTokens(page, ['--text', '--text-muted', '--accent-text', '--green']);
+
+  expect(landing).toEqual(demo);
+  expect(landingOnPaper['--text']).toBe(demoOnPaper['--text']);
+  expect(landingOnPaper['--text-muted']).toBe(demoOnPaper['--text-muted']);
+  expect(landingOnPaper['--accent-text']).toBe(demoOnPaper['--accent-text']);
+  expect(landingOnPaper['--accent-fill']).toBe(demoOnPaper['--green']);
+
+  // One green family: the bright fill belongs to ink, the mid green to paper, and the
+  // deep green is the only one that reads as text on paper.
+  expect(landing['--green-bright']).toBe('#3ddc97');
+  expect(demoOnPaper['--accent-text']).toBe(landing['--green-deep']);
+});
+
+test('the evidence material is one material across the landing and the demo', async ({ page }) => {
+  const material = (selector) => page.locator(selector).first().evaluate((node) => {
+    const style = getComputedStyle(node);
+    return { fill: style.backgroundColor, rail: style.borderLeftColor, railWidth: style.borderLeftWidth };
+  });
+
+  // The landing spends the material on the section about verification.
+  await page.goto('/');
+  const verificationRail = await material('.architecture-rail article');
+
+  // The demo spends it on a citation, which is what verification produces.
+  await page.goto('/app/#/profile');
+  await page.locator('[data-set-theme="dark"]').click();
+  await page.goto('/app/#/decks/flutter');
+  await page.locator('input[value="state"]').check();
+  await page.locator('[data-submit]').click();
+  await expect(page.locator('.citation-item').first()).toBeVisible();
+
+  expect(await material('.citation-item')).toEqual(verificationRail);
+  expect(verificationRail.railWidth).toBe('3px');
+});
+
+test('text carried by the shared tokens clears WCAG AA on every surface it lands on', async ({ page }) => {
+  const clears = async (selector, label, minimum = 4.5) => {
+    const { foreground, background } = await paintedPair(page, selector);
+    const ratio = contrastRatio(foreground, background);
+    expect(ratio, `${label}: ${foreground} on ${background}`).toBeGreaterThanOrEqual(minimum);
+    return ratio;
+  };
+
+  // Landing: ink surfaces, then the light bands, then the evidence material.
+  await page.goto('/');
+  await clears('.hero-lead', 'hero lead on ink');
+  await clears('.hero .eyebrow', 'accent label on ink');
+  await clears('.primary-nav a', 'header navigation on ink');
+  await clears('.button-primary', 'primary button fill on ink');
+  await clears('.architecture-rail article p', 'evidence copy on the warm surface');
+  await clears('.architecture-rail article > span', 'evidence locator on the warm surface');
+  await clears('.process-number', 'accent number on paper');
+  await clears('.band-demo .eyebrow', 'accent label on paper-muted');
+  await clears('.check-list li', 'list copy on paper-muted');
+  await clears('.demo-figure figcaption', 'caption on paper-muted');
+
+  // The demo, in both themes. `--accent-text` is the token this leaf moved to the deeper
+  // green, and the eyebrow is where it is most exposed.
+  for (const theme of ['light', 'dark']) {
+    await page.goto('/app/#/profile');
+    await page.locator(`[data-set-theme="${theme}"]`).click();
+    await page.goto('/app/#/decks/flutter');
+    // The first pass leaves an answered question behind and the second needs one to answer.
+    // Dropping the key is not enough on its own: moving between routes is a hash change, so
+    // the surface has to be rebuilt before it forgets that answer. The theme lives under its
+    // own key and survives the reload.
+    await page.evaluate((key) => window.localStorage.removeItem(key), PROGRESS_STORAGE_KEY);
+    await page.reload();
+    await clears('.eyebrow', `${theme}: accent label on the deck surface`);
+    await clears('.answer-option', `${theme}: answer copy`);
+    await page.locator('input[value="state"]').check();
+    await page.locator('[data-submit]').click();
+    await expect(page.locator('.citation-item').first()).toBeVisible();
+    await clears('.citation-locator', `${theme}: citation locator`);
+    await clears('.citation-item blockquote', `${theme}: citation quote`);
+
+    // The rail is the one non-text part of the material that has to stay visible, so it
+    // is held to the 3:1 that applies to a meaningful graphic rather than to body text.
+    const rail = await page.locator('.citation-item').first().evaluate((node) => {
+      const style = getComputedStyle(node);
+      return { rail: style.borderLeftColor, fill: style.backgroundColor };
+    });
+    expect(contrastRatio(rail.rail, rail.fill), `${theme}: evidence rail on its own fill`)
+      .toBeGreaterThanOrEqual(3);
+  }
+});
+
+test('every corner on both surfaces comes from the shared radius scale', async ({ page }) => {
+  // Read as source rather than as geometry: a raw pixel value is the drift worth catching,
+  // and it is invisible once the browser has resolved it.
+  for (const path of ['/styles/main.css', '/app/styles/app.css']) {
+    const response = await page.request.get(path);
+    expect(response.ok(), path).toBe(true);
+    const declarations = (await response.text()).match(/border-radius:[^;]+/g) ?? [];
+    expect(declarations.length, `${path} declares corners`).toBeGreaterThan(0);
+
+    const offScale = declarations.filter((declaration) => {
+      const value = declaration.replace('border-radius:', '').trim();
+      // `50%` is a circle, and the Android silhouette is hardware rather than chrome; both
+      // are named exceptions. Everything else has to come from a token.
+      return value !== '50%'
+        && !value.startsWith('var(--radius)')
+        && !value.startsWith('var(--radius-sm)')
+        && !value.startsWith('var(--radius-device');
+    });
+    expect(offScale, `${path} uses only scale tokens for corners`).toEqual([]);
+  }
+
+  // And the scale itself stays two steps wide on both surfaces.
+  await page.goto('/');
+  expect(await resolvedTokens(page, ['--radius-sm', '--radius'])).toEqual({ '--radius-sm': '4px', '--radius': '8px' });
+  await page.goto('/app/');
+  expect(await resolvedTokens(page, ['--radius-sm', '--radius'])).toEqual({ '--radius-sm': '4px', '--radius': '8px' });
+});

@@ -7,6 +7,14 @@
  * the same names. Every colour used by this stylesheet lives here so a theme switch
  * cannot leave a hardcoded literal behind. The app sets `data-theme` on <html>;
  * inline styles are unavailable because the deployed CSP uses `style-src 'self'`.
+ *
+ * These names and values are the shared contract with the landing page
+ * (`../../styles/main.css`). The landing document is permanently dark, so it starts
+ * from this file's dark polarity and re-scopes the same names inside its light
+ * bands; where both files name a role, the value here is the one that wins. The
+ * roles held in common are the ink family, the paper/panel neutrals, the
+ * green/deep-green pair with its on-colours, the evidence material, the hairlines,
+ * and the radius scale. Changing one of those here means changing it there too.
  */
 :root {
   color-scheme: light;
@@ -23,7 +31,12 @@
   --green-deep: #0d6e4d;
   --green-bright: #3ddc97;
   --green-soft: #dff5ea;
-  --accent-text: #11845c;
+  /* Green text on a light surface has to clear 4.5:1 on the lightest thing it ever
+     sits on, which is `--panel`, and on the washes it labels. `--green` itself only
+     reaches 4.35:1 on `--paper`, so the text role takes the deeper green: 5.8 on
+     paper, 6.3 on panel, 5.5 on green-soft. `--green` stays the fill and border
+     value, where white-on-it is the pairing that matters. */
+  --accent-text: #0d6e4d;
   --accent-ink: #0a5c3f;
   --accent-line: #81bda5;
   --accent-line-strong: #7aa992;
@@ -38,6 +51,13 @@
   --evidence-wash: #fdf3d8;
   --evidence-text: #6b5a21;
   --evidence-quote: #51491f;
+  /* The rail that marks checked evidence. It is the one part of the evidence material
+     that has to hold its own against the surface behind it, so it is a token rather
+     than `--yellow`: bright yellow reaches only 1.5:1 on these near-white fills, while
+     this deeper amber clears 3:1 on evidence-soft, evidence-wash, paper, and panel and
+     stays in the same warm family. In dark theme the surfaces invert and `--yellow`
+     itself is already well clear, so that is what the rail becomes. */
+  --evidence-rail: #a9781a;
   --mark: #ffe08a;
   --mark-text: #3f3208;
   --coral: #d85e4d;
@@ -49,6 +69,11 @@
   --line-dark: #2c4139;
   --track: #dde3df;
   --scrim: rgba(11, 18, 16, 0.44);
+  /* Two steps, and every corner in this file is one of them: `--radius-sm` for controls
+     and inline marks, `--radius` for anything that reads as a surface (cards, panels,
+     inputs, media). The values this replaced ran 3/4/6/7/8px, which was five steps for
+     two jobs. Circles stay `50%`; that is a shape, not a step on this scale. */
+  --radius-sm: 4px;
   --radius: 8px;
   --header-height: 64px;
   --sidebar-width: 286px;
@@ -80,6 +105,8 @@
   --evidence-wash: #33290f;
   --evidence-text: #e6cf94;
   --evidence-quote: #ded4b0;
+  /* Dark surfaces put the rail well clear on its own: 9.8:1 on evidence-soft. */
+  --evidence-rail: #f4c95d;
   --mark: #5c4a15;
   --mark-text: #ffe9b0;
   --coral: #e8705f;
@@ -156,7 +183,7 @@ h3 {
   padding: 9px 12px;
   overflow: visible;
   clip: auto;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--yellow);
   color: var(--ink);
 }
@@ -235,7 +262,7 @@ h3 {
   width: 108px;
   height: 36px;
   border: 1px solid var(--line-dark);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
   background: var(--ink-raised);
 }
@@ -260,7 +287,7 @@ h3 {
   align-items: center;
   justify-content: center;
   border: 1px solid var(--line-dark);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--ink-raised);
   color: var(--text-inverse);
 }
@@ -334,7 +361,7 @@ h3 {
   gap: 11px;
   padding: 8px 10px;
   border: 1px solid transparent;
-  border-radius: 7px;
+  border-radius: var(--radius);
   color: var(--text);
   font-size: 14px;
   font-weight: 700;
@@ -401,7 +428,7 @@ h3 {
   min-height: 58px;
   padding: 9px 10px;
   border: 1px solid transparent;
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: transparent;
   color: var(--text);
   text-align: left;
@@ -423,7 +450,7 @@ h3 {
   height: 36px;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--ink);
   color: var(--green-bright);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -479,7 +506,7 @@ h3 {
   width: 100%;
   min-height: 38px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-muted);
   font-size: 12px;
@@ -717,7 +744,7 @@ h3 {
   grid-column: 1 / -1;
   height: 6px;
   overflow: hidden;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   background: var(--track);
 }
 
@@ -753,7 +780,7 @@ h3 {
   min-height: 24px;
   align-items: center;
   padding: 3px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--panel-muted);
   color: var(--text-muted);
   font-size: 11px;
@@ -794,7 +821,7 @@ h3 {
   min-height: 52px;
   padding: 14px 16px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: var(--panel);
   cursor: pointer;
 }
@@ -845,7 +872,7 @@ h3 {
   justify-content: center;
   padding: 9px 16px;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-weight: 750;
 }
 
@@ -927,7 +954,7 @@ h3 {
 }
 
 .citation-item {
-  border-left: 3px solid var(--yellow);
+  border-left: 3px solid var(--evidence-rail);
   background: var(--evidence-soft);
   padding: 14px 16px;
 }
@@ -1037,7 +1064,7 @@ h3 {
 .completion-review-gap {
   margin-top: 10px;
   padding: 10px 12px;
-  border-left: 3px solid var(--yellow);
+  border-left: 3px solid var(--evidence-rail);
   background: var(--evidence-soft);
   color: var(--evidence-text);
   font-size: 13px;
@@ -1085,7 +1112,7 @@ h3 {
   align-items: center;
   gap: 6px;
   padding: 3px 9px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--panel-muted);
   color: var(--text-muted);
   font-size: 11px;
@@ -1271,7 +1298,7 @@ h3 {
   margin-bottom: 28px;
   padding: 12px 14px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: var(--panel);
   color: var(--text-muted);
   font-size: 12px;
@@ -1292,7 +1319,7 @@ h3 {
   flex: 0 0 auto;
   align-items: center;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 10px;
   font-weight: 900;
   letter-spacing: 0.02em;
@@ -1381,7 +1408,7 @@ h3 {
   min-width: 0;
   padding: 14px 16px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: var(--panel);
 }
 
@@ -1566,7 +1593,7 @@ h3 {
   gap: 8px 12px;
   padding: 12px 14px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: var(--panel);
   color: var(--text);
   text-decoration: none;
@@ -1674,7 +1701,7 @@ h3 {
   gap: 12px;
   padding: 14px 16px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: var(--panel);
 }
 
@@ -1834,7 +1861,7 @@ h3 {
 .local-source {
   padding: 16px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: var(--panel);
 }
 
@@ -1930,7 +1957,7 @@ h3 {
 .local-confirm {
   margin-top: 14px;
   border: 1px solid var(--coral);
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: var(--coral-soft);
   padding: 14px 16px;
 }
@@ -2019,7 +2046,7 @@ h3 {
   min-width: 0;
   padding: 11px 13px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: var(--panel);
   color: var(--text);
   font: inherit;
@@ -2083,7 +2110,7 @@ h3 {
   gap: 7px;
   padding: 8px 13px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: var(--panel);
   font-size: 13px;
   cursor: pointer;
@@ -2107,7 +2134,7 @@ h3 {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: var(--panel);
   color: var(--text);
   font: inherit;
@@ -2149,7 +2176,7 @@ h3 {
 }
 
 .library-result-bundled {
-  border-left-color: var(--yellow);
+  border-left-color: var(--evidence-rail);
   background: var(--evidence-soft);
 }
 
@@ -2221,11 +2248,12 @@ h3 {
   color: var(--evidence-quote);
 }
 
-/* Highlight tokens of its own: `--yellow` already means "checked evidence" here, and the mark has to
-   stay legible on both the yellow bundled card and the grey imported one, in both themes. */
+/* Highlight tokens of its own: the evidence material already spends the warm family on "checked
+   evidence" here, and the mark has to stay legible on both the bundled card and the grey imported
+   one, in both themes. */
 .library-result mark {
   padding: 0 1px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   background: var(--mark);
   color: var(--mark-text);
   font-weight: 800;
@@ -2336,7 +2364,7 @@ h3 {
   gap: 12px;
   padding: 14px 16px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: var(--panel);
   cursor: pointer;
 }
@@ -2437,7 +2465,7 @@ h3 {
   min-height: 22px;
   align-items: center;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--panel-muted);
   color: var(--text-muted);
   font-size: 11px;
@@ -2477,7 +2505,7 @@ h3 {
   width: 100%;
   padding: 11px 13px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: var(--panel);
   color: var(--text);
   font: inherit;
@@ -2574,7 +2602,7 @@ h3 {
   min-height: 38px;
   margin-top: 4px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
   background: var(--panel);
 }
@@ -2620,7 +2648,7 @@ h3 {
   gap: 4px 12px;
   padding: 10px 12px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: var(--panel);
 }
 
@@ -2676,7 +2704,7 @@ h3 {
   justify-content: center;
   padding: 9px 18px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--panel);
   color: var(--text);
   font-weight: 750;
@@ -2760,7 +2788,7 @@ h3 {
   gap: 6px 14px;
   padding: 12px 14px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: var(--panel);
 }
 
@@ -2790,7 +2818,7 @@ h3 {
   grid-column: 1 / -1;
   margin-top: 4px;
   border: 1px solid var(--coral);
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: var(--coral-soft);
   padding: 12px 14px;
 }
