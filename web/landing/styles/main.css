@@ -453,23 +453,33 @@ h3 {
   font-weight: 800;
 }
 
+/* One device silhouette for all three captures. */
 .device-frame {
-  width: min(100%, 310px);
-  aspect-ratio: 9 / 15;
+  width: min(100%, 300px);
   margin: auto auto 0;
+  padding: 8px;
   overflow: hidden;
-  border: 8px solid #07100d;
-  border-radius: 8px;
-  background: #fff;
+  border: 1px solid #243d33;
+  border-radius: 26px;
+  background: #07100d;
   box-shadow: 0 24px 50px rgba(0, 0, 0, 0.34);
 }
 
+/* The screen area is fixed to the full-screen Android capture ratio
+   (1080x2412), so those captures fill it exactly. contain, never cover: the
+   shorter capture is centred and matted in the device body colour instead of
+   being cropped to fit, so no asset loses content. */
 .device-frame img {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: top center;
+  height: auto;
+  aspect-ratio: 30 / 67;
+  object-fit: contain;
+  border-radius: 18px;
+  background: #07100d;
 }
+
+/* .device-frame-cropped in the markup is a legacy hook and stays unstyled on
+   purpose: all three captures use one non-cropping frame contract. */
 
 .native-disclosure {
   margin: 18px 0 0;
@@ -1001,9 +1011,11 @@ h3 {
     width: 100%;
   }
 
+  /* Narrower than desktop so the taller uncropped frame keeps roughly the
+     vertical footprint this breakpoint already had. */
   .device-frame {
-    width: min(100%, 330px);
-    margin-top: 8px;
+    width: min(100%, 280px);
+    margin: 8px auto 0;
   }
 
   .footer-inner {

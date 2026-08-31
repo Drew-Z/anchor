@@ -190,6 +190,96 @@ test('landing separates the Android Private Alpha from the static browser demo',
   expect(offOriginRequests).toEqual([]);
 });
 
+// The three Android captures are real and differently proportioned (two 1080x2412,
+// one 1080x1600). The frame must therefore show each one whole instead of cropping
+// vertically on some and horizontally on others.
+const readDeviceFrames = async (page) => {
+  await page.locator('#native-app').scrollIntoViewIfNeeded();
+  const images = page.locator('.device-frame img');
+  const total = await images.count();
+  for (let index = 0; index < total; index += 1) {
+    await expect.poll(() => images.nth(index).evaluate((image) => image.naturalWidth)).toBeGreaterThan(0);
+  }
+  return page.evaluate(() => [...document.querySelectorAll('.native-step')].map((step) => {
+    const frame = step.querySelector('.device-frame');
+    const image = step.querySelector('img');
+    const frameBox = frame.getBoundingClientRect();
+    const imageBox = image.getBoundingClientRect();
+    // object-fit: contain paints the asset scaled to the smaller of the two axes.
+    const scale = Math.min(imageBox.width / image.naturalWidth, imageBox.height / image.naturalHeight);
+    return {
+      asset: image.getAttribute('src'),
+      objectFit: getComputedStyle(image).objectFit,
+      frameWidth: frameBox.width,
+      frameBottom: frameBox.bottom,
+      boxWidth: imageBox.width,
+      boxHeight: imageBox.height,
+      boxAspect: imageBox.height / imageBox.width,
+      naturalAspect: image.naturalHeight / image.naturalWidth,
+      paintedWidth: image.naturalWidth * scale,
+      paintedHeight: image.naturalHeight * scale,
+    };
+  }));
+};
+
+const spread = (values) => Math.max(...values) - Math.min(...values);
+
+test('the native gallery frames every Android capture without cropping it', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+
+  const frames = await readDeviceFrames(page);
+  expect(frames).toHaveLength(3);
+
+  for (const frame of frames) {
+    // cover would cut content off assets whose ratio differs from the frame.
+    expect(frame.objectFit, `${frame.asset} is not shown with object-fit: contain`).toBe('contain');
+    // The painted asset keeps its own ratio and stays inside the frame, so no edge is lost.
+    expect(
+      Math.abs(frame.paintedHeight / frame.paintedWidth - frame.naturalAspect),
+      `${frame.asset} is not painted at its captured aspect ratio`,
+    ).toBeLessThan(0.01);
+    expect(frame.paintedWidth, `${frame.asset} is painted wider than its frame`)
+      .toBeLessThanOrEqual(frame.boxWidth + 1);
+    expect(frame.paintedHeight, `${frame.asset} is painted taller than its frame`)
+      .toBeLessThanOrEqual(frame.boxHeight + 1);
+  }
+
+  // One device treatment for all three: same width, same screen ratio, one baseline.
+  expect(spread(frames.map((frame) => frame.frameWidth)), 'the device frames are not the same width')
+    .toBeLessThanOrEqual(1);
+  expect(spread(frames.map((frame) => frame.boxAspect)), 'the device frames do not share one screen ratio')
+    .toBeLessThan(0.01);
+  expect(spread(frames.map((frame) => frame.frameBottom)), 'the device frames do not sit on one baseline')
+    .toBeLessThanOrEqual(1);
+});
+
+test('the native gallery keeps its frame contract at 390px without horizontal overflow', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+
+  const frames = await readDeviceFrames(page);
+  expect(frames).toHaveLength(3);
+
+  for (const frame of frames) {
+    expect(frame.objectFit, `${frame.asset} is not shown with object-fit: contain at 390px`).toBe('contain');
+    expect(
+      Math.abs(frame.paintedHeight / frame.paintedWidth - frame.naturalAspect),
+      `${frame.asset} is not painted at its captured aspect ratio at 390px`,
+    ).toBeLessThan(0.01);
+    expect(frame.paintedHeight, `${frame.asset} is painted taller than its frame at 390px`)
+      .toBeLessThanOrEqual(frame.boxHeight + 1);
+  }
+
+  expect(spread(frames.map((frame) => frame.frameWidth)), 'the device frames are not the same width at 390px')
+    .toBeLessThanOrEqual(1);
+
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow, 'the native gallery overflows at 390px').toBeLessThanOrEqual(0);
+});
+
 test('a learner can answer, inspect evidence, use tutor hints, and continue', async ({ page }) => {
   const offOriginRequests = [];
   page.on('request', (request) => {
