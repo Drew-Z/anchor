@@ -224,6 +224,120 @@ const readDeviceFrames = async (page) => {
 
 const spread = (values) => Math.max(...values) - Math.min(...values);
 
+/** The stage, device, and caption of each gallery step, as laid out right now. */
+const readNativeStages = async (page) => {
+  await page.locator('#native-app').scrollIntoViewIfNeeded();
+  return page.evaluate(() => [...document.querySelectorAll('.native-step')].map((step) => {
+    const stage = step.querySelector('.native-stage');
+    const frame = step.querySelector('.device-frame');
+    const caption = step.querySelector('.device-caption');
+    const stageBox = stage.getBoundingClientRect();
+    const frameBox = frame.getBoundingClientRect();
+    const captionBox = caption.getBoundingClientRect();
+    const stageStyle = getComputedStyle(stage);
+    return {
+      asset: step.querySelector('img').getAttribute('src'),
+      captionText: caption.textContent.trim(),
+      captionFont: getComputedStyle(caption).fontFamily,
+      captionColor: getComputedStyle(caption).color,
+      stageLeft: stageBox.left,
+      stageRight: stageBox.right,
+      stageBottom: stageBox.bottom,
+      stageRadius: stageStyle.borderTopLeftRadius,
+      stageBorderColor: stageStyle.borderTopColor,
+      frameLeft: frameBox.left,
+      frameRight: frameBox.right,
+      frameTop: frameBox.top,
+      // The device and its label both have to stay inside the plinth they sit on.
+      deviceInsideStage: frameBox.left >= stageBox.left - 1 && frameBox.right <= stageBox.right + 1,
+      captionInsideStage: captionBox.left >= stageBox.left - 1 && captionBox.right <= stageBox.right + 1,
+      captionBelowDevice: captionBox.top >= frameBox.bottom - 1,
+    };
+  }));
+};
+
+const documentOverflow = (page) => page.evaluate(
+  () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+);
+
+test('the native gallery seats every capture on one device stage', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+
+  const stages = await readNativeStages(page);
+  expect(stages).toHaveLength(3);
+
+  for (const stage of stages) {
+    expect(stage.deviceInsideStage, `${stage.asset} overflows its stage`).toBe(true);
+    expect(stage.captionInsideStage, `${stage.asset} caption overflows its stage`).toBe(true);
+    expect(stage.captionBelowDevice, `${stage.asset} caption is not below the device`).toBe(true);
+    // Provenance stays attached to each capture, not just to the paragraph below.
+    expect(stage.captionText, `${stage.asset} lost its Private Alpha caption`).toBe('Android Private Alpha');
+    expect(stage.captionFont, `${stage.asset} caption is not the mono label face`).toMatch(/mono/i);
+    // Reuses the shared radius and hairline tokens rather than a parallel scale.
+    expect(stage.stageRadius, `${stage.asset} stage does not use the shared radius`).toBe('8px');
+    expect(stage.stageBorderColor, `${stage.asset} stage does not use the dark hairline`)
+      .toBe('rgb(44, 65, 57)');
+  }
+
+  // One treatment: the three stages align to a single baseline and a single width.
+  expect(spread(stages.map((stage) => stage.stageBottom)), 'the stages do not sit on one baseline')
+    .toBeLessThanOrEqual(1);
+  // Each stage spans its own grid column, and the three 1fr tracks land on
+  // fractional widths whenever the shell is not divisible by three. A ~1px spread
+  // is that rounding; anything larger means a stage stopped tracking its column.
+  expect(
+    spread(stages.map((stage) => stage.stageRight - stage.stageLeft)),
+    'the stages are not the same width',
+  ).toBeLessThanOrEqual(2);
+  // Each device is centred on its own plinth.
+  for (const stage of stages) {
+    expect(
+      Math.abs((stage.frameLeft - stage.stageLeft) - (stage.stageRight - stage.frameRight)),
+      `${stage.asset} is not centred on its stage`,
+    ).toBeLessThanOrEqual(1);
+  }
+  expect(await documentOverflow(page), 'the gallery overflows at 1440px').toBeLessThanOrEqual(0);
+});
+
+test('the native gallery stage holds up on tablet and 390px mobile in both locales', async ({ page }) => {
+  for (const viewport of [{ width: 820, height: 1180 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(viewport);
+    await page.goto('/');
+
+    for (const locale of ['zh', 'en']) {
+      await page.locator(`[data-locale="${locale}"]`).click();
+      const stages = await readNativeStages(page);
+      expect(stages).toHaveLength(3);
+
+      for (const stage of stages) {
+        const label = `${stage.asset} at ${viewport.width}px/${locale}`;
+        expect(stage.deviceInsideStage, `${label}: device overflows its stage`).toBe(true);
+        expect(stage.captionInsideStage, `${label}: caption overflows its stage`).toBe(true);
+        expect(stage.captionBelowDevice, `${label}: caption is not below the device`).toBe(true);
+        // 'Android Private Alpha' is identical in both locales, so it is stable here.
+        expect(stage.captionText, `${label}: lost its Private Alpha caption`).toBe('Android Private Alpha');
+      }
+
+      expect(
+        await documentOverflow(page),
+        `the gallery overflows at ${viewport.width}px in ${locale}`,
+      ).toBeLessThanOrEqual(0);
+    }
+
+    // The captures still have to be real pixels at every width, not empty frames.
+    const frames = await readDeviceFrames(page);
+    for (const frame of frames) {
+      expect(frame.objectFit, `${frame.asset} is cropped at ${viewport.width}px`).toBe('contain');
+      expect(frame.paintedWidth, `${frame.asset} is blank at ${viewport.width}px`).toBeGreaterThan(0);
+    }
+    expect(
+      spread(frames.map((frame) => frame.frameWidth)),
+      `the device frames differ in width at ${viewport.width}px`,
+    ).toBeLessThanOrEqual(1);
+  }
+});
+
 test('the native gallery frames every Android capture without cropping it', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');

@@ -541,10 +541,33 @@ h3 {
   font-weight: 800;
 }
 
+/*
+ * The stage a device sits on. `margin-top: auto` is what pins all three to one
+ * baseline while the copy above them varies in height, so the figure carries it
+ * rather than the frame. The stage is a plinth in the band's own raised ink,
+ * lifted a step so the black device body reads as hardware resting on the page
+ * instead of a hole cut into it.
+ */
+.native-stage {
+  display: flex;
+  min-width: 0;
+  margin: auto 0 0;
+  /* No inline padding by design: the device caps at a fixed 300px, and letting the
+     plinth span the full step width keeps that cap reachable at every desktop
+     width instead of making the frame container-bound and fractional per column. */
+  padding: 20px 0 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--line-dark);
+  border-bottom: 0;
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: linear-gradient(180deg, var(--ink-soft), transparent 82%);
+}
+
 /* One device silhouette for all three captures. */
 .device-frame {
   width: min(100%, 300px);
-  margin: auto auto 0;
   padding: 8px;
   overflow: hidden;
   border: 1px solid var(--line-dark);
@@ -566,8 +589,22 @@ h3 {
   background: var(--device-shell);
 }
 
-/* .device-frame-cropped in the markup is a legacy hook and stays unstyled on
-   purpose: all three captures use one non-cropping frame contract. */
+/*
+ * Provenance, per capture. It repeats `status.alpha` from the hero status strip
+ * rather than introducing new copy, which keeps the "these are real Private
+ * Alpha captures" disclosure attached to each screenshot instead of only to the
+ * paragraph below the gallery. Mono at the number's size, so a reader parses it
+ * as a build label and not as body copy.
+ */
+.device-caption {
+  padding-bottom: 18px;
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  letter-spacing: 0;
+  text-align: center;
+  text-wrap: balance;
+}
 
 .native-disclosure {
   margin: 18px 0 0;
@@ -909,8 +946,10 @@ h3 {
     min-height: 0;
   }
 
-  .device-frame {
-    margin: 0 auto;
+  /* Two columns here, so the stage stops pinning to a shared baseline and
+     centres itself against the copy beside it instead. */
+  .native-stage {
+    margin: 0;
   }
 
   .architecture-layout {
@@ -1113,11 +1152,20 @@ h3 {
     width: 100%;
   }
 
+  /* Single column: the stage spans the step and the device centres on it. The plinth
+     drops its outline and keeps only the gradient, because this breakpoint already
+     puts a full-bleed hairline between gallery entries and a second rule around the
+     stage would read as another divider rather than as a surface. */
+  .native-stage {
+    margin: 8px 0 0;
+    padding: 18px 0 0;
+    border: 0;
+  }
+
   /* Narrower than desktop so the taller uncropped frame keeps roughly the
      vertical footprint this breakpoint already had. */
   .device-frame {
     width: min(100%, 280px);
-    margin: 8px auto 0;
   }
 
   .footer-inner {
