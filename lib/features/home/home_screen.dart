@@ -20,18 +20,14 @@ class HomeScreen extends ConsumerWidget {
 
     // Determine if we're showing empty state to control FAB visibility
     final hasContent = mode == LearningMode.random
-        ? ref
-              .watch(verifiedQuestionsProvider)
-              .maybeWhen(
-                data: (questions) => questions.isNotEmpty,
-                orElse: () => true, // Show FAB during loading/error
-              )
-        : ref
-              .watch(deckListProvider)
-              .maybeWhen(
-                data: (decks) => decks.isNotEmpty,
-                orElse: () => true, // Show FAB during loading/error
-              );
+        ? ref.watch(verifiedQuestionsProvider).maybeWhen(
+              data: (questions) => questions.isNotEmpty,
+              orElse: () => true, // Show FAB during loading/error
+            )
+        : ref.watch(deckListProvider).maybeWhen(
+              data: (decks) => decks.isNotEmpty,
+              orElse: () => true, // Show FAB during loading/error
+            );
 
     return Scaffold(
       body: SafeArea(
@@ -81,10 +77,8 @@ class HomeScreen extends ConsumerWidget {
           0,
           (sum, item) => sum + item.questionCount,
         );
-        final topTitles = items
-            .take(3)
-            .map((item) => item.knowledgePoint.title)
-            .join('、');
+        final topTitles =
+            items.take(3).map((item) => item.knowledgePoint.title).join('、');
 
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
@@ -205,81 +199,109 @@ class HomeScreen extends ConsumerWidget {
   ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          // 模式切换器（左上角）。
-          GestureDetector(
-            onTap: () => _showModeSelector(context, ref),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: AppColors.border, width: 1),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    mode == LearningMode.random
-                        ? Icons.shuffle
-                        : Icons.list_alt,
-                    size: 18,
-                    color: AppColors.blue,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    mode == LearningMode.random ? '随机模式' : '知识点模式',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 400;
+          final statSpacing = isNarrow ? 6.0 : 12.0;
+
+          return Row(
+            children: [
+              // 模式切换器（左上角）。
+              Flexible(
+                child: GestureDetector(
+                  onTap: () => _showModeSelector(context, ref),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: AppColors.border, width: 1),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          mode == LearningMode.random
+                              ? Icons.shuffle
+                              : Icons.list_alt,
+                          size: 18,
+                          color: AppColors.blue,
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            mode == LearningMode.random ? '随机模式' : '知识点模式',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const Icon(
+                          Icons.arrow_drop_down,
+                          size: 18,
+                          color: AppColors.textLight,
+                        ),
+                      ],
                     ),
                   ),
-                  const Icon(
-                    Icons.arrow_drop_down,
-                    size: 18,
-                    color: AppColors.textLight,
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
-          const Spacer(),
-          // 统计
-          statsAsync.when(
-            data: (stats) {
-              final heartColor = stats.hearts <= 0
-                  ? AppColors.red
-                  : (stats.hearts <= 1
-                        ? AppColors.streakOrange
-                        : AppColors.heartRed);
-              return Row(
-                children: [
-                  _StatChip(
-                    icon: Icons.local_fire_department,
-                    iconColor: AppColors.streakOrange,
-                    value: stats.streak.toString(),
-                  ),
-                  const SizedBox(width: 12),
-                  _StatChip(
-                    icon: Icons.diamond,
-                    iconColor: AppColors.blue,
-                    value: stats.xp.toString(),
-                  ),
-                  const SizedBox(width: 12),
-                  _StatChip(
-                    icon: stats.hearts <= 1 ? Icons.favorite : Icons.favorite,
-                    iconColor: heartColor,
-                    value: '${stats.hearts}/${stats.maxHearts}',
-                  ),
-                ],
-              );
-            },
-            loading: () => const SizedBox(height: 24),
-            error: (_, __) => const SizedBox(height: 24),
-          ),
-        ],
+              const SizedBox(width: 8),
+              // 统计
+              statsAsync.when(
+                data: (stats) {
+                  final heartColor = stats.hearts <= 0
+                      ? AppColors.red
+                      : (stats.hearts <= 1
+                          ? AppColors.streakOrange
+                          : AppColors.heartRed);
+                  return Flexible(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Flexible(
+                          child: _StatChip(
+                            icon: Icons.local_fire_department,
+                            iconColor: AppColors.streakOrange,
+                            value: stats.streak.toString(),
+                            isCompact: isNarrow,
+                          ),
+                        ),
+                        SizedBox(width: statSpacing),
+                        Flexible(
+                          child: _StatChip(
+                            icon: Icons.diamond,
+                            iconColor: AppColors.blue,
+                            value: stats.xp.toString(),
+                            isCompact: isNarrow,
+                          ),
+                        ),
+                        SizedBox(width: statSpacing),
+                        Flexible(
+                          child: _StatChip(
+                            icon: stats.hearts <= 1
+                                ? Icons.favorite
+                                : Icons.favorite,
+                            iconColor: heartColor,
+                            value: '${stats.hearts}/${stats.maxHearts}',
+                            isCompact: isNarrow,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                loading: () => const SizedBox(height: 24),
+                error: (_, __) => const SizedBox(height: 24),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -585,15 +607,15 @@ class HomeScreen extends ConsumerWidget {
 
       nodes.add(
         Align(
-              alignment: Alignment(0, 0) + Alignment(offset, 0),
-              widthFactor: 0.55,
-              child: _PathNode(
-                deck: deck,
-                isCompleted: isCompleted,
-                isCurrent: isCurrent,
-                onTap: () => _startDeckPractice(context, ref, deck),
-              ),
-            )
+          alignment: Alignment(0, 0) + Alignment(offset, 0),
+          widthFactor: 0.55,
+          child: _PathNode(
+            deck: deck,
+            isCompleted: isCompleted,
+            isCurrent: isCurrent,
+            onTap: () => _startDeckPractice(context, ref, deck),
+          ),
+        )
             .animate()
             .fadeIn(duration: 300.ms, delay: (i * 100).ms)
             .slideY(begin: 0.2, duration: 300.ms, delay: (i * 100).ms),
@@ -637,67 +659,87 @@ class HomeScreen extends ConsumerWidget {
   // ============ 空状态 ============
 
   Widget _buildEmptyState(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: AppColors.greenLight,
-                borderRadius: BorderRadius.circular(40),
-              ),
-              child: const Icon(Icons.school, size: 40, color: AppColors.green),
-            ).animate().scale(duration: 500.ms),
-            const SizedBox(height: 24),
-            const Text(
-              '开始你的学习之旅',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              '从你的知识源添加内容，建立个人题库\n本地存储，自主掌控',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 15,
-                color: AppColors.textSecondary,
-                height: 1.6,
-              ),
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const IngestionScreen()),
-                );
-              },
-              icon: const Icon(Icons.add, size: 20),
-              label: const Text(
-                '添加内容',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.green,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 28,
-                  vertical: 14,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Detect very constrained layouts (narrow + likely large text scale)
+        final isVeryConstrained = constraints.maxWidth < 350;
+        final verticalPadding = isVeryConstrained ? 16.0 : 32.0;
+        final iconSize = isVeryConstrained ? 64.0 : 80.0;
+        final titleSize = isVeryConstrained ? 20.0 : 22.0;
+        final bodySize = isVeryConstrained ? 14.0 : 15.0;
+        final spacing1 = isVeryConstrained ? 16.0 : 24.0;
+        final spacing2 = isVeryConstrained ? 8.0 : 12.0;
+        final spacing3 = isVeryConstrained ? 20.0 : 32.0;
+
+        return SingleChildScrollView(
+          padding: EdgeInsets.symmetric(
+            horizontal: 32,
+            vertical: verticalPadding,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: iconSize,
+                height: iconSize,
+                decoration: BoxDecoration(
+                  color: AppColors.greenLight,
+                  borderRadius: BorderRadius.circular(iconSize / 2),
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+                child: Icon(
+                  Icons.school,
+                  size: iconSize / 2,
+                  color: AppColors.green,
+                ),
+              ).animate().scale(duration: 500.ms),
+              SizedBox(height: spacing1),
+              Text(
+                '开始你的学习之旅',
+                style: TextStyle(
+                  fontSize: titleSize,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
                 ),
               ),
-            ),
-          ],
-        ),
-      ),
+              SizedBox(height: spacing2),
+              Text(
+                '从你的知识源添加内容，建立个人题库\n本地存储，自主掌控',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: bodySize,
+                  color: AppColors.textSecondary,
+                  height: 1.6,
+                ),
+              ),
+              SizedBox(height: spacing3),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const IngestionScreen()),
+                  );
+                },
+                icon: const Icon(Icons.add, size: 20),
+                label: const Text(
+                  '添加内容',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.green,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 28,
+                    vertical: 14,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -708,24 +750,30 @@ class _StatChip extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
   final String value;
+  final bool isCompact;
 
   const _StatChip({
     required this.icon,
     required this.iconColor,
     required this.value,
+    this.isCompact = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final iconSize = isCompact ? 18.0 : 20.0;
+    final fontSize = isCompact ? 14.0 : 16.0;
+    final spacing = isCompact ? 3.0 : 4.0;
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, color: iconColor, size: 20),
-        const SizedBox(width: 4),
+        Icon(icon, color: iconColor, size: iconSize),
+        SizedBox(width: spacing),
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 16,
+          style: TextStyle(
+            fontSize: fontSize,
             fontWeight: FontWeight.w700,
             color: AppColors.textPrimary,
           ),
@@ -845,17 +893,17 @@ class _RandomPathNode extends StatelessWidget {
             child: isLocked
                 ? Icon(icon, color: iconColor, size: 24) // 从28缩小到24
                 : isCompleted
-                ? Icon(icon, color: iconColor, size: 28) // 从32缩小到28
-                : Center(
-                    child: Text(
-                      '$level',
-                      style: TextStyle(
-                        fontSize: 20, // 从24缩小到20
-                        fontWeight: FontWeight.w700,
-                        color: iconColor,
+                    ? Icon(icon, color: iconColor, size: 28) // 从32缩小到28
+                    : Center(
+                        child: Text(
+                          '$level',
+                          style: TextStyle(
+                            fontSize: 20, // 从24缩小到20
+                            fontWeight: FontWeight.w700,
+                            color: iconColor,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
           ),
           const SizedBox(height: 2), // 从4缩小到2，让标签更靠近图标
           Container(
