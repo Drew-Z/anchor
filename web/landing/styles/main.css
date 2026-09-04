@@ -532,40 +532,54 @@ h3 {
   font-size: 15px;
 }
 
+/* The step locator now lives inside the stage itself, appearing as provenance
+   metadata attached to the capture rather than as a separate label in the copy. */
 .native-number {
-  display: block;
-  margin-bottom: 18px;
-  color: var(--yellow);
+  position: absolute;
+  top: 14px;
+  left: 18px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--evidence-soft);
+  color: var(--evidence-text);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
+  letter-spacing: 0.02em;
 }
 
 /*
- * The stage a device sits on. `margin-top: auto` is what pins all three to one
- * baseline while the copy above them varies in height, so the figure carries it
- * rather than the frame. The stage is a plinth in the band's own raised ink,
- * lifted a step so the black device body reads as hardware resting on the page
- * instead of a hole cut into it.
+ * The stage a device sits on. Reimagined as an integrated product surface: the
+ * stage is now a full presentation card that wraps the device and its metadata,
+ * reading as one cohesive object rather than a generic plinth. The step locator
+ * appears inside as a floating badge, device and caption sit on a gradient that
+ * grounds them in the product ink, and the stage itself carries rounded corners
+ * and a subtle lift so the whole composition reads as a unified artifact.
  */
 .native-stage {
+  position: relative;
   display: flex;
   min-width: 0;
   margin: auto 0 0;
-  /* No inline padding by design: the device caps at a fixed 300px, and letting the
-     plinth span the full step width keeps that cap reachable at every desktop
-     width instead of making the frame container-bound and fractional per column. */
-  padding: 20px 0 0;
+  padding: 52px 0 0;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
   border: 1px solid var(--line-dark);
-  border-bottom: 0;
-  border-radius: var(--radius) var(--radius) 0 0;
-  background: linear-gradient(180deg, var(--ink-soft), transparent 82%);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(165deg, var(--ink-soft) 0%, var(--ink-raised) 48%, var(--ink) 100%);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.18),
+    0 12px 32px rgba(0, 0, 0, 0.12);
 }
 
-/* One device silhouette for all three captures. */
+/* One device silhouette for all three captures. Now lifted with a more
+   pronounced shadow to read as hardware floating on the product surface. */
 .device-frame {
   width: min(100%, 300px);
   padding: 8px;
@@ -573,7 +587,9 @@ h3 {
   border: 1px solid var(--line-dark);
   border-radius: var(--radius-device);
   background: var(--device-shell);
-  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.34);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.28),
+    0 16px 48px rgba(0, 0, 0, 0.22);
 }
 
 /* The screen area is fixed to the full-screen Android capture ratio
@@ -590,20 +606,21 @@ h3 {
 }
 
 /*
- * Provenance, per capture. It repeats `status.alpha` from the hero status strip
- * rather than introducing new copy, which keeps the "these are real Private
- * Alpha captures" disclosure attached to each screenshot instead of only to the
- * paragraph below the gallery. Mono at the number's size, so a reader parses it
- * as a build label and not as body copy.
+ * Provenance metadata, now integrated into the stage card rather than floating
+ * below it. Styled as a technical label that belongs to the product surface,
+ * using the same warm evidence ink as the step badge to create visual coherence.
  */
 .device-caption {
-  padding-bottom: 18px;
-  color: var(--text-muted);
+  padding: 0 18px 20px;
+  color: var(--evidence-text);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 12px;
-  letter-spacing: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
   text-align: center;
+  text-transform: uppercase;
   text-wrap: balance;
+  opacity: 0.85;
 }
 
 .native-disclosure {
@@ -950,6 +967,7 @@ h3 {
      centres itself against the copy beside it instead. */
   .native-stage {
     margin: 0;
+    padding-top: 52px;
   }
 
   .architecture-layout {
@@ -1152,14 +1170,13 @@ h3 {
     width: 100%;
   }
 
-  /* Single column: the stage spans the step and the device centres on it. The plinth
-     drops its outline and keeps only the gradient, because this breakpoint already
-     puts a full-bleed hairline between gallery entries and a second rule around the
-     stage would read as another divider rather than as a surface. */
+  /* Single column: the stage spans the step and the device centres on it. The card
+     treatment stays intact at this width: rounded corners, shadows, and the gradient
+     that grounds the device all remain, reading as one integrated product surface. */
   .native-stage {
     margin: 8px 0 0;
-    padding: 18px 0 0;
-    border: 0;
+    padding: 52px 0 0;
+    border-radius: var(--radius);
   }
 
   /* Narrower than desktop so the taller uncropped frame keeps roughly the
