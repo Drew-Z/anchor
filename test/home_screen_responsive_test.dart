@@ -32,8 +32,8 @@ void main() {
     testWidgets('renders without overflow at 320px width and 2.0 text scale',
         (tester) async {
       // Set up narrow width (320 logical px) and large text scale (2.0)
-      tester.view.physicalSize = const Size(1080, 2400);
-      tester.view.devicePixelRatio = 540 / 200.0; // 320 logical px width
+      tester.view.physicalSize = const Size(640, 1600);
+      tester.view.devicePixelRatio = 2.0; // 320 x 800 logical px
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
@@ -50,8 +50,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            userStatsProvider.overrideWith(
-                (ref) => _FakeUserStatsNotifier(testStats)),
+            userStatsProvider
+                .overrideWith((ref) => _FakeUserStatsNotifier(testStats)),
             learningModeProvider.overrideWith((ref) => LearningModeNotifier()),
             verifiedQuestionsProvider.overrideWith((ref) async => []),
             deckListProvider.overrideWith((ref) async => []),
@@ -74,7 +74,11 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify no overflow errors were thrown
-      expect(tester.takeException(), isNull,
+      final layoutException = tester.takeException();
+      if (layoutException != null) {
+        debugDumpRenderTree();
+      }
+      expect(layoutException, isNull,
           reason: 'Should not throw overflow exception at 320px/2.0x text');
 
       // Verify the "添加内容" button is present and reachable
@@ -90,6 +94,14 @@ void main() {
       expect(buttonRect.right, lessThanOrEqualTo(screenSize.width));
       expect(buttonRect.top, greaterThanOrEqualTo(0));
       expect(buttonRect.bottom, lessThanOrEqualTo(screenSize.height));
+
+      // At the constrained size, stats intentionally move below the mode
+      // selector instead of competing for horizontal space.
+      final modeSelectorRect = tester.getRect(find.text('随机'));
+      final streakIconRect = tester.getRect(
+        find.byIcon(Icons.local_fire_department),
+      );
+      expect(streakIconRect.top, greaterThan(modeSelectorRect.bottom));
     });
 
     testWidgets('maintains left-right hierarchy at normal width',
@@ -113,8 +125,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            userStatsProvider.overrideWith(
-                (ref) => _FakeUserStatsNotifier(testStats)),
+            userStatsProvider
+                .overrideWith((ref) => _FakeUserStatsNotifier(testStats)),
             learningModeProvider.overrideWith((ref) => LearningModeNotifier()),
             verifiedQuestionsProvider.overrideWith((ref) async => []),
             deckListProvider.overrideWith((ref) async => []),

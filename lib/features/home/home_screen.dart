@@ -201,56 +201,149 @@ class HomeScreen extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final isNarrow = constraints.maxWidth < 400;
-          final statSpacing = isNarrow ? 6.0 : 12.0;
+          // Two-state responsive layout: single row when spacious, wrap when tight
+          final needsWrap = constraints.maxWidth < 500;
+          final statSpacing = needsWrap ? 4.0 : 12.0;
 
-          return Row(
-            children: [
-              // 模式切换器（左上角）。
-              Flexible(
-                child: GestureDetector(
-                  onTap: () => _showModeSelector(context, ref),
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: AppColors.border, width: 1),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          mode == LearningMode.random
-                              ? Icons.shuffle
-                              : Icons.list_alt,
-                          size: 18,
-                          color: AppColors.blue,
-                        ),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            mode == LearningMode.random ? '随机模式' : '知识点模式',
+          if (needsWrap) {
+            // Narrow or large text: two rows, mode left-aligned, stats right-aligned
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Mode selector row
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: GestureDetector(
+                    onTap: () => _showModeSelector(context, ref),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: AppColors.border, width: 1),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            mode == LearningMode.random
+                                ? Icons.shuffle
+                                : Icons.list_alt,
+                            size: 18,
+                            color: AppColors.blue,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            mode == LearningMode.random ? '随机' : '知识点',
                             style: const TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
                               color: AppColors.textPrimary,
                             ),
-                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                        const Icon(
-                          Icons.arrow_drop_down,
-                          size: 18,
-                          color: AppColors.textLight,
-                        ),
-                      ],
+                          const Icon(
+                            Icons.arrow_drop_down,
+                            size: 18,
+                            color: AppColors.textLight,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
+                const SizedBox(height: 8),
+                // Stats row
+                statsAsync.when(
+                  data: (stats) {
+                    final heartColor = stats.hearts <= 0
+                        ? AppColors.red
+                        : (stats.hearts <= 1
+                            ? AppColors.streakOrange
+                            : AppColors.heartRed);
+                    return Align(
+                      alignment: Alignment.centerRight,
+                      child: Wrap(
+                        alignment: WrapAlignment.end,
+                        runAlignment: WrapAlignment.end,
+                        spacing: statSpacing,
+                        runSpacing: 4,
+                        children: [
+                          _StatChip(
+                            icon: Icons.local_fire_department,
+                            iconColor: AppColors.streakOrange,
+                            value: stats.streak.toString(),
+                            isCompact: true,
+                          ),
+                          _StatChip(
+                            icon: Icons.diamond,
+                            iconColor: AppColors.blue,
+                            value: stats.xp.toString(),
+                            isCompact: true,
+                          ),
+                          _StatChip(
+                            icon: stats.hearts <= 1
+                                ? Icons.favorite
+                                : Icons.favorite,
+                            iconColor: heartColor,
+                            value: '${stats.hearts}/${stats.maxHearts}',
+                            isCompact: true,
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                  loading: () => const SizedBox(height: 24),
+                  error: (_, __) => const SizedBox(height: 24),
+                ),
+              ],
+            );
+          }
+
+          // Wide layout: single row with spacer, left mode / right stats
+          return Row(
+            children: [
+              // 模式切换器（左上角）
+              GestureDetector(
+                onTap: () => _showModeSelector(context, ref),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppColors.border, width: 1),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        mode == LearningMode.random
+                            ? Icons.shuffle
+                            : Icons.list_alt,
+                        size: 18,
+                        color: AppColors.blue,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        mode == LearningMode.random ? '随机模式' : '知识点模式',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const Icon(
+                        Icons.arrow_drop_down,
+                        size: 18,
+                        color: AppColors.textLight,
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              const SizedBox(width: 8),
+              const Spacer(),
               // 统计
               statsAsync.when(
                 data: (stats) {
@@ -259,41 +352,31 @@ class HomeScreen extends ConsumerWidget {
                       : (stats.hearts <= 1
                           ? AppColors.streakOrange
                           : AppColors.heartRed);
-                  return Flexible(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Flexible(
-                          child: _StatChip(
-                            icon: Icons.local_fire_department,
-                            iconColor: AppColors.streakOrange,
-                            value: stats.streak.toString(),
-                            isCompact: isNarrow,
-                          ),
-                        ),
-                        SizedBox(width: statSpacing),
-                        Flexible(
-                          child: _StatChip(
-                            icon: Icons.diamond,
-                            iconColor: AppColors.blue,
-                            value: stats.xp.toString(),
-                            isCompact: isNarrow,
-                          ),
-                        ),
-                        SizedBox(width: statSpacing),
-                        Flexible(
-                          child: _StatChip(
-                            icon: stats.hearts <= 1
-                                ? Icons.favorite
-                                : Icons.favorite,
-                            iconColor: heartColor,
-                            value: '${stats.hearts}/${stats.maxHearts}',
-                            isCompact: isNarrow,
-                          ),
-                        ),
-                      ],
-                    ),
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _StatChip(
+                        icon: Icons.local_fire_department,
+                        iconColor: AppColors.streakOrange,
+                        value: stats.streak.toString(),
+                        isCompact: false,
+                      ),
+                      SizedBox(width: statSpacing),
+                      _StatChip(
+                        icon: Icons.diamond,
+                        iconColor: AppColors.blue,
+                        value: stats.xp.toString(),
+                        isCompact: false,
+                      ),
+                      SizedBox(width: statSpacing),
+                      _StatChip(
+                        icon:
+                            stats.hearts <= 1 ? Icons.favorite : Icons.favorite,
+                        iconColor: heartColor,
+                        value: '${stats.hearts}/${stats.maxHearts}',
+                        isCompact: false,
+                      ),
+                    ],
                   );
                 },
                 loading: () => const SizedBox(height: 24),
@@ -663,80 +746,84 @@ class HomeScreen extends ConsumerWidget {
       builder: (context, constraints) {
         // Detect very constrained layouts (narrow + likely large text scale)
         final isVeryConstrained = constraints.maxWidth < 350;
-        final verticalPadding = isVeryConstrained ? 16.0 : 32.0;
+        final horizontalPadding = 32.0;
+        final verticalPadding = isVeryConstrained ? 16.0 : 24.0;
         final iconSize = isVeryConstrained ? 64.0 : 80.0;
-        final titleSize = isVeryConstrained ? 20.0 : 22.0;
-        final bodySize = isVeryConstrained ? 14.0 : 15.0;
+        final titleSize = isVeryConstrained ? 19.0 : 22.0;
+        final bodySize = isVeryConstrained ? 13.0 : 15.0;
         final spacing1 = isVeryConstrained ? 16.0 : 24.0;
-        final spacing2 = isVeryConstrained ? 8.0 : 12.0;
-        final spacing3 = isVeryConstrained ? 20.0 : 32.0;
+        final spacing2 = isVeryConstrained ? 6.0 : 12.0;
+        final spacing3 = isVeryConstrained ? 16.0 : 32.0;
 
-        return SingleChildScrollView(
-          padding: EdgeInsets.symmetric(
-            horizontal: 32,
-            vertical: verticalPadding,
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: iconSize,
-                height: iconSize,
-                decoration: BoxDecoration(
-                  color: AppColors.greenLight,
-                  borderRadius: BorderRadius.circular(iconSize / 2),
-                ),
-                child: Icon(
-                  Icons.school,
-                  size: iconSize / 2,
-                  color: AppColors.green,
-                ),
-              ).animate().scale(duration: 500.ms),
-              SizedBox(height: spacing1),
-              Text(
-                '开始你的学习之旅',
-                style: TextStyle(
-                  fontSize: titleSize,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              SizedBox(height: spacing2),
-              Text(
-                '从你的知识源添加内容，建立个人题库\n本地存储，自主掌控',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: bodySize,
-                  color: AppColors.textSecondary,
-                  height: 1.6,
-                ),
-              ),
-              SizedBox(height: spacing3),
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const IngestionScreen()),
-                  );
-                },
-                icon: const Icon(Icons.add, size: 20),
-                label: const Text(
-                  '添加内容',
-                  style: TextStyle(fontWeight: FontWeight.w700),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.green,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 28,
-                    vertical: 14,
+        return Center(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.symmetric(
+              horizontal: horizontalPadding,
+              vertical: verticalPadding,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: iconSize,
+                  height: iconSize,
+                  decoration: BoxDecoration(
+                    color: AppColors.greenLight,
+                    borderRadius: BorderRadius.circular(iconSize / 2),
                   ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                  child: Icon(
+                    Icons.school,
+                    size: iconSize / 2,
+                    color: AppColors.green,
+                  ),
+                ).animate().scale(duration: 500.ms),
+                SizedBox(height: spacing1),
+                Text(
+                  '开始你的学习之旅',
+                  style: TextStyle(
+                    fontSize: titleSize,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
                   ),
                 ),
-              ),
-            ],
+                SizedBox(height: spacing2),
+                Text(
+                  '从你的知识源添加内容，建立个人题库\n本地存储，自主掌控',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: bodySize,
+                    color: AppColors.textSecondary,
+                    height: 1.6,
+                  ),
+                ),
+                SizedBox(height: spacing3),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => const IngestionScreen()),
+                    );
+                  },
+                  icon: const Icon(Icons.add, size: 20),
+                  label: const Text(
+                    '添加内容',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 28,
+                      vertical: 14,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
