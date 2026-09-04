@@ -60,7 +60,7 @@ class HomeScreen extends ConsumerWidget {
               icon: const Icon(Icons.add),
               label: const Text(
                 '添加内容',
-                style: TextStyle(fontWeight: FontWeight.w700),
+                style: TextStyle(fontWeight: FontWeight.w600),
               ),
             )
           : null,
@@ -85,23 +85,23 @@ class HomeScreen extends ConsumerWidget {
           child: Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: AppColors.blueLight,
+              color: AppColors.cardBackground,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.blue, width: 1.5),
+              border: Border.all(color: AppColors.border, width: 1),
             ),
             child: Row(
               children: [
                 Container(
-                  width: 42,
-                  height: 42,
-                  decoration: const BoxDecoration(
-                    color: AppColors.blue,
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
                     Icons.refresh,
-                    color: Colors.white,
-                    size: 22,
+                    color: AppColors.textSecondary,
+                    size: 20,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -115,7 +115,7 @@ class HomeScreen extends ConsumerWidget {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 15,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                           color: AppColors.textPrimary,
                         ),
                       ),
@@ -126,7 +126,7 @@ class HomeScreen extends ConsumerWidget {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w500,
                           color: AppColors.textSecondary,
                         ),
                       ),
@@ -139,10 +139,10 @@ class HomeScreen extends ConsumerWidget {
                   icon: const Icon(Icons.play_arrow, size: 18),
                   label: const Text(
                     '复习',
-                    style: TextStyle(fontWeight: FontWeight.w700),
+                    style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.blue,
+                    backgroundColor: AppColors.green,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -323,7 +323,7 @@ class HomeScreen extends ConsumerWidget {
                             ? Icons.shuffle
                             : Icons.list_alt,
                         size: 18,
-                        color: AppColors.blue,
+                        color: AppColors.textSecondary,
                       ),
                       const SizedBox(width: 4),
                       Text(
