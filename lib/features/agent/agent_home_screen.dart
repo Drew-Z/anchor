@@ -80,9 +80,10 @@ class AgentHomeScreen extends ConsumerWidget {
                   child: Text(
                     'Agent 工作台',
                     style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
+                      height: 1.2,
                     ),
                   ),
                 ),
@@ -1047,7 +1048,7 @@ class _ProjectInterviewOutcomeEntry extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.border, width: 2),
+            border: Border.all(color: AppColors.border, width: 1),
           ),
           child: Row(
             children: [
@@ -1055,12 +1056,13 @@ class _ProjectInterviewOutcomeEntry extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: AppColors.green.withValues(alpha: 0.1),
+                  color: AppColors.green.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
                   Icons.fact_check_outlined,
                   color: AppColors.greenDark,
+                  size: 22,
                 ),
               ),
               const SizedBox(width: 12),
@@ -1071,8 +1073,8 @@ class _ProjectInterviewOutcomeEntry extends StatelessWidget {
                     const Text(
                       '项目面试成果',
                       style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
                         color: AppColors.textPrimary,
                       ),
                     ),
@@ -1086,7 +1088,7 @@ class _ProjectInterviewOutcomeEntry extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 12,
                         height: 1.35,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
                         color: AppColors.textSecondary,
                       ),
                     ),
@@ -1094,7 +1096,8 @@ class _ProjectInterviewOutcomeEntry extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 6),
-              const Icon(Icons.chevron_right, color: AppColors.textLight),
+              const Icon(Icons.chevron_right,
+                  color: AppColors.textLight, size: 20),
             ],
           ),
         ),
@@ -1113,7 +1116,7 @@ class _ProjectInterviewOutcomeEntrySkeleton extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.border, width: 2),
+        border: Border.all(color: AppColors.border, width: 1),
       ),
       alignment: Alignment.center,
       child: const SizedBox.square(
@@ -1652,11 +1655,11 @@ class _LearningAgentGoalSelector extends StatelessWidget {
           backgroundColor: Colors.white,
           side: BorderSide(
             color: isSelected ? AppColors.green : AppColors.border,
-            width: 1.5,
+            width: 1,
           ),
           labelStyle: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
             color: isSelected ? AppColors.greenDark : AppColors.textSecondary,
           ),
           shape: RoundedRectangleBorder(
