@@ -1,5 +1,7 @@
 # Trellis Execution Map
 
+> 2026-09-05：当前开发采用 Codex 单独开发模式，执行指针见 [CURRENT_STATE.md](CURRENT_STATE.md)，项目约定见 [AGENTS.md](../AGENTS.md)。下文保留各 leaf 的历史验收记录，不代表当前发布状态，也不再用于恢复旧 Claude 后台任务。
+
 ## 推进方式
 
 这个项目按 Trellis 方式推进：

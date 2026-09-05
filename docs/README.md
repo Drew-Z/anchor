@@ -28,6 +28,8 @@
 
 适合想参与贡献的开发者。
 
+- [当前开发状态](CURRENT_STATE.md) - Codex 单独开发、当前 leaf、验证缺口与历史记录边界
+- [项目开发约定](../AGENTS.md) - 代码修改、测试和发布边界
 - [贡献指南](../CONTRIBUTING.md) - 如何提交代码
 - [开发路线图](../ROADMAP.md) - 未来规划
 - [更新日志](../CHANGELOG.md) - 版本历史
