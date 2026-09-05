@@ -1,6 +1,6 @@
 # Current Development State
 
-Updated: 2026-09-05. This is the current execution pointer, not a release approval.
+Updated: 2026-09-06. This is the current execution pointer, not a release approval.
 
 ## Development Mode
 
@@ -26,9 +26,9 @@ Updated: 2026-09-05. This is the current execution pointer, not a release approv
 - `f0a637b`: Web gallery integration using actual Android screenshots.
 - `eaa748e` and `38177c5`: narrow top bar and large-text layout fixes.
 
-## Latest Completed Leaf
+## Previous Codex Leaf
 
-Agent home learning plan visual hierarchy, implemented directly by Codex.
+`970eec5`: Agent home learning plan visual hierarchy, implemented directly by Codex.
 
 - Input: the existing workspace snapshot, plan, callbacks, strings, and shared AppColors.
 - Output: a quiet white plan surface, readable ink hierarchy, restrained green route accent and primary action, and wrapping at 320 logical pixels / 200% text.
@@ -39,14 +39,27 @@ Agent home learning plan visual hierarchy, implemented directly by Codex.
 - Result: white surface with a 1px neutral border; route title and scope wrap fully; statistics use unframed labels with stronger values; secondary copy has lower weight; the green CTA retains its callbacks and readable disabled colors.
 - New regression coverage checks 390px / 100% and 320px / 200% labels and disclosure. The 200% title check failed on the original implementation and passed after the change.
 
+## Latest Completed Leaf
+
+Agent home expanded plan evidence readability, implemented directly by Codex.
+
+- Input: existing plan evidence, session summary, focus points, strings, and callbacks.
+- Output: full wrapping for the Agent Session title, objective, target, source constraint, memory reminder, focus title, and focus reason, including narrow screens and large text.
+- Implementation scope: `_AgentSessionSummaryView`, `_AgentSessionRuleRow`, and `_FocusPointRow` in `lib/features/agent/agent_home_screen.dart`; regression coverage in `test/agent_home_navigation_widget_test.dart`.
+- No changes to providers, routes, callbacks, strings, state, or storage. Only the one- or two-line truncation limits and title line height changed.
+- Status: implemented and verified on 2026-09-05/06. The two new detailed-fixture tests failed before the fix and passed afterward at 390px / 100% and 320px / 200%.
+- Coverage includes each expanded label, horizontal bounds, collapse/re-expand, and no checkpoint persistence writes from disclosure.
+
 ## Current Verification
 
-- `flutter test --no-pub test/agent_home_navigation_widget_test.dart test/learning_agent_unified_workspace_test.dart`: 14 passed.
-- `flutter test --no-pub`: 397 passed, zero failures, in the canonical checkout.
+- `flutter test --no-pub test/agent_home_navigation_widget_test.dart test/learning_agent_unified_workspace_test.dart`: 16 passed.
+- `flutter test --no-pub`: 399 passed, zero failures, in the canonical checkout.
 - `flutter analyze --no-pub --no-fatal-infos`: no issues found.
 - Dart formatting and `git diff --check`: passed.
-- Current debug build ran on the real Android 16 / API 36 emulator. Screenshots were inspected at 1080x2400 / 100% text and 840x2400 / 200% text (density 420, 320 logical pixels). Route/scope labels wrap, the primary action remains visible, and disclosure expands. App-PID logs contain zero layout-overflow matches.
-- Restored emulator size to 1080x2400 and font scale to 1.0; Flutter run exited normally. Screenshot artifacts are outside Git under the local Codex visualization directory, named `anchor-plan-codex-20260905-{normal,large,details}.png`.
+- Current debug build ran on the real Android 16 / API 36 emulator. Screenshots were inspected at 1080x2400 / 100% text and 840x2400 / 200% text (density 420, 320 logical pixels). Route/scope labels wrap, the primary action remains visible, and expanded evidence titles, constraints, reasons, and metadata wrap without ellipses. App-PID logs contain zero layout-overflow matches.
+- Restored and verified emulator size 1080x2400 and font scale 1.0, then shut down the emulator. No matching Flutter run or emulator process remains.
+- Screenshots are outside Git under `D:\Agent\codex\visualizations\2026\08\20\01a01e2e-d37b-7760-8934-ae0b4dd72be9`: `anchor-plan-evidence-codex-20260906-normal-details.png` and `anchor-plan-evidence-codex-20260906-large.png`. Previous plan-card screenshots retain their `anchor-plan-codex-20260905-` names.
+- Temporary cleanup was blocked by the tool safety policy. These five files created during this leaf remain under `C:\Users\zhang\AppData\Local\Temp`: `anchor-plan-evidence-20260905-inspect.png`, `anchor-plan-evidence-20260905-add.png`, `anchor-plan-evidence-20260906-large-summary.png`, `anchor-plan-evidence-20260906-large-details.png`, and `anchor-plan-evidence-20260905-full-test.log`. They are not source changes or release evidence.
 
 The previous worktree's 393-pass / 2-failure report is historical. Its frozen-hash and secure-storage transform failures did not reproduce in this canonical-checkout run. No frozen evidence or unrelated build files were changed to resolve them.
 
@@ -54,7 +67,7 @@ The existing debug startup `Zone mismatch` warning still occurs at `lib/main.dar
 
 ## Next Bounded Candidate
 
-Review large-text readability inside the expanded plan evidence, specifically `_AgentSessionSummaryView`, `_AgentSessionRuleRow`, and `_FocusPointRow`. The emulator shows existing ellipsis on the summary title, evidence constraint, and focus title at 320px / 200%. Confirm which labels need full wrapping while preserving all routes, strings, state, and actions. This work has not started; do not restart the completed plan-card leaf.
+Review the debug startup `Zone mismatch` in `lib/main.dart`: `ensureInitialized()` runs before `runZonedGuarded`, while `runApp()` runs inside the guarded zone. Confirm a narrow fix that keeps framework and app callbacks in one zone, then add a focused regression or startup check without changing product behavior, provider state, storage, or release boundaries. Do not restart either completed Agent plan leaf.
 
 ## Release Boundary
 

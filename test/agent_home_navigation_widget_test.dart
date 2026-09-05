@@ -70,6 +70,68 @@ void main() {
       expect(find.text('建立可追溯的项目上下文'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets('expanded plan evidence remains readable at ${textScale}x',
+        (tester) async {
+      final plan = _planWithDetailedEvidence();
+      final store = _MemoryCheckpointStore();
+      await _pumpHome(
+        tester,
+        store: store,
+        plan: plan,
+        viewport: Size(textScale == 1 ? 390 : 320, 844),
+        textScale: textScale,
+      );
+
+      final disclosure = find.widgetWithText(ExpansionTile, '计划依据');
+      final summary = plan.sessionSummary;
+      final point = plan.focusPoints.single;
+      final labels = [
+        '当前 Agent Session：${summary.title}',
+        summary.objective,
+        '目标：${summary.targetLabel}',
+        '来源约束：${summary.evidenceConstraint}',
+        '学习记忆：${summary.memoryReminder}',
+        point.title,
+        '${point.reason} · 掌握 ${point.masteryLevel}% · '
+            '面试 ${point.interviewRelevance}',
+        '证据 ${point.evidenceChunkCount}',
+        '可练习 ${point.verifiedPracticeTargetCount}',
+      ];
+      final title = find.descendant(
+        of: disclosure,
+        matching: find.text(labels.first),
+      );
+      expect(title, findsNothing);
+
+      await _tapVisibleText(tester, '计划依据');
+      await tester.pumpAndSettle();
+      for (final label in labels) {
+        final target = find.descendant(
+          of: disclosure,
+          matching: find.text(label),
+        );
+        await _scrollTo(tester, target);
+        expect(tester.renderObject<RenderParagraph>(target).didExceedMaxLines,
+            isFalse,
+            reason: '$label must remain readable at ${textScale}x');
+        final bounds = tester.getRect(target);
+        final disclosureBounds = tester.getRect(disclosure);
+        expect(bounds.left, greaterThanOrEqualTo(disclosureBounds.left));
+        expect(bounds.right, lessThanOrEqualTo(disclosureBounds.right));
+        expect(bounds.left, greaterThanOrEqualTo(0));
+        expect(bounds.right, lessThanOrEqualTo(tester.view.physicalSize.width));
+      }
+
+      await _tapVisibleText(tester, '计划依据');
+      await tester.pumpAndSettle();
+      expect(title, findsNothing);
+      await _tapVisibleText(tester, '计划依据');
+      await tester.pumpAndSettle();
+      expect(title, findsOneWidget);
+      expect(store.saveCount, 0);
+      expect(tester.takeException(), isNull);
+    });
   }
 
   testWidgets('recent Agent Session opens its detail screen', (tester) async {
@@ -377,6 +439,42 @@ LearningAgentPlan _plan() {
       memoryReminder: null,
       successCriteria: ['导入一份资料'],
       reflectionPrompts: ['资料是否可追溯？'],
+    ),
+  );
+}
+
+LearningAgentPlan _planWithDetailedEvidence() {
+  final base = _plan();
+  const point = LearningAgentFocusPoint(
+    id: 'plan-evidence-focus',
+    title: 'Watcher 观察者模式：订阅清理与异步通知中的项目边界',
+    reason: '近期复盘显示需要补充订阅生命周期和异常处理的来源依据',
+    masteryLevel: 35,
+    difficulty: 3,
+    interviewRelevance: 5,
+    evidenceChunkCount: 12,
+    verifiedQuestionCount: 3,
+  );
+  return LearningAgentPlan(
+    goal: base.goal,
+    readiness: base.readiness,
+    memory: base.memory,
+    steps: base.steps,
+    focusPoints: const [point],
+    sessionSummary: LearningAgentSessionSummary(
+      goal: base.goal,
+      nextStep: base.nextStep,
+      focusPoint: point,
+      title: '基于项目来源说明观察者模式的订阅生命周期与异常处理',
+      objective: '结合项目资料解释设计选择，区分已经证实的实现细节与仍需要核验的假设，'
+          '并在会话结束时记录需要补充的证据。',
+      targetLabel: point.title,
+      evidenceConstraint: '追问优先围绕已有证据片段支撑的项目细节展开；'
+          '缺少来源的结论必须明确标注，不得当作已经验证的事实。',
+      memoryReminder: '上次会话尚未讲清取消订阅后的通知边界；'
+          '这次先回到对应来源核对，再补充完整说明。',
+      successCriteria: const ['能用来源解释设计取舍'],
+      reflectionPrompts: const ['哪些结论仍需来源核验？'],
     ),
   );
 }

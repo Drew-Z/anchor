@@ -2197,10 +2197,9 @@ class _FocusPointRow extends StatelessWidget {
                     children: [
                       Text(
                         point.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 13,
+                          height: 1.4,
                           fontWeight: FontWeight.w800,
                           color: AppColors.textPrimary,
                         ),
@@ -2209,8 +2208,6 @@ class _FocusPointRow extends StatelessWidget {
                       Text(
                         '${point.reason} · 掌握 ${point.masteryLevel}% · '
                         '面试 ${point.interviewRelevance}',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 11,
                           height: 1.35,
@@ -2258,10 +2255,9 @@ class _AgentSessionSummaryView extends StatelessWidget {
       children: [
         Text(
           '当前 Agent Session：${summary.title}',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             fontSize: 13,
+            height: 1.4,
             fontWeight: FontWeight.w800,
             color: AppColors.greenDark,
           ),
@@ -2269,8 +2265,6 @@ class _AgentSessionSummaryView extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           summary.objective,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             fontSize: 12,
             height: 1.4,
@@ -2322,8 +2316,6 @@ class _AgentSessionRuleRow extends StatelessWidget {
         Expanded(
           child: Text(
             text,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontSize: 11,
               height: 1.35,
