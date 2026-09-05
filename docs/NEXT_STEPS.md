@@ -12,7 +12,7 @@
 
 以下事项取代本文档后面的早期时间估算和草案任务：
 
-1. 由 Codex 在规范主仓库完成 Agent 首页学习计划卡的视觉层级优化，并做本地测试和模拟器验收；具体进度见 `CURRENT_STATE.md`。
+1. Agent 首页学习计划卡优化已由 Codex 完成并通过本地测试和模拟器验收。下一候选是“计划依据”展开详情的大字体可读性；具体证据、范围和进度见 `CURRENT_STATE.md`。
 2. 每轮只选择一个有代码和画面依据的 App/Web 产品化问题。已结束的 Claude 任务、旧 heartbeat 和渠道恢复不再进入开发队列。
 3. 以下发布操作为待授权队列，不由开发任务自动执行：推送 `codex/anchor-web-demo`、同步 PR #1 的验证数量和 CI 记录、合并 PR，并将 `web/landing` 部署到
    `https://anchor.playlab.eu.cc/`，随后执行官网和 `/app/` smoke check。

@@ -7,6 +7,7 @@ Updated: 2026-09-05. This is the current execution pointer, not a release approv
 - Codex owns the complete development loop, including UI implementation and emulator verification, under `../AGENTS.md`.
 - Canonical checkout: `D:\workspace4Cursor\learn\anchor`, branch `codex/anchor-web-demo`.
 - Transition baseline: `173a6c9a039fba27f8ad439a870f6306f66bc0f2`.
+- Workflow migration commit: `54ab396` (`docs: switch Anchor development to Codex only`). Current code is the canonical branch HEAD; the transition baseline is not a reset target.
 - The old `anchor-web-productization-loop` automation is absent in the app, confirmed by the automation API on 2026-09-05. No replacement schedule was created; work continues in the current task. Other projects' automations are unrelated.
 - Claude task `20260905-135936-e5d2eef4` failed before editing. Its initial agent and both recovery sessions have been stopped. Its provider failures and exhausted retries are historical evidence, not a current development blocker or a task to resume.
 
@@ -25,7 +26,7 @@ Updated: 2026-09-05. This is the current execution pointer, not a release approv
 - `f0a637b`: Web gallery integration using actual Android screenshots.
 - `eaa748e` and `38177c5`: narrow top bar and large-text layout fixes.
 
-## Current Leaf
+## Latest Completed Leaf
 
 Agent home learning plan visual hierarchy, implemented directly by Codex.
 
@@ -34,16 +35,26 @@ Agent home learning plan visual hierarchy, implemented directly by Codex.
 - Implementation scope: `_LearningAgentPlanCard`, `_PlanDetailsDisclosure`, `_PlanMetric`, `_PlanScopeChip`, `_PlanScoreChip`, and `_PlanLoadingCard` in `lib/features/agent/agent_home_screen.dart`; focused layout coverage in the existing Agent widget tests when needed.
 - Preserve providers, routes, events, enabled/disabled rules, sessions, storage, and all user-facing strings.
 - Acceptance: Agent home navigation and unified workspace tests, Flutter analysis, formatting, full Flutter tests, real emulator screenshots, and `git diff --check`.
-- Status: implementation pending after workflow migration.
+- Status: implemented and verified by Codex on 2026-09-05.
+- Result: white surface with a 1px neutral border; route title and scope wrap fully; statistics use unframed labels with stronger values; secondary copy has lower weight; the green CTA retains its callbacks and readable disabled colors.
+- New regression coverage checks 390px / 100% and 320px / 200% labels and disclosure. The 200% title check failed on the original implementation and passed after the change.
 
-## Verification Baseline
+## Current Verification
 
-The previous leaf reported 393 passing Flutter tests and two unrelated failures. These are historical results until rechecked:
+- `flutter test --no-pub test/agent_home_navigation_widget_test.dart test/learning_agent_unified_workspace_test.dart`: 14 passed.
+- `flutter test --no-pub`: 397 passed, zero failures, in the canonical checkout.
+- `flutter analyze --no-pub --no-fatal-infos`: no issues found.
+- Dart formatting and `git diff --check`: passed.
+- Current debug build ran on the real Android 16 / API 36 emulator. Screenshots were inspected at 1080x2400 / 100% text and 840x2400 / 200% text (density 420, 320 logical pixels). Route/scope labels wrap, the primary action remains visible, and disclosure expands. App-PID logs contain zero layout-overflow matches.
+- Restored emulator size to 1080x2400 and font scale to 1.0; Flutter run exited normally. Screenshot artifacts are outside Git under the local Codex visualization directory, named `anchor-plan-codex-20260905-{normal,large,details}.png`.
 
-- `test/correctness_blind_proxy_test.dart`: frozen baseline hash mismatch.
-- `test/golden_path_test.dart`: missing local secure-storage build transform path.
+The previous worktree's 393-pass / 2-failure report is historical. Its frozen-hash and secure-storage transform failures did not reproduce in this canonical-checkout run. No frozen evidence or unrelated build files were changed to resolve them.
 
-Do not change frozen evidence or unrelated build files to make a UI leaf appear green.
+The existing debug startup `Zone mismatch` warning still occurs at `lib/main.dart`; it is separate from the plan-card changes and remains an open reliability candidate.
+
+## Next Bounded Candidate
+
+Review large-text readability inside the expanded plan evidence, specifically `_AgentSessionSummaryView`, `_AgentSessionRuleRow`, and `_FocusPointRow`. The emulator shows existing ellipsis on the summary title, evidence constraint, and focus title at 320px / 200%. Confirm which labels need full wrapping while preserving all routes, strings, state, and actions. This work has not started; do not restart the completed plan-card leaf.
 
 ## Release Boundary
 

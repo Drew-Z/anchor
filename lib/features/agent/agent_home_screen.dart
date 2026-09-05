@@ -1700,29 +1700,30 @@ class _LearningAgentPlanCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.greenLight,
+        color: AppColors.cardBackground,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.green, width: 2),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.route, color: AppColors.greenDark, size: 24),
+              const Icon(Icons.route, color: AppColors.greenDark, size: 22),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   '${plan.goal.label}路线',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.greenDark,
+                    height: 1.4,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
                   ),
                 ),
               ),
+              const SizedBox(width: 8),
               _PlanScoreChip(score: plan.readiness.score),
             ],
           ),
@@ -1730,8 +1731,8 @@ class _LearningAgentPlanCard extends StatelessWidget {
           _PlanScopeChip(scope: plan.knowledgeScope),
           const SizedBox(height: 10),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 16,
+            runSpacing: 4,
             children: [
               _PlanMetric(
                 label: '有来源',
@@ -1774,7 +1775,8 @@ class _LearningAgentPlanCard extends StatelessWidget {
                     '下一复习：${_dateText(workspace.nextReviewAt!)}',
                     style: const TextStyle(
                       fontSize: 12,
-                      fontWeight: FontWeight.w800,
+                      height: 1.4,
+                      fontWeight: FontWeight.w500,
                       color: AppColors.textSecondary,
                     ),
                   ),
@@ -1782,7 +1784,10 @@ class _LearningAgentPlanCard extends StatelessWidget {
               ],
             ),
           ],
-          const SizedBox(height: 12),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 14),
+            child: Divider(height: 1, color: AppColors.border),
+          ),
           Text(
             nextAction == null
                 ? nextStep == null
@@ -1791,7 +1796,8 @@ class _LearningAgentPlanCard extends StatelessWidget {
                 : '${nextAction.priority.label}：${nextAction.title}',
             style: const TextStyle(
               fontSize: 14,
-              fontWeight: FontWeight.w800,
+              height: 1.4,
+              fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
             ),
           ),
@@ -1802,7 +1808,7 @@ class _LearningAgentPlanCard extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 12,
                 height: 1.4,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w500,
                 color: AppColors.textSecondary,
               ),
             ),
@@ -1811,8 +1817,9 @@ class _LearningAgentPlanCard extends StatelessWidget {
               '对应工具：${selectedTool?.title ?? nextAction.toolId ?? '无'}',
               style: const TextStyle(
                 fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: AppColors.greenDark,
+                height: 1.4,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textSecondary,
               ),
             ),
             if (!nextAction.executable &&
@@ -1823,7 +1830,7 @@ class _LearningAgentPlanCard extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 12,
                   height: 1.35,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                   color: AppColors.red,
                 ),
               ),
@@ -1835,7 +1842,7 @@ class _LearningAgentPlanCard extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 12,
                 height: 1.4,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w500,
                 color: AppColors.textSecondary,
               ),
             ),
@@ -1847,7 +1854,7 @@ class _LearningAgentPlanCard extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 12,
                 height: 1.35,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w500,
                 color: AppColors.textSecondary,
               ),
             ),
@@ -1870,15 +1877,21 @@ class _LearningAgentPlanCard extends StatelessWidget {
                     : isFollowUpStep
                         ? '查看未处理追问'
                         : '执行下一步',
-                style: const TextStyle(fontWeight: FontWeight.w800),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  height: 1.4,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.green,
                 foregroundColor: Colors.white,
-                disabledForegroundColor: AppColors.textLight,
-                disabledBackgroundColor: Colors.white,
+                disabledForegroundColor: AppColors.textSecondary,
+                disabledBackgroundColor: AppColors.surface,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                minimumSize: const Size(0, 48),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -1915,13 +1928,13 @@ class _PlanDetailsDisclosure extends StatelessWidget {
           tilePadding: EdgeInsets.zero,
           childrenPadding: const EdgeInsets.only(bottom: 4),
           iconColor: AppColors.greenDark,
-          collapsedIconColor: AppColors.greenDark,
+          collapsedIconColor: AppColors.textSecondary,
           title: const Text(
             '计划依据',
             style: TextStyle(
               fontSize: 12,
-              fontWeight: FontWeight.w800,
-              color: AppColors.greenDark,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
             ),
           ),
           children: [
@@ -1934,7 +1947,7 @@ class _PlanDetailsDisclosure extends StatelessWidget {
                   '优先关注',
                   style: TextStyle(
                     fontSize: 13,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary,
                   ),
                 ),
@@ -2364,18 +2377,25 @@ class _PlanMetric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Text(
-        '$label $value',
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Text.rich(
+        TextSpan(
+          text: '$label ',
+          children: [
+            TextSpan(
+              text: '$value',
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
         style: const TextStyle(
           fontSize: 12,
-          fontWeight: FontWeight.w800,
+          height: 1.4,
+          fontWeight: FontWeight.w500,
           color: AppColors.textSecondary,
         ),
       ),
@@ -2390,31 +2410,26 @@ class _PlanScopeChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.green),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Icon(
             Icons.account_tree_outlined,
             size: 15,
-            color: AppColors.greenDark,
+            color: AppColors.textSecondary,
           ),
           const SizedBox(width: 5),
           Flexible(
             child: Text(
               '知识范围：${scope.label}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 fontSize: 12,
-                fontWeight: FontWeight.w800,
-                color: AppColors.greenDark,
+                height: 1.4,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textSecondary,
               ),
             ),
           ),
@@ -2434,15 +2449,15 @@ class _PlanScoreChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.green),
+        color: AppColors.greenLight,
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         '$score%',
         style: const TextStyle(
           fontSize: 12,
-          fontWeight: FontWeight.w800,
+          height: 1.4,
+          fontWeight: FontWeight.w700,
           color: AppColors.greenDark,
         ),
       ),

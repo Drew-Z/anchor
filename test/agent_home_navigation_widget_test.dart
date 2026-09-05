@@ -10,6 +10,7 @@ import 'package:anchor_learning/services/agent/learning_agent_runtime_contracts.
 import 'package:anchor_learning/services/agent/learning_agent_workspace.dart';
 import 'package:anchor_learning/services/agent/project_interview_outcome.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -34,6 +35,42 @@ void main() {
     expect(find.byType(AgentSessionLaunchScreen), findsOneWidget);
     expect(find.text('Agent Session'), findsOneWidget);
   });
+
+  for (final textScale in [1.0, 2.0]) {
+    testWidgets('plan labels and disclosure remain readable at ${textScale}x',
+        (tester) async {
+      final plan = _plan();
+      await _pumpHome(
+        tester,
+        store: _MemoryCheckpointStore(),
+        plan: plan,
+        viewport: Size(textScale == 1 ? 390 : 320, 844),
+        textScale: textScale,
+      );
+
+      for (final label in [
+        '${plan.goal.label}路线',
+        '知识范围：${plan.knowledgeScope.label}',
+        '已核验练习 0',
+        '执行下一步',
+      ]) {
+        final target = find.text(label);
+        await _scrollTo(tester, target);
+        expect(tester.renderObject<RenderParagraph>(target).didExceedMaxLines,
+            isFalse,
+            reason: '$label must remain readable at ${textScale}x');
+        final bounds = tester.getRect(target);
+        expect(bounds.left, greaterThanOrEqualTo(0));
+        expect(bounds.right, lessThanOrEqualTo(tester.view.physicalSize.width));
+      }
+
+      await _tapVisibleText(tester, '计划依据');
+      await tester.pumpAndSettle();
+      await _scrollTo(tester, find.text('建立可追溯的项目上下文'));
+      expect(find.text('建立可追溯的项目上下文'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   testWidgets('recent Agent Session opens its detail screen', (tester) async {
     final store = _MemoryCheckpointStore();
@@ -228,6 +265,8 @@ Future<void> _pumpHome(
       workspaceLoader,
   Future<List<LearningAgentCheckpoint>> Function(Ref)? checkpointLoader,
   Future<ProjectInterviewOutcome> Function(Ref)? outcomeLoader,
+  Size viewport = const Size(390, 844),
+  double textScale = 1,
 }) async {
   final activePlan = plan ?? _plan();
   final workspace = LearningAgentWorkspaceSnapshot(
@@ -235,7 +274,7 @@ Future<void> _pumpHome(
     memory: const LearningAgentMemorySnapshot(),
     toolTargets: const [],
   );
-  tester.view.physicalSize = const Size(390, 844);
+  tester.view.physicalSize = viewport;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
@@ -275,7 +314,15 @@ Future<void> _pumpHome(
                   ),
         ),
       ],
-      child: const MaterialApp(home: AgentHomeScreen()),
+      child: MaterialApp(
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.linear(textScale),
+          ),
+          child: child!,
+        ),
+        home: const AgentHomeScreen(),
+      ),
     ),
   );
   await tester.pumpAndSettle();
