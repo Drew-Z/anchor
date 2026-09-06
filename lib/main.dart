@@ -8,16 +8,16 @@ import 'core/theme/app_theme.dart';
 import 'features/onboarding/first_run_gate.dart';
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  // 捕获 Flutter 框架渲染错误
-  FlutterError.onError = (FlutterErrorDetails details) {
-    FlutterError.presentError(details);
-    debugPrint('=== Flutter Error ===\n${details.exceptionAsString()}');
-  };
-
-  // 捕获所有未处理的异步异常
   runZonedGuarded(() {
+    // Keep binding initialization and runApp in the same zone.
+    WidgetsFlutterBinding.ensureInitialized();
+
+    // 捕获 Flutter 框架渲染错误
+    FlutterError.onError = (FlutterErrorDetails details) {
+      FlutterError.presentError(details);
+      debugPrint('=== Flutter Error ===\n${details.exceptionAsString()}');
+    };
+
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,

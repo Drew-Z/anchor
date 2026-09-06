@@ -63,11 +63,20 @@ Agent home expanded plan evidence readability, implemented directly by Codex.
 
 The previous worktree's 393-pass / 2-failure report is historical. Its frozen-hash and secure-storage transform failures did not reproduce in this canonical-checkout run. No frozen evidence or unrelated build files were changed to resolve them.
 
-The existing debug startup `Zone mismatch` warning still occurs at `lib/main.dart`; it is separate from the plan-card changes and remains an open reliability candidate.
+The debug startup `Zone mismatch` warning was the open reliability candidate for this leaf and is now resolved; the pre-fix reproduction and post-fix startup evidence are recorded below.
+
+## Latest Reliability Leaf
+
+Startup zone alignment, implemented directly by Codex.
+
+- `lib/main.dart` now initializes Flutter bindings inside the same `runZonedGuarded` zone that calls `runApp`, while preserving the existing framework and async error handlers and system UI setup.
+- No routes, providers, user-visible strings, storage, credentials, or release settings changed.
+- The pre-fix warning was reproduced on the Android debug run. After the change, the real Android 16 / API 36 emulator reported `zoneMismatchLines=0`, `layoutOverflowLines=0`, and `startupErrorLines=0` for Anchor PID 3590.
+- The targeted Agent tests, full Flutter test suite, analysis, formatting, and `git diff --check` passed. Emulator display settings were left at 1080x2400 / 100% and the emulator was shut down afterward.
 
 ## Next Bounded Candidate
 
-Review the debug startup `Zone mismatch` in `lib/main.dart`: `ensureInitialized()` runs before `runZonedGuarded`, while `runApp()` runs inside the guarded zone. Confirm a narrow fix that keeps framework and app callbacks in one zone, then add a focused regression or startup check without changing product behavior, provider state, storage, or release boundaries. Do not restart either completed Agent plan leaf.
+Review the next evidence-backed App/Web product concern without reopening the completed Agent plan or startup reliability leaves. Preserve the Codex-only workflow and release boundaries.
 
 ## Release Boundary
 
