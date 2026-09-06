@@ -132,6 +132,35 @@ void main() {
       expect(store.saveCount, 0);
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets('unfinished checkpoint card remains readable at ${textScale}x',
+        (tester) async {
+      final plan = _plan();
+      final checkpoint = _unknownOutcomeCheckpoint(plan);
+      await _pumpHome(
+        tester,
+        store: _MemoryCheckpointStore(checkpoint: checkpoint),
+        plan: plan,
+        viewport: Size(textScale == 1 ? 390 : 320, 844),
+        textScale: textScale,
+      );
+
+      for (final target in [
+        find.text('未完成 Agent Session'),
+        find.text('${plan.goal.label} · 导入来源'),
+        find.textContaining('最终结果尚未保存'),
+        find.text('确认工具结果'),
+      ]) {
+        await _scrollTo(tester, target);
+        expect(tester.renderObject<RenderParagraph>(target).didExceedMaxLines,
+            isFalse,
+            reason: 'checkpoint content must remain readable at ${textScale}x');
+        final bounds = tester.getRect(target);
+        expect(bounds.left, greaterThanOrEqualTo(0));
+        expect(bounds.right, lessThanOrEqualTo(tester.view.physicalSize.width));
+      }
+      expect(tester.takeException(), isNull);
+    });
   }
 
   testWidgets('recent Agent Session opens its detail screen', (tester) async {

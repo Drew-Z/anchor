@@ -72,11 +72,11 @@ Startup zone alignment, implemented directly by Codex.
 - `lib/main.dart` now initializes Flutter bindings inside the same `runZonedGuarded` zone that calls `runApp`, while preserving the existing framework and async error handlers and system UI setup.
 - No routes, providers, user-visible strings, storage, credentials, or release settings changed.
 - The pre-fix warning was reproduced on the Android debug run. After the change, the real Android 16 / API 36 emulator reported `zoneMismatchLines=0`, `layoutOverflowLines=0`, and `startupErrorLines=0` for Anchor PID 3590.
-- The targeted Agent tests, full Flutter test suite, analysis, formatting, and `git diff --check` passed. Emulator display settings were left at 1080x2400 / 100% and the emulator was shut down afterward.
+- The targeted Agent tests, full Flutter test suite, analysis, formatting, and `git diff --check` passed. The follow-up full suite is 401 tests with zero failures. Emulator display settings were left at 1080x2400 / 100% and the emulator was shut down afterward.
 
 ## Next Bounded Candidate
 
-Review the next evidence-backed App/Web product concern without reopening the completed Agent plan or startup reliability leaves. Preserve the Codex-only workflow and release boundaries.
+Review the next evidence-backed App/Web product concern without reopening the completed Agent plan, checkpoint-card, or startup reliability leaves. Preserve the Codex-only workflow and release boundaries.
 
 ## Release Boundary
 

@@ -1224,10 +1224,9 @@ class _AgentResumeCheckpointCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             '${state.goal.label} · ${tool?.title ?? '未记录工具'}',
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontSize: 13,
+              height: 1.4,
               fontWeight: FontWeight.w800,
               color: AppColors.textPrimary,
             ),
@@ -1235,8 +1234,6 @@ class _AgentResumeCheckpointCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             readiness.message,
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontSize: 12,
               height: 1.35,
