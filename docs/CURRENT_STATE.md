@@ -9,7 +9,7 @@ Updated: 2026-09-08. This is the current execution pointer, not a release approv
 - Transition baseline: `173a6c9a039fba27f8ad439a870f6306f66bc0f2`.
 - Workflow migration commit: `54ab396` (`docs: switch Anchor development to Codex only`). Current code is the canonical branch HEAD; the transition baseline is not a reset target.
 - Continued from task `01a01e2e-d37b-7760-8934-ae0b4dd72be9` on 2026-09-08. Its remaining checkpoint-card emulator verification is complete. Current task: `01a07cfd-0714-73c0-bc13-a10f2bdf8784`.
-- The old `anchor-web-productization-loop` automation is absent in the app, confirmed by the automation API on 2026-09-05. No replacement schedule was created; work continues in the current task. Other projects' automations are unrelated.
+- The old `anchor-web-productization-loop` automation was removed on 2026-09-05. The new Codex-only heartbeat below was enabled on 2026-09-08 after two manually completed leaves; other projects' automations are unrelated.
 - Claude task `20260905-135936-e5d2eef4` failed before editing. Its initial agent and both recovery sessions have been stopped. Its provider failures and exhausted retries are historical evidence, not a current development blocker or a task to resume.
 
 ## Continuous Development Pointer
@@ -18,7 +18,7 @@ Updated: 2026-09-08. This is the current execution pointer, not a release approv
 - Round: 3. Phase: `analyzing`. Active leaf: none. DL-001 and DL-002 completed; the root task is selecting the next bounded change from their results.
 - Assessment baseline: `346edce`; application changes through `f389cbd`. Flutter: 401 tests passed, analysis clean and debug APK built, as recorded below. Web was additionally checked on 2026-09-08: 75 unit tests and 93 Playwright tests passed locally (168 total). These are local results, not remote CI or release approval. Historical coverage percentages were not remeasured.
 - Current assessment: the local product and static demo have a passing regression baseline. DL-001 resolved the checkpoint header defect; DL-002 corrected the scoped architecture claims. Application verification applies through `575b4dd`; subsequent changes are documentation only. The next investigation comes from a concrete difference between displayed search results and answer-context selection, described below.
-- Scheduling: not yet enabled. Complete the first leaf and re-enter the root task before configuring a heartbeat for this task.
+- Scheduling: `ACTIVE` heartbeat `anchor` ("Anchor 持续开发主任务"), every 30 minutes, bound to task `01a07cfd-0714-73c0-bc13-a10f2bdf8784`. Created and viewed through the app API, then confirmed the persisted kind, interval, status and target task on 2026-09-08. Future runs read the root rules and this pointer; no new task or checkout is required. No scheduled run has been observed yet; the two completed rounds were executed in the current interactive run. Keep the computer and desktop app running for local continuation.
 
 ### Completed Leaf DL-001 — Checkpoint header readability
 
@@ -37,6 +37,7 @@ Updated: 2026-09-08. This is the current execution pointer, not a release approv
 
 ### Completed Leaf DL-002 — Search and validation architecture accuracy
 
+- Commit: `7bffde1`.
 - Baseline: `575b4dd`, clean tracked files after DL-001. The two protected user reports remain untracked and unchanged.
 - Goal/output: describe the implemented search paths and question-review boundary accurately so the next root assessment does not plan from nonexistent BM25/embedding or automatic-verification behavior.
 - Inputs: `KnowledgeSearchService._score`, `HybridKnowledgeSearchService.search`, search providers/preferences, both import screens, `CitationVerificationTask`, `QuestionValidator` and `SourceGroundedIngestionService`.
