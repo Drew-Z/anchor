@@ -1186,11 +1186,12 @@ class _AgentResumeCheckpointCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.restore, color: AppColors.blueDark),
-              const SizedBox(width: 8),
-              const Expanded(
+              Icon(Icons.restore, color: AppColors.blueDark),
+              SizedBox(width: 8),
+              Expanded(
                 child: Text(
                   '未完成 Agent Session',
                   style: TextStyle(
@@ -1200,12 +1201,19 @@ class _AgentResumeCheckpointCard extends StatelessWidget {
                   ),
                 ),
               ),
-              Text(
-                state.phase.label,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.blueDark,
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  state.phase.label,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.blueDark,
+                  ),
                 ),
               ),
               const SizedBox(width: 4),

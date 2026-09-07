@@ -147,6 +147,7 @@ void main() {
 
       for (final target in [
         find.text('未完成 Agent Session'),
+        find.text(checkpoint.state.phase.label),
         find.text('${plan.goal.label} · 导入来源'),
         find.textContaining('最终结果尚未保存'),
         find.text('确认工具结果'),
@@ -158,6 +159,19 @@ void main() {
         final bounds = tester.getRect(target);
         expect(bounds.left, greaterThanOrEqualTo(0));
         expect(bounds.right, lessThanOrEqualTo(tester.view.physicalSize.width));
+      }
+
+      final title = find.text('未完成 Agent Session');
+      await _scrollTo(tester, title);
+      final paragraph = tester.renderObject<RenderParagraph>(title);
+      final titleText = paragraph.text.toPlainText();
+      for (final word in ['Agent', 'Session']) {
+        final start = titleText.indexOf(word);
+        final boxes = paragraph.getBoxesForSelection(
+          TextSelection(baseOffset: start, extentOffset: start + word.length),
+        );
+        expect(boxes, hasLength(1),
+            reason: '$word must stay on one line at ${textScale}x');
       }
       expect(tester.takeException(), isNull);
     });
