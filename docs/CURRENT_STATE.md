@@ -15,13 +15,14 @@ Updated: 2026-09-08. This is the current execution pointer, not a release approv
 ## Continuous Development Pointer
 
 - Root task: `anchor-development-loop`, defined in [DEVELOPMENT_LOOP.md](DEVELOPMENT_LOOP.md). This section is the single execution pointer.
-- Round: 2. Phase: `analyzing`. Active leaf: none; `DL-001` completed and returned to the root task.
+- Round: 3. Phase: `analyzing`. Active leaf: none. DL-001 and DL-002 completed; the root task is selecting the next bounded change from their results.
 - Assessment baseline: `346edce`; application changes through `f389cbd`. Flutter: 401 tests passed, analysis clean and debug APK built, as recorded below. Web was additionally checked on 2026-09-08: 75 unit tests and 93 Playwright tests passed locally (168 total). These are local results, not remote CI or release approval. Historical coverage percentages were not remeasured.
-- Current assessment: the local product and static demo have a passing regression baseline. DL-001 resolved the reproduced checkpoint header defect. Architecture prose still overstates current search and validation behavior; this is a bounded documentation candidate, not evidence that those services are disconnected.
+- Current assessment: the local product and static demo have a passing regression baseline. DL-001 resolved the checkpoint header defect; DL-002 corrected the scoped architecture claims. Application verification applies through `575b4dd`; subsequent changes are documentation only. The next investigation comes from a concrete difference between displayed search results and answer-context selection, described below.
 - Scheduling: not yet enabled. Complete the first leaf and re-enter the root task before configuring a heartbeat for this task.
 
 ### Completed Leaf DL-001 — Checkpoint header readability
 
+- Commit: `575b4dd`. Root workflow setup: `4db0ac9`.
 - Goal/output: keep the complete title, phase label and delete action readable and operable at 390px / 100% and 320px / 200%, without splitting `Session` inside the word.
 - Inputs: `_AgentResumeCheckpointCard`, the existing unknown-tool-outcome fixture and `anchor-checkpoint-20260908-large.png`. The title, phase and delete action currently compete in one row.
 - Owned files: `lib/features/agent/agent_home_screen.dart`, `test/agent_home_navigation_widget_test.dart`, this state document and the current-queue summary in `NEXT_STEPS.md`.
@@ -34,11 +35,22 @@ Updated: 2026-09-08. This is the current execution pointer, not a release approv
 - App PID 3778: `zoneMismatchLines=0`, `layoutOverflowLines=0`, `frameworkErrorLines=0`, including the final check after dialog, deletion and display restoration. Restored 1080x2400, density 420 and font scale 1.0; shut down the emulator and confirmed ADB has no devices.
 - Retained screenshots under `D:\Agent\codex\visualizations\2026\09\07\01a07cfd-0714-73c0-bc13-a10f2bdf8784`: `anchor-loop-dl001-20260908-normal.png`, `anchor-loop-dl001-20260908-large.png`, and `anchor-loop-dl001-20260908-large-dialog.png`.
 
-### Root Reassessment After DL-001
+### Completed Leaf DL-002 — Search and validation architecture accuracy
 
-1. `DL-002`: align the search and question-validation sections of `architecture/SYSTEM_OVERVIEW.md` with the actual wiring. Evidence: `KnowledgeSearchService._score` uses weighted term/phrase matches; `HybridKnowledgeSearchService` runs lexical search per variant with RRF; model-assisted expansion defaults off. Project import does call `QuestionValidator.validateBatch`, but only appends warnings; `precheckQuestions` leaves valid-citation drafts `pending`, and reviewed decisions determine persisted status. Current architecture text incorrectly describes BM25 plus embeddings and automatic `verified` promotion.
-2. After those concrete issues, inspect one bounded core workflow for untested behavior or conflicting current documentation. Record a specific question and evidence before selecting any new implementation; do not assume a product defect from old roadmap entries.
-3. Release-only work stays outside this local queue: the documented `HOLD` requires fresh external evidence and the existing release authorization boundary.
+- Baseline: `575b4dd`, clean tracked files after DL-001. The two protected user reports remain untracked and unchanged.
+- Goal/output: describe the implemented search paths and question-review boundary accurately so the next root assessment does not plan from nonexistent BM25/embedding or automatic-verification behavior.
+- Inputs: `KnowledgeSearchService._score`, `HybridKnowledgeSearchService.search`, search providers/preferences, both import screens, `CitationVerificationTask`, `QuestionValidator` and `SourceGroundedIngestionService`.
+- Owned files: `docs/architecture/SYSTEM_OVERVIEW.md`, `docs/CURRENT_STATE.md`, `docs/NEXT_STEPS.md`.
+- Acceptance: every corrected claim matches its cited symbol; distinguish default lexical search, optional query expansion/RRF and lexical answer context; distinguish model citation precheck, project-only local quality warnings and final review status. Check local links and `git diff --check`. No product code changes or repeat full test runs for this documentation leaf.
+- Status: `completed` on 2026-09-08. Corrected the scoped sections and reviewed the diff against the call sites. Text import proceeds directly from citation precheck to review; project import adds local quality warnings. Citation verification asks the model about support but does not copy its reason into the explanation.
+- Verification: 39 local Markdown/code references resolve; fenced blocks are balanced; `git diff --check` passes. Confirmed the unclosed historical code fence in `NEXT_STEPS.md` existed at `575b4dd`, and closed it without reconstructing its unfinished example. Only the three owned documentation files changed, so the passing Flutter/Web baselines remain applicable and were not repeated.
+
+### Root Decisions And Next Entry
+
+- Round 2 chose and completed DL-002 after DL-001 because the initial analysis found verifiable documentation errors, not missing service wiring.
+- Round 3 candidate `DL-003`: check whether enabling model query expansion can display a source-backed hit while the answer action remains unavailable. Evidence to reproduce: `knowledgeHybridSearchReportProvider` supplies expanded search results, but `knowledgeAnswerGroundedContextProvider` still reads the original lexical results; `knowledge_base_screen.dart` enables its answer action from that context. This is a code-path discrepancy, not yet a reproduced failure or an instruction to add embeddings.
+- Next entry: use a synthetic corpus and fake query-variant provider with an original query that has no literal hit and a rewrite that does. Compare displayed results and selected answer chunks, including expansion disabled and provider-failure fallback. If a user-visible mismatch is confirmed, define DL-003 around consistent evidence selection, scoped to `lib/core/providers/providers.dart`, existing knowledge search/context tests and state documents. Keep default offline behavior and citation validation. Before implementation, record the exact contract and failing regression; then run the relevant targeted/full checks and any required UI acceptance. If the case does not reproduce, record that result and reassess instead of forcing a code change.
+- Release-only work stays outside this local queue: the documented `HOLD` requires fresh external evidence and the existing release authorization boundary.
 
 ### Temporary Materials From This Assessment
 

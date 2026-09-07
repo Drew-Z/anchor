@@ -1,11 +1,13 @@
 # 系统架构概览
 
+> 2026-09-08：题目预核验、人工审核与知识搜索部分已按当前代码核对；当前开发指针见 [CURRENT_STATE.md](../CURRENT_STATE.md)。下文其他设计说明和性能估算不构成当日发布验收证据。
+
 ## 总体设计理念
 
 **Anchor Learning (锚学)**是一个来源可溯源的 AI 学习代理系统,核心设计原则:
 
 1. **可溯源性优先**: 每个知识点、每道题目都能追溯到源文档的具体位置
-2. **防幻觉机制**: 通过 Citation Verification 和 Question Validation 双重验证
+2. **来源核验与人工审核**: 模型引用预核验、项目导入的本地质量检查和人工审核共同提供依据；预核验分数不代表事实已被证明
 3. **隐私优先**: 数据本地存储,可选云同步
 4. **Agent 驱动**: 长会话学习代理,支持检查点恢复
 
@@ -50,56 +52,56 @@ graph TD
 
 ```mermaid
 graph TD
-    A[SourceChunks] --> B[KnowledgeExtractionTask]
-    B --> C[提取知识点列表]
-    C --> D[ConceptPrerequisiteTask]
-    D --> E[构建知识点前置依赖图]
+    A[SourceChunks] --> B{导入入口}
+    B -->|文本| C[KnowledgeExtractionTask]
+    B -->|项目| D[ProjectUnderstandingTask]
+    C --> E[构建知识点草稿]
+    D --> E
     E --> F[QuestionGenerationTask]
     F --> G[生成题目草稿]
-    
-    G --> H[CitationVerificationTask]
-    H --> I{引用是否有效?}
-    I -->|否| J[标记为 pending]
-    I -->|是| K[QuestionValidator]
-    
-    K --> L{事实准确性检查}
-    L -->|高置信度| M[标记为 verified]
-    L -->|低置信度| N[添加警告标记]
-    
-    M --> O[进入审核界面]
-    N --> O
-    J --> O
-    
-    O --> P[用户最终审核]
-    P --> Q[保存到题库]
-    
+
+    G --> H[precheckQuestions: 过滤引用 ID 并预核验]
+    H --> I[保留 pending 或 noSource 草稿]
+    I --> J{导入入口}
+    J -->|项目| K[QuestionValidator: 本地质量检查]
+    K --> L[有问题时向解析追加警告]
+    J -->|文本| O[KnowledgeReviewScreen]
+    L --> O
+    O --> P[用户决定已核验、待核验或删除]
+    P --> Q[saveReviewedContent: 按审核决策事务保存]
+
     style H fill:#fff3cd
     style K fill:#fff3cd
     style P fill:#e1f5e1
 ```
 
-**防幻觉三层防线**:
+**各层的实际职责**:
 
 1. **Layer 1: Semantic Chunker**
    - 保持源文档结构完整性
    - 不切断段落/代码块中间
 
 2. **Layer 2: Citation Verification**
-   - AI 必须引用具体 chunk ID
-   - 验证引用的 chunk 是否真实存在
-   - 检查引用内容是否支持结论
+   - `precheckQuestions` 过滤不存在的引用 ID；没有可用引用时保留 `noSource` 草稿。
+   - 有可用引用时，`CitationVerificationTask` 调用模型判断给定片段是否支持答案和解析，返回候选可信、证据较弱或无来源等预核验结果，并过滤模型返回的引用 ID。
+   - `precheckQuestions` 按结果调整引用和草稿状态：无法获得支持的引用会被移除，有保留引用的草稿仍为 `pending`；即使模型返回 `verified_candidate` 也不自动成为 `verified`。请求失败时按已知引用是否为空保留 `pending` 或 `noSource`。
+   - 该预核验函数当前不把模型的 `reason` 写回题目解析；项目导入随后追加的是本地质量检查警告。
 
-3. **Layer 3: Question Validator** ⭐ 新增
-   - 二次核验生成的答案是否与源文档一致
-   - 检查 explanation 是否真的基于 citedChunks
-   - 逻辑一致性检查(选项设计、题干表述)
+3. **Layer 3: 本地质量检查与人工审核**
+   - 项目导入调用 `QuestionValidator.validateBatch`，按题型检查关键词、数字、答案、代码片段、匹配关系和顺序等局部规则；它不调用模型，不能证明任意事实正确。
+   - `confidence` 根据发现的问题数量取 1.0、0.7、0.5 或 0.3，是规则检查摘要，不是事实正确率。项目导入只向未通过检查的题目解析追加警告；文本导入当前没有这一步。
+   - 两个入口都进入 `KnowledgeReviewScreen`。`saveReviewedContent` 按审核决策保存，并再次过滤引用；没有有效引用的题目只能以 `noSource` 保存。
 
 **涉及文件**:
 - `lib/services/ai/tasks/knowledge_extraction_task.dart`
+- `lib/services/ai/tasks/project_understanding_task.dart`
 - `lib/services/ai/tasks/question_generation_task.dart`
 - `lib/services/ai/tasks/citation_verification_task.dart`
-- `lib/services/validation/question_validator.dart` ⭐ 新增
+- `lib/services/validation/question_validator.dart`
 - `lib/services/ingestion/source_grounded_ingestion_service.dart`
+- `lib/features/ingestion/ingestion_screen.dart`
+- `lib/features/ingestion/project_import_screen.dart`
+- `lib/features/ingestion/knowledge_review_screen.dart`
 
 ---
 
@@ -111,13 +113,14 @@ graph TD
     B --> C[LearningAgentPlanner]
     C --> D{判断用户意图}
     
-    D -->|需要检索知识| E[HybridKnowledgeSearchService]
+    D -->|需要检索知识| E[知识库搜索与问答入口]
     D -->|需要理解项目| F[InterviewerService]
     D -->|需要练习| G[选择练习题]
     D -->|需要代码实践| H[生成 ProgrammingExercise]
     
-    E --> I[BM25 + 语义检索]
-    I --> J[KnowledgeAnswerTask]
+    E --> S[词法检索及可选查询扩展与 RRF 展示]
+    E --> I[原查询词法结果选择有来源的回答上下文]
+    I --> J[用户触发 KnowledgeAnswerTask]
     J --> K[生成带引用的回答]
     
     F --> L[生成面试式问题]
@@ -138,7 +141,9 @@ graph TD
 
 **核心特性**:
 
-- **混合检索**: BM25(关键词) + Embedding(语义)
+- **本地检索**: `KnowledgeSearchService` 对词项覆盖、短语、标题、正文和元数据匹配计分，再结合来源可信度、题目核验状态排序；当前该实现不是 BM25 或 embedding 检索。
+- **可选查询扩展**: `modelAssistedSearchEnabled` 默认关闭。启用后，`HybridKnowledgeSearchService` 对原查询及模型改写逐个执行同一个词法搜索，再用 RRF 融合；扩展提供方抛错时回退到原查询。`localSemantic` 是可选查询来源类型，不能据此认定已接入本地向量模型。
+- **问答上下文**: 当前 `knowledgeAnswerGroundedContextProvider` 从 `knowledgeSearchResultsProvider` 的原查询词法结果选择片段。界面展示的融合结果与回答上下文是不同路径，不能假设问答已经使用融合排名。
 - **检查点恢复**: 支持长会话中断后继续
 - **多模式辅导**:
   - 知识问答: 基于知识库回答 + 引用链
@@ -150,6 +155,10 @@ graph TD
 - `lib/services/agent/learning_agent_runtime.dart`
 - `lib/services/agent/learning_agent_planner_service.dart`
 - `lib/services/agent/hybrid_knowledge_search_service.dart`
+- `lib/services/agent/knowledge_search_service.dart`
+- `lib/services/agent/model_search_query_variant_provider.dart`
+- `lib/services/agent/search_preferences.dart`
+- `lib/core/providers/providers.dart`（`knowledgeHybridSearchReportProvider` 与 `knowledgeAnswerGroundedContextProvider`）
 - `lib/services/agent/interviewer_service.dart`
 - `lib/services/agent/learning_agent_checkpoint_store.dart`
 
@@ -231,9 +240,9 @@ double calculateInterval(Question q, bool isCorrect) {
     ↓
 [AI Tasks] 提取知识点 → 生成题目
     ↓
-[Citation Verification] 验证引用
+[Citation Verification] 模型预核验，草稿保持 pending / noSource
     ↓
-[Question Validator] 验证事实 ⭐
+[项目导入：Question Validator] 本地规则检查并追加警告；文本导入跳过
     ↓
 [KnowledgeReviewScreen] 人工审核
     ↓
@@ -261,7 +270,7 @@ double calculateInterval(Question q, bool isCorrect) {
 ### AI 层
 - **OpenAI-compatible API**: 通过用户配置的 Base URL、模型和协议调用模型服务商
 - **Prompt Engineering**: 结构化输出 + Few-shot examples
-- **Function Calling**: 用于 Citation Verification
+- **Citation Verification**: 通过 `chatCompletion` 获取并解析 JSON 预核验结果
 
 ### 后端(可选)
 - **当前版本**: 学习内容与产品事件默认本地存储；主动 AI 任务会向用户选择的模型服务商发送所需片段
@@ -278,9 +287,9 @@ double calculateInterval(Question q, bool isCorrect) {
 - ⚠️ 代价: 需要用户自行备份
 
 ### 为什么不用向量数据库?
-- 当前规模(<10k chunks)下 SQLite + 内存搜索足够快
-- BM25(关键词) + Embedding(语义) 混合检索效果好
-- 降低部署复杂度,用户无需额外服务
+- 当前搜索从本地来源、片段、知识点和题目构建语料，在内存中进行词法评分，无需单独部署搜索服务。
+- 可选模型查询扩展复用同一词法搜索并融合排名，当前这条路径不依赖向量数据库。
+- 这里描述实现边界；搜索容量、耗时和相关性仍需对应数据集的测量，不能从服务名称推导性能或 embedding 能力。
 
 ### 为什么要 Citation Verification?
 - **核心问题**: LLM 生成的"知识点"可能是幻觉
@@ -288,10 +297,9 @@ double calculateInterval(Question q, bool isCorrect) {
 - **效果**: 大幅降低错误知识进入题库的概率
 
 ### 为什么新增 Question Validator?
-- **发现的问题**: Citation Verification 只验证"有引用",不验证"引用正确"
-- **案例**: AI 可能引用了 chunk A,但生成的答案基于 chunk B 的内容
-- **解决方案**: 二次核验生成的答案/选项是否与 cited chunks 一致
-- **置信度评分**: 0.0-1.0,低于阈值的题目会标记警告
+- **作用**: 在项目导入中，以可重复的本地规则补充模型引用预核验，发现缺少原文支持的数字、答案、代码或关系等候选问题。
+- **边界**: 模型预核验也会判断引用是否支持答案；本地质量检查是补充规则，不能取代模型判断或人工审核。
+- **处理结果**: 项目导入追加问题提示和规则置信度，不更改审核状态。题目是否保存为 `verified` 由审核决策与有效引用共同决定。
 
 ---
 
