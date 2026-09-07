@@ -5,14 +5,14 @@
 [OPEN_SOURCE_CHECKLIST.md](OPEN_SOURCE_CHECKLIST.md) 和
 [OPEN_SOURCE_READY.md](OPEN_SOURCE_READY.md) 为准。
 
-> 更新于 2026-09-05：已切换为 Codex 单独开发；Private Alpha 仍因真实外部证据不足保持 `HOLD`。
+> 更新于 2026-09-08：已切换为 Codex 单独开发；Private Alpha 仍因真实外部证据不足保持 `HOLD`。
 > `.env.example` 只说明配置边界，应用凭据必须在“设置 → AI 配置”中保存。
 
 ## 当前有效队列
 
 以下事项取代本文档后面的早期时间估算和草案任务：
 
-1. Agent 首页学习计划卡、展开详情与未完成 checkpoint 恢复卡的大字体可读性，以及 `lib/main.dart` 启动 zone 对齐，已由 Codex 完成并通过本地测试和模拟器验收。下一轮应先选择新的、有代码和画面依据的 App/Web 产品化问题，具体状态见 `CURRENT_STATE.md`。
+1. Agent 首页学习计划卡、展开详情、checkpoint 恢复卡的目标与提示正文，以及 `lib/main.dart` 启动 zone 对齐已完成。恢复卡在 2026-09-08 使用合成 checkpoint 补齐真实模拟器画面验收；此前的启动 smoke 不算恢复卡验收。当前针对性测试 18 项、全量测试 401 项通过。下一候选是恢复卡标题行在 320px／200% 字号下把 `Session` 挤成两行的问题，范围与截图见 `CURRENT_STATE.md`。
 2. 每轮只选择一个有代码和画面依据的 App/Web 产品化问题。已结束的 Claude 任务、旧 heartbeat 和渠道恢复不再进入开发队列。
 3. 以下发布操作为待授权队列，不由开发任务自动执行：推送 `codex/anchor-web-demo`、同步 PR #1 的验证数量和 CI 记录、合并 PR，并将 `web/landing` 部署到
    `https://anchor.playlab.eu.cc/`，随后执行官网和 `/app/` smoke check。
