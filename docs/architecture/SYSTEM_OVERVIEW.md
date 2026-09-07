@@ -119,7 +119,7 @@ graph TD
     D -->|需要代码实践| H[生成 ProgrammingExercise]
     
     E --> S[词法检索及可选查询扩展与 RRF 展示]
-    E --> I[原查询词法结果选择有来源的回答上下文]
+    S --> I[从当前展示的搜索分支选择有来源的回答上下文]
     I --> J[用户触发 KnowledgeAnswerTask]
     J --> K[生成带引用的回答]
     
@@ -143,7 +143,7 @@ graph TD
 
 - **本地检索**: `KnowledgeSearchService` 对词项覆盖、短语、标题、正文和元数据匹配计分，再结合来源可信度、题目核验状态排序；当前该实现不是 BM25 或 embedding 检索。
 - **可选查询扩展**: `modelAssistedSearchEnabled` 默认关闭。启用后，`HybridKnowledgeSearchService` 对原查询及模型改写逐个执行同一个词法搜索，再用 RRF 融合；扩展提供方抛错时回退到原查询。`localSemantic` 是可选查询来源类型，不能据此认定已接入本地向量模型。
-- **问答上下文**: 当前 `knowledgeAnswerGroundedContextProvider` 从 `knowledgeSearchResultsProvider` 的原查询词法结果选择片段。界面展示的融合结果与回答上下文是不同路径，不能假设问答已经使用融合排名。
+- **问答上下文**: `knowledgeAnswerGroundedContextProvider` 跟随列表当前展示的搜索分支：已完成的 `augmented` 报告使用融合排名，否则使用原查询词法结果。等待改写或回退时仍可使用本地命中；改写完成及偏好变更后上下文随 provider 更新。选择出的片段仍须通过本地来源记录、正文及引用边界检查，模型改写只提供查询文本。
 - **检查点恢复**: 支持长会话中断后继续
 - **多模式辅导**:
   - 知识问答: 基于知识库回答 + 引用链

@@ -1248,7 +1248,14 @@ final knowledgeAnswerGroundedContextProvider =
     );
   }
 
-  final results = await ref.watch(knowledgeSearchResultsProvider(query).future);
+  // Match the displayed branch without waiting for optional model expansion.
+  final hybridReport =
+      ref.watch(knowledgeHybridSearchReportProvider(query)).valueOrNull;
+  final lexicalResults =
+      await ref.watch(knowledgeSearchResultsProvider(query).future);
+  final results = hybridReport?.status == HybridKnowledgeSearchStatus.augmented
+      ? hybridReport!.results.map((item) => item.result).toList(growable: false)
+      : lexicalResults;
   final corpus = await ref.watch(knowledgeSearchCorpusProvider.future);
   final selection = ref.read(knowledgeAnswerContextServiceProvider).select(
         results: results,

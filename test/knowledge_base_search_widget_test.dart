@@ -2,9 +2,12 @@ import 'dart:async';
 
 import 'package:anchor_learning/core/providers/providers.dart';
 import 'package:anchor_learning/data/models/grounded_learning_context.dart';
+import 'package:anchor_learning/data/models/source.dart';
+import 'package:anchor_learning/data/models/source_chunk.dart';
 import 'package:anchor_learning/features/knowledge_base/knowledge_base_screen.dart';
 import 'package:anchor_learning/services/agent/hybrid_knowledge_search_service.dart';
 import 'package:anchor_learning/services/agent/knowledge_search_service.dart';
+import 'package:anchor_learning/services/agent/search_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -104,6 +107,88 @@ void main() {
       findsNothing,
     );
   });
+
+  testWidgets('rewrite-only source hits enable the grounded answer action',
+      (tester) async {
+    final now = DateTime.utc(2026, 9, 8);
+    final corpus = KnowledgeSearchCorpus(
+      sources: [
+        Source(
+          id: 'docs',
+          title: 'Engineering references',
+          type: SourceType.officialDoc,
+          trustLevel: SourceTrustLevel.officialDoc,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      ],
+      sourceChunks: [
+        SourceChunk(
+          id: 'checkpoint',
+          sourceId: 'docs',
+          chunkIndex: 0,
+          content: 'A checkpoint captures consistent application state.',
+          locator: 'Checkpointing',
+          createdAt: now,
+        ),
+      ],
+      knowledgePoints: const [],
+      questions: const [],
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sourceListProvider.overrideWith((ref) async => corpus.sources),
+          knowledgePointListProvider.overrideWith((ref) async => []),
+          allQuestionsProvider.overrideWith((ref) async => []),
+          pendingQuestionListProvider.overrideWith((ref) async => []),
+          knowledgeAnswerSessionListProvider.overrideWith((ref) async => []),
+          knowledgeSearchCorpusProvider.overrideWith((ref) async => corpus),
+          searchPreferencesStoreProvider
+              .overrideWithValue(_EnabledSearchPreferencesStore()),
+          modelSearchQueryVariantProvider
+              .overrideWithValue(_CheckpointVariantProvider()),
+        ],
+        child: const MaterialApp(
+          home: KnowledgeBaseScreen(
+            initialSearchQuery: '流式任务为什么需要定期保存检查点',
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('A checkpoint captures'), findsOneWidget);
+    expect(find.byKey(const ValueKey('knowledge-search-augmented-chip')),
+        findsOneWidget);
+    final answer = tester.widget<ElevatedButton>(
+      find.widgetWithText(ElevatedButton, '基于来源回答'),
+    );
+    expect(answer.onPressed, isNotNull);
+    expect(find.text('1 条可引用片段'), findsOneWidget);
+    expect(find.text('暂无可引用片段'), findsNothing);
+  });
+}
+
+class _EnabledSearchPreferencesStore implements SearchPreferencesStore {
+  @override
+  Future<SearchPreferences> read() async =>
+      const SearchPreferences(modelAssistedSearchEnabled: true);
+
+  @override
+  Future<void> write(SearchPreferences preferences) async {}
+}
+
+class _CheckpointVariantProvider implements SearchQueryVariantProvider {
+  @override
+  Future<List<SearchQueryVariant>> variants(String originalQuery) async =>
+      const [
+        SearchQueryVariant(
+          query: 'checkpoint',
+          source: SearchQueryVariantSource.modelRewrite,
+          reason: 'synthetic bilingual query',
+        ),
+      ];
 }
 
 Future<void> _pumpSearch(
