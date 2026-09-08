@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -39,6 +41,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   bool _isSubmitting = false;
   bool _isFinishing = false;
   bool _isCorrectAnswer = false; // 缓存的判题结果
+  bool? _pendingIsCorrect;
+  Object? _saveError;
+  bool _retryCompletion = false;
+  final String _saveSessionId = 'quiz_${DateTime.now().microsecondsSinceEpoch}_'
+      '${Random.secure().nextInt(1 << 32).toRadixString(16)}'
+      '${Random.secure().nextInt(1 << 32).toRadixString(16)}';
 
   @override
   void initState() {
@@ -85,12 +93,18 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
 
     final questionIndex = _currentIndex;
     final question = _questions[questionIndex];
-    var isCorrect = _checkCorrect(question, answer);
+    var isCorrect = _pendingIsCorrect ?? _checkCorrect(question, answer);
     FocusScope.of(context).unfocus();
-    setState(() => _isSubmitting = true);
+    setState(() {
+      _isSubmitting = true;
+      _saveError = null;
+      _retryCompletion = false;
+    });
 
     try {
-      if (!isCorrect && question.type == QuestionType.fillBlank) {
+      if (_pendingIsCorrect == null &&
+          !isCorrect &&
+          question.type == QuestionType.fillBlank) {
         setState(() => _isChecking = true);
         try {
           final aiService = ref.read(openaiServiceProvider);
@@ -110,38 +124,32 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         setState(() => _isChecking = false);
       }
 
-      // Once local writes start, finish them without reading a disposed WidgetRef.
-      final gameService = ref.read(gamificationServiceProvider);
-      final statsNotifier = ref.read(userStatsProvider.notifier);
-      final scheduler = ref.read(reviewSchedulerServiceProvider);
-      final mastery = ref.read(masteryServiceProvider);
-      await gameService.recordCheckIn();
-      if (isCorrect) {
-        await statsNotifier.onCorrect();
-        await gameService.incrementTotalCorrect();
-      } else {
-        await statsNotifier.onWrong();
-      }
-
-      final updatedQuestion = await scheduler.recordQuestionReview(
-        question: question,
-        isCorrect: isCorrect,
-      );
-      await mastery.updateFromQuestionAttempt(
+      _pendingIsCorrect = isCorrect;
+      // The captured service can finish its transaction after this screen exits.
+      final persistence = ref.read(quizPersistenceServiceProvider);
+      final result = await persistence.saveAnswer(
+        operationId: '$_saveSessionId:answer:$questionIndex',
         question: question,
         isCorrect: isCorrect,
       );
       if (!mounted) return;
-      _refreshAfterQuestionAttempt(updatedQuestion);
+      ref.read(userStatsProvider.notifier).acceptSavedStats(result.stats);
+      _refreshAfterQuestionAttempt(result.question);
+      ref.invalidate(monthlyCheckInProvider);
+      ref.invalidate(earnedMedalsProvider);
+      ref.invalidate(totalCorrectProvider);
       setState(() {
-        _questions[questionIndex] = updatedQuestion;
-        _isCorrectAnswer = isCorrect;
-        if (isCorrect) {
+        _questions[questionIndex] = result.question;
+        _isCorrectAnswer = result.isCorrect;
+        if (result.isCorrect) {
           _correctCount++;
-          _xpGained += 10;
         }
+        _xpGained += result.xpGained;
         _showResult = true;
       });
+    } catch (error) {
+      if (mounted) setState(() => _saveError = error);
+      return;
     } finally {
       if (mounted) {
         setState(() {
@@ -214,6 +222,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         _showResult = false;
         _isCorrectAnswer = false;
         _isChecking = false;
+        _pendingIsCorrect = null;
       });
     } else {
       // 完成
@@ -222,37 +231,35 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   }
 
   Future<void> _finishQuiz() async {
-    if (_isFinishing || _isComplete) return;
-    setState(() => _isFinishing = true);
-    final allCorrect = _correctCount == _questions.length;
-    final statsBefore = ref.read(userStatsProvider).value;
-    final statsNotifier = ref.read(userStatsProvider.notifier);
-    final gameService = ref.read(gamificationServiceProvider);
-    final deckOperations =
-        widget.deckId == null ? null : ref.read(deckOperationsProvider);
+    if (_isFinishing || _isSubmitting || _isComplete || !_showResult) return;
+    setState(() {
+      _isFinishing = true;
+      _saveError = null;
+      _retryCompletion = true;
+    });
     try {
-      await statsNotifier.onDeckComplete(allCorrect: allCorrect);
-      if (allCorrect) {
-        await statsNotifier.onPerfectQuiz();
-        await gameService.incrementPerfectCount();
-      }
-      await deckOperations?.saveStudyRecord(
-        widget.deckId!,
-        _correctCount,
-        _questions.length,
+      final persistence = ref.read(quizPersistenceServiceProvider);
+      final result = await persistence.saveCompletion(
+        operationId: '$_saveSessionId:completion',
+        deckId: widget.deckId,
+        correctCount: _correctCount,
+        totalCount: _questions.length,
       );
       if (!mounted) return;
-      final statsAfter = ref.read(userStatsProvider).value;
-      final bonus = allCorrect ? 100 : 50;
-      final streakBonus = (statsAfter?.streak ?? 0) * 5;
+      ref.read(userStatsProvider.notifier).acceptSavedStats(result.statsAfter);
+      ref.invalidate(perfectCountProvider);
+      ref.invalidate(deckListProvider);
+      if (widget.deckId != null) {
+        ref.invalidate(studyRecordProvider(widget.deckId!));
+      }
       setState(() {
-        _xpGained += bonus + streakBonus;
-        _heartRestored = allCorrect;
+        _xpGained += result.xpGained;
+        _heartRestored = result.allCorrect;
         _isComplete = true;
       });
-      if (statsBefore != null && statsAfter != null) {
-        _checkAchievements(statsBefore, statsAfter);
-      }
+      _checkAchievements(result.statsBefore, result.statsAfter);
+    } catch (error) {
+      if (mounted) setState(() => _saveError = error);
     } finally {
       if (mounted) setState(() => _isFinishing = false);
     }
@@ -363,6 +370,46 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       return Scaffold(
         appBar: AppBar(title: const Text('答题')),
         body: const Center(child: Text('暂无已核验题目，请先在知识库完成来源核验')),
+      );
+    }
+
+    if (_saveError != null) {
+      final stage = _retryCompletion ? '结果' : '答案';
+      return Scaffold(
+        appBar: AppBar(title: const Text('答题')),
+        body: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) => SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: KnowledgeLibraryErrorState(
+                  title: '$stage保存失败',
+                  retryLabel: '重试保存$stage',
+                  diagnosticTitle: '答题$stage保存失败',
+                  diagnosticSuccessMessage: '已复制保存诊断',
+                  // SQLite exceptions can include SQL arguments. Keep raw
+                  // errors and submitted content out of the screen/feedback.
+                  error: '本次保存未完成，请重试。',
+                  diagnosticLines: [
+                    '入口: 答题',
+                    '保存阶段: $stage',
+                    '错误类型: ${_saveError.runtimeType}',
+                  ],
+                  feedbackScreenId: 'quiz_save',
+                  stableErrorCode: 'save_failure',
+                  onRetry: () {
+                    if (_saveError == null) return;
+                    if (_retryCompletion) {
+                      _finishQuiz();
+                    } else {
+                      _checkAnswer();
+                    }
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
       );
     }
 

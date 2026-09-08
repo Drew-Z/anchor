@@ -1,5 +1,26 @@
 # 数据模型设计
 
+## 当前答题保存边界（schema v24，2026-09-09）
+
+本节对应当前实现；后文的早期 ER 图、模型片段和 JSON 导出草案不是完整的当前数据库定义。精确列定义见 [database_helper.dart](../../lib/data/database/database_helper.dart)，当前执行与验收结果见 [CURRENT_STATE.md](../CURRENT_STATE.md)。
+
+- 一次答题通过 `QuizPersistenceService.saveAnswer`，将打卡、XP/心数、累计答对次数、题目复习时间、知识点掌握度和操作凭据放在同一个 SQLite 事务中。保存前重新读取题目，允许复习元数据更新，但拒绝题干、答案、来源状态等已改变的旧判题结果。
+- 一次完成通过 `saveCompletion`，将完成/连续学习奖励、完美次数、恢复心数、题包学习记录、题包掌握度和凭据一并提交。题包记录仍使用 `<deckId>_record` 保存该题包最近一次结果；随机练习不创建题包记录。
+- 页面为每次练习生成随机会话 ID，每题位置和完成动作各有固定操作 ID。失败重试保留已经得到的判题结果；同一个 ID 和相同输入会返回已提交的结果，输入不一致则拒绝。凭据可在数据库重开后重放，但本项没有新增跨进程恢复未完成答题页面的功能。
+- 原有奖励数额、复习公式与掌握度权重保持不变。题目复习事件在事务成功后按原有隐私设置尽力记录；它们不属于核心保存成功条件，失败不会重新发放奖励。
+- SQLite 拒绝最终 COMMIT 时，当前 sqflite 驱动可能仍占着事务。`DatabaseHelper.runInTransaction` 关闭该连接，使未提交内容回滚；下一次访问重新打开数据库，随后以操作凭据判断是否已经提交。
+
+新增两张表：
+
+| 表 | 字段与用途 |
+| --- | --- |
+| `quiz_save_operations` | `operation_id` 主键；`operation_kind` 为 answer/completion；`input_hash` 检查重试输入；`result_json` 仅保存统计、判题结果及复习时间；`created_at` 为毫秒时间。没有题干、用户答案或来源正文副本。 |
+| `gamification_state` | `key` 主键和 `value_json`；保存累计答对/完美次数、月度打卡及勋章，另以 `legacy_preferences_imported` 标记一次性迁移完成。 |
+
+原 SharedPreferences 中的 `total_correct`、`perfect_count`、`checkin_YYYY_M` 和 `medal_YYYY_M` 在首次使用时与迁移标记一并写入 SQLite，后续统计以数据库为准。旧偏好仅保留为迁移输入，学习历史删除会同时移除它们；数据库保留迁移完成标记，避免删除后再次导入旧值。其他设置和模型配置不属于这些统计。
+
+当前备份是 SQLite 快照。`createBackup` 在生成快照前完成旧统计迁移，schema v24 的备份/恢复校验必须包含这两张表。较早的 v12–v23 SQLite 备份仍可升级，但它们没有包含当时的 SharedPreferences 统计，不能据此重建那些统计的历史快照。删除学习历史或学习内容时，也会清空新增统计和操作凭据。
+
 ## ER 图
 
 ```mermaid

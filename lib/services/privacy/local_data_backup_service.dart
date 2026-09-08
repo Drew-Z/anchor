@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../data/database/database_helper.dart';
+import '../gamification_service.dart';
 
 enum LocalDataBackupErrorCode {
   invalidFile('invalid_file'),
@@ -116,6 +117,8 @@ class LocalDataBackupService {
     'programming_exercise_attempts',
     'programming_review_actions',
     'product_events',
+    'gamification_state',
+    'quiz_save_operations',
   };
 
   final DatabaseHelper _databaseHelper;
@@ -134,6 +137,7 @@ class LocalDataBackupService {
 
   Future<LocalDataBackupArtifact> createBackup() async {
     await _requireFileBackedDatabasePath();
+    await GamificationService(_databaseHelper).migrateLegacyStatistics();
     final database = await _databaseHelper.database;
     final createdAt = _clock().toUtc();
     final workingDirectory = await _createWorkingDirectory('backup');
@@ -332,7 +336,14 @@ class LocalDataBackupService {
         .map((row) => row['name']?.toString())
         .whereType<String>()
         .toSet();
-    final missingTables = requiredTables.difference(tableNames).toList()
+    final expectedTables = {
+      ...requiredTables,
+      if (schemaVersion >= 24) ...[
+        'gamification_state',
+        'quiz_save_operations'
+      ],
+    };
+    final missingTables = expectedTables.difference(tableNames).toList()
       ..sort();
     if (missingTables.isNotEmpty) {
       throw LocalDataBackupException(

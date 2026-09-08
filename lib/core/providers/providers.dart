@@ -61,6 +61,7 @@ import '../../services/ai/tasks/tutor_socratic_task.dart';
 import '../../services/ai/ai_model_acceptance.dart';
 import '../../services/content_analyzer.dart';
 import '../../services/gamification_service.dart';
+import '../../services/quiz_persistence_service.dart';
 import '../../services/ingestion/android_project_directory_bridge.dart';
 import '../../services/ingestion/project_learning_draft_service.dart';
 import '../../services/ingestion/project_source_import_service.dart';
@@ -514,6 +515,14 @@ final gamificationServiceProvider = Provider<GamificationService>((ref) {
   return GamificationService(ref.read(databaseProvider));
 });
 
+final quizPersistenceServiceProvider = Provider<QuizPersistenceService>((ref) {
+  return QuizPersistenceService(
+    databaseHelper: ref.read(databaseProvider),
+    gamificationService: ref.read(gamificationServiceProvider),
+    reviewScheduler: ref.read(reviewSchedulerServiceProvider),
+  );
+});
+
 // ============ 数据 Provider ============
 
 /// 所有题包列表
@@ -922,18 +931,25 @@ final userStatsProvider =
 
 class UserStatsNotifier extends StateNotifier<AsyncValue<UserStats>> {
   final GamificationService _service;
+  int _loadVersion = 0;
 
   UserStatsNotifier(this._service) : super(const AsyncValue.loading()) {
     _load();
   }
 
   Future<void> _load() async {
+    final version = ++_loadVersion;
     try {
       final stats = await _service.getStats();
-      state = AsyncValue.data(stats);
+      if (mounted && version == _loadVersion) state = AsyncValue.data(stats);
     } catch (e, st) {
-      state = AsyncValue.error(e, st);
+      if (mounted && version == _loadVersion) state = AsyncValue.error(e, st);
     }
+  }
+
+  void acceptSavedStats(UserStats stats) {
+    _loadVersion++;
+    if (mounted) state = AsyncValue.data(stats);
   }
 
   Future<void> onCorrect() async {

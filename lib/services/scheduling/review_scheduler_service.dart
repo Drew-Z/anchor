@@ -98,15 +98,35 @@ class ReviewSchedulerService {
     DateTime? now,
   }) async {
     final current = now ?? DateTime.now();
-    final updated = question.copyWith(
-      lastReviewedAt: current,
-      nextReviewAt: _nextReviewAt(question, isCorrect, current),
-      ease: _nextEase(question.ease, isCorrect),
-      lapseCount: isCorrect ? question.lapseCount : question.lapseCount + 1,
-    );
+    final updated = reviewedQuestion(question, isCorrect, now: current);
     await _questionRepository.updateQuestion(updated);
-    final flowId =
-        'question_review_${question.id}_${current.toUtc().microsecondsSinceEpoch}';
+    await recordReviewEvents(
+        question: question, updated: updated, now: current);
+    return updated;
+  }
+
+  /// Pure scheduling shared by standalone reviews and transactional quiz saves.
+  static Question reviewedQuestion(
+    Question question,
+    bool isCorrect, {
+    required DateTime now,
+  }) =>
+      question.copyWith(
+        lastReviewedAt: now,
+        nextReviewAt: _nextReviewAt(question, isCorrect, now),
+        ease: _nextEase(question.ease, isCorrect),
+        lapseCount: isCorrect ? question.lapseCount : question.lapseCount + 1,
+      );
+
+  /// Events are best effort and run only after the learning write commits.
+  Future<void> recordReviewEvents({
+    required Question question,
+    required Question updated,
+    required DateTime now,
+    String? operationId,
+  }) async {
+    final flowId = operationId ??
+        'question_review_${question.id}_${now.toUtc().microsecondsSinceEpoch}';
     await _eventRecorder?.recordBestEffort(
       ProductEventName.followUpCompleted,
       flowId: flowId,
@@ -124,11 +144,10 @@ class ReviewSchedulerService {
         'target_type': 'question',
         'due_bucket': ProductEventRecorder.dueBucket(
           updated.nextReviewAt!,
-          now: current,
+          now: now,
         ),
       },
     );
-    return updated;
   }
 
   Future<List<Question>> _getDueQuestions(DateTime now) async {
@@ -165,7 +184,7 @@ class ReviewSchedulerService {
     return lowMasteryBoost + relevanceBoost + loadBoost + overdueCount * 18;
   }
 
-  DateTime _nextReviewAt(
+  static DateTime _nextReviewAt(
     Question question,
     bool isCorrect,
     DateTime now,
@@ -182,7 +201,7 @@ class ReviewSchedulerService {
     return now.add(Duration(days: intervalDays));
   }
 
-  double _nextEase(double ease, bool isCorrect) {
+  static double _nextEase(double ease, bool isCorrect) {
     final next = isCorrect ? ease + 0.12 : ease - 0.2;
     return next.clamp(0.6, 2.5).toDouble();
   }

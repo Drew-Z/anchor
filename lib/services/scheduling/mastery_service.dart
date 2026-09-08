@@ -33,8 +33,25 @@ class MasteryService {
     );
     if (point == null) return;
 
+    await _knowledgePointRepository.updateKnowledgePoint(
+      questionAttemptResult(point, isCorrect, now: DateTime.now()),
+    );
+  }
+
+  /// The same calculation is used inside the quiz persistence transaction.
+  static KnowledgePoint questionAttemptResult(
+    KnowledgePoint point,
+    bool isCorrect, {
+    required DateTime now,
+  }) {
     final target = isCorrect ? 82 : 32;
-    await _updatePointToward(point, target, weight: isCorrect ? 0.24 : 0.34);
+    final weight = isCorrect ? 0.24 : 0.34;
+    final updated =
+        (point.masteryLevel + (target - point.masteryLevel) * weight)
+            .round()
+            .clamp(0, 100)
+            .toInt();
+    return point.copyWith(masteryLevel: updated, updatedAt: now);
   }
 
   Future<void> updateFromInterviewTurn({

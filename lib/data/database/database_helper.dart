@@ -32,7 +32,7 @@ class LearningAgentCheckpointRevisionConflict implements Exception {
 /// SQLite 数据库帮助类
 class DatabaseHelper {
   static const String databaseName = 'anchor_learning.db';
-  static const int schemaVersion = 23;
+  static const int schemaVersion = 24;
 
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   factory DatabaseHelper() => _instance;
@@ -84,6 +84,33 @@ class DatabaseHelper {
     await database?.close();
   }
 
+  /// sqflite rolls back callback failures. If COMMIT itself fails, its native
+  /// transaction may still be open and block queued operations. Closing that
+  /// connection rolls back any uncommitted work; the next access reopens it.
+  Future<T> runInTransaction<T>(
+    Future<T> Function(Transaction transaction) action,
+  ) async {
+    final current = await database;
+    var callbackCompleted = false;
+    try {
+      return await current.transaction((transaction) async {
+        final result = await action(transaction);
+        callbackCompleted = true;
+        return result;
+      });
+    } catch (_) {
+      if (callbackCompleted) {
+        try {
+          await close();
+        } catch (_) {
+          // Preserve the original save error; never report an unknown commit
+          // as successful. Its durable receipt resolves a subsequent retry.
+        }
+      }
+      rethrow;
+    }
+  }
+
   Future<void> _onConfigure(Database db) async {
     await db.execute('PRAGMA foreign_keys = ON');
   }
@@ -97,6 +124,7 @@ class DatabaseHelper {
     await _createProgrammingExerciseTables(db);
     await _createProgrammingReviewActionTables(db);
     await _createProductEventTables(db);
+    await _createQuizPersistenceTables(db);
 
     // 题包表
     await db.execute('''
@@ -245,7 +273,28 @@ class DatabaseHelper {
     if (oldVersion < 23) {
       await _createProductEventTables(db);
     }
+    if (oldVersion < 24) {
+      await _createQuizPersistenceTables(db);
+    }
     // Add future migrations in ascending order.
+  }
+
+  Future<void> _createQuizPersistenceTables(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS gamification_state (
+        key TEXT PRIMARY KEY,
+        value_json TEXT NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS quiz_save_operations (
+        operation_id TEXT PRIMARY KEY,
+        operation_kind TEXT NOT NULL CHECK(operation_kind IN ('answer', 'completion')),
+        input_hash TEXT NOT NULL,
+        result_json TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      )
+    ''');
   }
 
   Future<void> _createProductEventTables(Database db) async {

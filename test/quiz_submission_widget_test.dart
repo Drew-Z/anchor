@@ -9,14 +9,202 @@ import 'package:anchor_learning/features/learning/quiz_screen.dart';
 import 'package:anchor_learning/features/learning/widgets/question_widgets.dart';
 import 'package:anchor_learning/services/gamification_service.dart';
 import 'package:anchor_learning/services/openai_service.dart';
+import 'package:anchor_learning/services/quiz_persistence_service.dart';
 import 'package:anchor_learning/services/scheduling/mastery_service.dart';
 import 'package:anchor_learning/services/scheduling/review_scheduler_service.dart';
 import 'package:anchor_learning/shared/widgets/anchor_button.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('lost save acknowledgement retries the same committed operations',
+      (tester) async {
+    final harness = _Harness();
+    harness.persistence.loseAnswerAcknowledgement = true;
+    harness.persistence.loseCompletionAcknowledgement = true;
+    await harness.pump(tester);
+    await tester.tap(find.text('First answer'));
+    await tester.pump();
+    _action(tester, '检查')();
+    await tester.pumpAndSettle();
+    expect(find.textContaining('答案保存失败'), findsOneWidget);
+    _action(tester, '重试保存答案')();
+    await tester.pumpAndSettle();
+    _action(tester, '完成')();
+    await tester.pumpAndSettle();
+    expect(find.textContaining('结果保存失败'), findsOneWidget);
+    _action(tester, '重试保存结果')();
+    await tester.pumpAndSettle();
+    expect(harness.game.correct, 1);
+    expect(harness.game.completions, 1);
+    expect(harness.game.perfectCount, 1);
+    expect(harness.decks.records, [('quiz-deck', 1, 1)]);
+    expect(find.text('答对 1 / 1 题'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final finishing in [false, true]) {
+    testWidgets(
+        'late ${finishing ? 'completion' : 'answer'} failure after exit is handled',
+        (tester) async {
+      final harness = _Harness();
+      await harness.pump(tester);
+      await tester.tap(find.text('First answer'));
+      await tester.pump();
+      if (finishing) {
+        _action(tester, '检查')();
+        await tester.pumpAndSettle();
+        harness.decks.failuresRemaining = 1;
+        harness.decks.gate = Completer<void>();
+      } else {
+        harness.reviews.failuresRemaining = 1;
+        harness.reviews.gate = Completer<void>();
+      }
+      _action(tester, finishing ? '完成' : '检查')();
+      await tester.pump();
+      harness.showQuiz.value = false;
+      await tester.pump();
+      (finishing ? harness.decks.gate : harness.reviews.gate)!.complete();
+      await tester.pumpAndSettle();
+      expect(find.text('Quiz closed'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets(
+        'short large-text ${finishing ? 'completion' : 'answer'} error can retry',
+        (tester) async {
+      final harness = _Harness();
+      await harness.pump(tester, size: const Size(320, 740), textScale: 2);
+      await tester.tap(find.text('First answer'));
+      await tester.pump();
+      if (finishing) {
+        _action(tester, '检查')();
+        await tester.pumpAndSettle();
+        harness.decks.failuresRemaining = 1;
+      } else {
+        harness.reviews.failuresRemaining = 1;
+      }
+      _action(tester, finishing ? '完成' : '检查')();
+      await tester.pumpAndSettle();
+      tester.view.physicalSize = const Size(320, 400);
+      await tester.pumpAndSettle();
+      final retry = find.text(finishing ? '重试保存结果' : '重试保存答案');
+      await tester.ensureVisible(retry);
+      await tester.pumpAndSettle();
+      expect(tester.getRect(retry).bottom, lessThanOrEqualTo(400));
+      expect(tester.takeException(), isNull);
+      tester.view.physicalSize = const Size(320, 740);
+      await tester.pumpAndSettle();
+      await tester.tap(retry);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('保存失败'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('save diagnostics omit raw SQLite error arguments',
+      (tester) async {
+    String? copied;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          copied = (call.arguments as Map)['text'] as String;
+        }
+        return null;
+      },
+    );
+    addTearDown(() => tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, null));
+    final harness = _Harness();
+    harness.reviews.failuresRemaining = 1;
+    harness.reviews.errorMessage = 'SQL args include Synthetic private answer';
+    await harness.pump(tester);
+    await tester.tap(find.text('First answer'));
+    await tester.pump();
+    _action(tester, '检查')();
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Synthetic private answer'), findsNothing);
+    await tester.tap(find.text('复制诊断'));
+    await tester.pumpAndSettle();
+    expect(copied, contains('保存阶段: 答案'));
+    expect(copied, isNot(contains('Synthetic private answer')));
+    expect(copied, isNot(contains('First answer')));
+  });
+
+  testWidgets(
+      'answer save failure can retry without judging or rewarding twice',
+      (tester) async {
+    final harness = _Harness();
+    harness.reviews.failuresRemaining = 1;
+    await harness.pump(tester, questions: [_question('q1', fillBlank: true)]);
+    await tester.enterText(find.byType(TextField), 'submitted equivalent');
+    await tester.pump();
+    _action(tester, '检查')();
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.textContaining('答案保存失败'), findsOneWidget);
+    final retry = _action(tester, '重试保存答案');
+    retry();
+    retry();
+    await tester.pumpAndSettle();
+    expect(harness.ai.answers, ['submitted equivalent']);
+    expect(harness.persistence.answerIds.toSet(), hasLength(1));
+    expect(harness.game.correct, 1);
+    expect(harness.game.totalCorrect, 1);
+    expect(harness.reviews.answers, [('q1', true)]);
+    expect(harness.mastery.answers, [('q1', true)]);
+    expect(find.text('答对了！'), findsOneWidget);
+  });
+
+  testWidgets('repeated wrong-answer save failures deduct only one heart',
+      (tester) async {
+    final harness = _Harness();
+    harness.reviews.failuresRemaining = 2;
+    await harness.pump(tester);
+    await tester.tap(find.text('Second answer'));
+    await tester.pump();
+    _action(tester, '检查')();
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    for (var attempt = 0; attempt < 2; attempt++) {
+      _action(tester, '重试保存答案')();
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    }
+    expect(harness.game.wrong, 1);
+    expect(harness.game.stats.hearts, 4);
+    expect(harness.reviews.answers, [('q1', false)]);
+    expect(find.text('答错了'), findsOneWidget);
+  });
+
+  testWidgets('completion save failures can retry without duplicate bonuses',
+      (tester) async {
+    final harness = _Harness();
+    await harness.pump(tester);
+    await tester.tap(find.text('First answer'));
+    await tester.pump();
+    _action(tester, '检查')();
+    await tester.pumpAndSettle();
+    harness.decks.failuresRemaining = 2;
+    _action(tester, '完成')();
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.textContaining('结果保存失败'), findsOneWidget);
+    for (var attempt = 0; attempt < 2; attempt++) {
+      _action(tester, '重试保存结果')();
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    }
+    expect(harness.game.completions, 1);
+    expect(harness.game.perfectCount, 1);
+    expect(harness.persistence.completionIds.toSet(), hasLength(1));
+    expect(harness.decks.records, [('quiz-deck', 1, 1)]);
+    expect(find.text('答对 1 / 1 题'), findsOneWidget);
+  });
+
   testWidgets('repeated check awards and schedules a local answer once',
       (tester) async {
     final harness = _Harness();
@@ -327,9 +515,15 @@ void main() {
   });
 }
 
-VoidCallback _action(WidgetTester tester, String label) => tester
-    .widget<AnchorButton>(find.widgetWithText(AnchorButton, label))
-    .onPressed!;
+VoidCallback _action(WidgetTester tester, String label) {
+  final anchor = find.widgetWithText(AnchorButton, label);
+  if (anchor.evaluate().isNotEmpty) {
+    return tester.widget<AnchorButton>(anchor).onPressed!;
+  }
+  return tester
+      .widget<OutlinedButton>(find.widgetWithText(OutlinedButton, label))
+      .onPressed!;
+}
 
 Question _question(String id, {bool fillBlank = false}) => Question(
       id: id,
@@ -349,6 +543,7 @@ class _Harness {
   final mastery = _Mastery();
   final decks = _Decks();
   final ai = _AI();
+  late final persistence = _Persistence(game, reviews, mastery, decks);
   final showQuiz = ValueNotifier(true);
 
   Future<void> pump(
@@ -369,6 +564,7 @@ class _Harness {
         masteryServiceProvider.overrideWithValue(mastery),
         deckOperationsProvider.overrideWithValue(decks),
         openaiServiceProvider.overrideWithValue(ai),
+        quizPersistenceServiceProvider.overrideWithValue(persistence),
         questionCitationChunksProvider.overrideWith((ref, id) async => []),
       ],
       child: MaterialApp(
@@ -388,6 +584,96 @@ class _Harness {
       ),
     ));
     await tester.pumpAndSettle();
+  }
+}
+
+/// The widget suite controls the persistence boundary; the real transaction,
+/// rollback and durable receipts are exercised by quiz_persistence_service_test.
+class _Persistence extends Fake implements QuizPersistenceService {
+  final _Game game;
+  final _Reviews reviews;
+  final _Mastery mastery;
+  final _Decks decks;
+  final answerIds = <String>[];
+  final completionIds = <String>[];
+  final _answers = <String, QuizAnswerSaveResult>{};
+  final _completions = <String, QuizCompletionSaveResult>{};
+  bool loseAnswerAcknowledgement = false;
+  bool loseCompletionAcknowledgement = false;
+
+  _Persistence(this.game, this.reviews, this.mastery, this.decks);
+
+  @override
+  Future<QuizAnswerSaveResult> saveAnswer({
+    required String operationId,
+    required Question question,
+    required bool isCorrect,
+  }) async {
+    answerIds.add(operationId);
+    if (_answers.containsKey(operationId)) return _answers[operationId]!;
+    if (reviews.failuresRemaining > 0) {
+      await reviews.recordQuestionReview(
+          question: question, isCorrect: isCorrect);
+    }
+    await game.recordCheckIn();
+    if (isCorrect) {
+      await game.onCorrectAnswer();
+      await game.incrementTotalCorrect();
+    } else {
+      await game.onWrongAnswer();
+    }
+    final updated = await reviews.recordQuestionReview(
+      question: question,
+      isCorrect: isCorrect,
+    );
+    await mastery.updateFromQuestionAttempt(
+        question: question, isCorrect: isCorrect);
+    final result = QuizAnswerSaveResult(
+        question: updated, isCorrect: isCorrect, stats: game.stats);
+    _answers[operationId] = result;
+    if (loseAnswerAcknowledgement) {
+      loseAnswerAcknowledgement = false;
+      throw StateError('Synthetic lost answer acknowledgement');
+    }
+    return result;
+  }
+
+  @override
+  Future<QuizCompletionSaveResult> saveCompletion({
+    required String operationId,
+    required String? deckId,
+    required int correctCount,
+    required int totalCount,
+  }) async {
+    completionIds.add(operationId);
+    if (_completions.containsKey(operationId)) {
+      return _completions[operationId]!;
+    }
+    if (deckId != null && decks.failuresRemaining > 0) {
+      await decks.saveStudyRecord(deckId, correctCount, totalCount);
+    }
+    final before = game.stats;
+    final allCorrect = correctCount == totalCount;
+    await game.onDeckComplete(allCorrect: allCorrect);
+    if (allCorrect) {
+      await game.onPerfectQuiz();
+      await game.incrementPerfectCount();
+    }
+    if (deckId != null) {
+      await decks.saveStudyRecord(deckId, correctCount, totalCount);
+    }
+    final result = QuizCompletionSaveResult(
+      statsBefore: before,
+      statsAfter: game.stats,
+      xpGained: game.stats.xp - before.xp,
+      allCorrect: allCorrect,
+    );
+    _completions[operationId] = result;
+    if (loseCompletionAcknowledgement) {
+      loseCompletionAcknowledgement = false;
+      throw StateError('Synthetic lost completion acknowledgement');
+    }
+    return result;
   }
 }
 
@@ -447,6 +733,8 @@ class _Game extends Fake implements GamificationService {
 class _Reviews extends Fake implements ReviewSchedulerService {
   final answers = <(String, bool)>[];
   Completer<void>? gate;
+  int failuresRemaining = 0;
+  String errorMessage = 'Synthetic review save failure';
 
   @override
   Future<Question> recordQuestionReview({
@@ -454,8 +742,12 @@ class _Reviews extends Fake implements ReviewSchedulerService {
     required bool isCorrect,
     DateTime? now,
   }) async {
-    answers.add((question.id, isCorrect));
     await gate?.future;
+    if (failuresRemaining > 0) {
+      failuresRemaining--;
+      throw StateError(errorMessage);
+    }
+    answers.add((question.id, isCorrect));
     return question.copyWith(lastReviewedAt: DateTime(2026, 9, 8));
   }
 }
@@ -473,9 +765,16 @@ class _Mastery extends Fake implements MasteryService {
 
 class _Decks extends Fake implements DeckOperations {
   final records = <(String, int, int)>[];
+  int failuresRemaining = 0;
+  Completer<void>? gate;
 
   @override
   Future<void> saveStudyRecord(String deckId, int correct, int total) async {
+    await gate?.future;
+    if (failuresRemaining > 0) {
+      failuresRemaining--;
+      throw StateError('Synthetic record save failure');
+    }
     records.add((deckId, correct, total));
   }
 }

@@ -9,6 +9,7 @@ import 'package:anchor_learning/services/ai/ai_api_protocol.dart';
 import 'package:anchor_learning/services/ai/ai_model_acceptance.dart';
 import 'package:anchor_learning/services/onboarding/first_run_progress.dart';
 import 'package:anchor_learning/services/openai_service.dart';
+import 'package:anchor_learning/services/gamification_service.dart';
 import 'package:anchor_learning/services/privacy/local_data_deletion_service.dart';
 import 'package:anchor_learning/services/privacy/privacy_preferences.dart';
 import 'package:anchor_learning/services/privacy/privacy_redactor.dart';
@@ -112,6 +113,13 @@ void main() {
 
   test('scoped deletion preserves content when only history is selected',
       () async {
+    SharedPreferences.setMockInitialValues({
+      'total_correct': 12,
+      'perfect_count': 3,
+      'checkin_2026_9': ['2026-09-01'],
+      'medal_2026_8': true,
+      'unrelated_preference': 'preserve',
+    });
     final helper = DatabaseHelper.forTesting(
       databaseFactory: databaseFactoryFfi,
     );
@@ -148,7 +156,27 @@ void main() {
       eventRecorder: recorder,
     );
 
+    final game = GamificationService(helper);
+    await game.incrementTotalCorrect();
+    await (await helper.database).insert('quiz_save_operations', {
+      'operation_id': 'synthetic-operation',
+      'operation_kind': 'completion',
+      'input_hash': 'synthetic-hash',
+      'result_json': '{}',
+      'created_at': 1,
+    });
+
     await service.delete({LocalDataScope.learningHistory});
+    expect(await game.getTotalCorrect(), 0);
+    expect(await game.getPerfectCount(), 0);
+    expect(await game.getMonthlyCheckInDates(2026, 9), isEmpty);
+    expect(await game.getEarnedMedals(), isEmpty);
+    expect(
+        await (await helper.database).query('quiz_save_operations'), isEmpty);
+    final legacy = await SharedPreferences.getInstance();
+    expect(legacy.getKeys().where(GamificationService.isLegacyStatisticsKey),
+        isEmpty);
+    expect(legacy.getString('unrelated_preference'), 'preserve');
     expect((await helper.getAllDecks()).single.id, 'deck-keep');
     expect(
       (await repository.getEvents()).map((event) => event.name),

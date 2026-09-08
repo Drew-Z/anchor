@@ -32,7 +32,7 @@ import 'package:anchor_learning/services/agent/learning_agent_user_decision.dart
 void main() {
   sqfliteFfiInit();
 
-  group('DatabaseHelper schema v23', () {
+  group('DatabaseHelper schema v24', () {
     test('creates the current schema with Agent and source provenance columns',
         () async {
       final helper = DatabaseHelper.forTesting(
@@ -41,7 +41,7 @@ void main() {
       addTearDown(helper.close);
 
       final database = await helper.database;
-      expect(await database.getVersion(), 23);
+      expect(await database.getVersion(), 24);
 
       final stateColumns = await database.rawQuery(
         'PRAGMA table_info(learning_agent_states)',
@@ -220,6 +220,58 @@ void main() {
         ]),
       );
       expect((await helper.getUserStats()).hearts, 5);
+      expect(
+        (await database.rawQuery('PRAGMA table_info(quiz_save_operations)'))
+            .map((column) => column['name']),
+        containsAll(
+            ['operation_id', 'operation_kind', 'input_hash', 'result_json']),
+      );
+      expect(await database.query('gamification_state'), isEmpty);
+    });
+
+    test(
+        'upgrades v23 with empty quiz receipts and keeps existing learning data',
+        () async {
+      final directory =
+          await Directory.systemTemp.createTemp('anchor_v23_upgrade_');
+      addTearDown(() => directory.delete(recursive: true));
+      final databasePath = path.join(directory.path, 'legacy.db');
+      final seed = DatabaseHelper.forTesting(
+        databaseFactory: databaseFactoryFfi,
+        databasePath: databasePath,
+      );
+      final now = DateTime(2026, 9, 9);
+      await seed.insertDeck(Deck(
+        id: 'kept-deck',
+        title: 'Kept deck',
+        createdAt: now,
+        updatedAt: now,
+      ));
+      await seed.updateUserStats(
+          (await seed.getUserStats()).copyWith(xp: 321, hearts: 2));
+      final old = await seed.database;
+      await old.execute('DROP TABLE quiz_save_operations');
+      await old.execute('DROP TABLE gamification_state');
+      await old.setVersion(23);
+      await seed.close();
+      final upgraded = DatabaseHelper.forTesting(
+        databaseFactory: databaseFactoryFfi,
+        databasePath: databasePath,
+      );
+      addTearDown(upgraded.close);
+      final database = await upgraded.database;
+      expect(await database.getVersion(), 24);
+      expect((await upgraded.getAllDecks()).single.id, 'kept-deck');
+      expect((await upgraded.getUserStats()).xp, 321);
+      expect((await upgraded.getUserStats()).hearts, 2);
+      expect(await database.query('quiz_save_operations'), isEmpty);
+      expect(await database.query('gamification_state'), isEmpty);
+      expect(
+          (await database.rawQuery('PRAGMA integrity_check'))
+              .single
+              .values
+              .single,
+          'ok');
     });
 
     test('upgrades v22 with an empty immutable product event store', () async {
@@ -261,7 +313,7 @@ void main() {
       );
       addTearDown(upgradedHelper.close);
       final upgradedDatabase = await upgradedHelper.database;
-      expect(await upgradedDatabase.getVersion(), 23);
+      expect(await upgradedDatabase.getVersion(), 24);
       expect((await upgradedHelper.getAllSources()).single.id, 'v22-source');
 
       final inserted = await upgradedHelper.insertProductEvent(
@@ -379,7 +431,7 @@ void main() {
       addTearDown(upgradedHelper.close);
       final upgradedDatabase = await upgradedHelper.database;
 
-      expect(await upgradedDatabase.getVersion(), 23);
+      expect(await upgradedDatabase.getVersion(), 24);
       expect((await upgradedHelper.getAllDecks()).single.id, 'deck-v11');
       expect(
         (await upgradedHelper.getAllQuestions()).single.id,
@@ -492,7 +544,7 @@ void main() {
         databasePath: databasePath,
       );
       addTearDown(upgradedHelper.close);
-      expect(await (await upgradedHelper.database).getVersion(), 23);
+      expect(await (await upgradedHelper.database).getVersion(), 24);
       final point = await upgradedHelper.getKnowledgePoint('legacy-point');
       expect(point?.kind, KnowledgePointKind.concept);
     });
@@ -552,7 +604,7 @@ void main() {
         databasePath: databasePath,
       );
       addTearDown(upgradedHelper.close);
-      expect(await (await upgradedHelper.database).getVersion(), 23);
+      expect(await (await upgradedHelper.database).getVersion(), 24);
       final turn =
           (await upgradedHelper.getInterviewTurns('session-v14')).single;
       expect(turn.id, 'turn-v14');
@@ -623,7 +675,7 @@ void main() {
         databasePath: databasePath,
       );
       addTearDown(upgradedHelper.close);
-      expect(await (await upgradedHelper.database).getVersion(), 23);
+      expect(await (await upgradedHelper.database).getVersion(), 24);
       final turn =
           (await upgradedHelper.getInterviewTurns('session-v15')).single;
       expect(turn.knowledgePointId, 'point-boundary');
@@ -681,7 +733,7 @@ void main() {
         databasePath: databasePath,
       );
       addTearDown(upgradedHelper.close);
-      expect(await (await upgradedHelper.database).getVersion(), 23);
+      expect(await (await upgradedHelper.database).getVersion(), 24);
       final source = await upgradedHelper.getSource('source-v16');
       expect(source?.title, 'Legacy official docs');
       expect(source?.uri, 'https://example.com/docs');
@@ -738,7 +790,7 @@ void main() {
         databasePath: databasePath,
       );
       addTearDown(upgradedHelper.close);
-      expect(await (await upgradedHelper.database).getVersion(), 23);
+      expect(await (await upgradedHelper.database).getVersion(), 24);
       expect(await upgradedHelper.getKnowledgePointPrerequisites(), isEmpty);
 
       await upgradedHelper.replaceKnowledgePointPrerequisites(
@@ -805,7 +857,7 @@ void main() {
         databasePath: databasePath,
       );
       addTearDown(upgradedHelper.close);
-      expect(await (await upgradedHelper.database).getVersion(), 23);
+      expect(await (await upgradedHelper.database).getVersion(), 24);
       expect(await upgradedHelper.getTutorTurns('tutor-session-v18'), isEmpty);
 
       await upgradedHelper.insertTutorTurn(
@@ -873,7 +925,7 @@ void main() {
         databasePath: databasePath,
       );
       addTearDown(upgradedHelper.close);
-      expect(await (await upgradedHelper.database).getVersion(), 23);
+      expect(await (await upgradedHelper.database).getVersion(), 24);
       expect(
         await upgradedHelper.getProgrammingExercisesForKnowledgePoint(
           'exercise-point',
@@ -979,7 +1031,7 @@ void main() {
       );
       addTearDown(upgradedHelper.close);
       final upgradedDatabase = await upgradedHelper.database;
-      expect(await upgradedDatabase.getVersion(), 23);
+      expect(await upgradedDatabase.getVersion(), 24);
       expect(await upgradedHelper.getOpenProgrammingReviewActions(), isEmpty);
 
       final original = ProgrammingReviewAction(
@@ -1158,7 +1210,7 @@ void main() {
         databasePath: databasePath,
       );
       addTearDown(upgradedHelper.close);
-      expect(await (await upgradedHelper.database).getVersion(), 23);
+      expect(await (await upgradedHelper.database).getVersion(), 24);
       final legacyInterview =
           (await upgradedHelper.getInterviewTurns('grounding-session')).single;
       final legacyTutor =
