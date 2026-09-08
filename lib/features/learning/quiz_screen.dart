@@ -28,7 +28,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   int _currentIndex = 0;
   String? _selectedAnswer;
   bool _showResult = false;
-  bool _isLoading = true;
+  bool _isLoading = false;
+  Object? _loadError;
   int _correctCount = 0;
   bool _isComplete = false;
   bool _outOfHearts = false;
@@ -46,25 +47,30 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   }
 
   Future<void> _loadQuestions() async {
-    // 随机模式直接传入题目
-    if (widget.questions != null) {
+    if (!mounted || _isLoading) return;
+    setState(() {
+      _isLoading = true;
+      _loadError = null;
+    });
+    try {
+      final questions = widget.questions ??
+          (widget.deckId == null
+              ? <Question>[]
+              : await ref
+                  .read(questionRepositoryProvider)
+                  .getQuestionsByDeck(widget.deckId!));
+      if (!mounted) return;
       setState(() {
-        _questions = _verifiedQuestions(widget.questions!);
+        _questions = _verifiedQuestions(questions);
         _isLoading = false;
       });
-      return;
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loadError = error;
+        _isLoading = false;
+      });
     }
-    if (widget.deckId == null) {
-      setState(() => _isLoading = false);
-      return;
-    }
-    final questions = await ref
-        .read(questionRepositoryProvider)
-        .getQuestionsByDeck(widget.deckId!);
-    setState(() {
-      _questions = _verifiedQuestions(questions);
-      _isLoading = false;
-    });
   }
 
   List<Question> _verifiedQuestions(List<Question> questions) {
@@ -320,8 +326,36 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppColors.green)),
+      return Scaffold(
+        appBar: AppBar(title: const Text('答题')),
+        body: const Center(
+            child: CircularProgressIndicator(color: AppColors.green)),
+      );
+    }
+
+    if (_loadError != null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('答题')),
+        body: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) => SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: KnowledgeLibraryErrorState(
+                  title: '题目读取失败',
+                  retryLabel: '重试读取题目',
+                  diagnosticTitle: '答题题目读取失败',
+                  diagnosticSuccessMessage: '已复制答题读取诊断',
+                  diagnosticLines: ['入口: 答题', '题包 ID: ${widget.deckId}'],
+                  error: _loadError!,
+                  onRetry: () {
+                    if (_loadError != null) _loadQuestions();
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
       );
     }
 
