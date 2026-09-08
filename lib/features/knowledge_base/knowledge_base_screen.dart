@@ -95,43 +95,66 @@ class KnowledgeBaseScreen extends ConsumerWidget {
                       ],
                     ),
                     const SizedBox(height: 14),
-                    Row(
-                      children: [
-                        _MetricTile(
-                          icon: Icons.source,
-                          color: AppColors.blue,
-                          label: '来源',
-                          value: sourceCount.toString(),
-                        ),
-                        const SizedBox(width: 8),
-                        _MetricTile(
-                          icon: Icons.psychology,
-                          color: AppColors.green,
-                          label: '知识点',
-                          value: pointCount.toString(),
-                        ),
-                        const SizedBox(width: 8),
-                        _MetricTile(
-                          icon: Icons.quiz,
-                          color: AppColors.gold,
-                          label: '题目',
-                          value: questionCount.toString(),
-                        ),
-                        const SizedBox(width: 8),
-                        _MetricTile(
-                          icon: Icons.fact_check,
-                          color: pendingCount > 0
-                              ? AppColors.streakOrange
-                              : AppColors.textLight,
-                          label: '待核验',
-                          value: pendingCount.toString(),
-                        ),
-                      ],
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        // Android can build before the initial window size arrives.
+                        if (constraints.maxWidth <= 8) {
+                          return const SizedBox.shrink();
+                        }
+                        final labelWidth =
+                            MediaQuery.textScalerOf(context).scale(12) * 3 + 24;
+                        final fourColumnWidth = (constraints.maxWidth - 24) / 4;
+                        final columns = fourColumnWidth >= 76 &&
+                                fourColumnWidth >= labelWidth
+                            ? 4
+                            : 2;
+                        final tileWidth =
+                            (constraints.maxWidth - 8 * (columns - 1)) /
+                                columns;
+                        final tiles = [
+                          _MetricTile(
+                            icon: Icons.source,
+                            color: AppColors.blue,
+                            label: '来源',
+                            value: sourceCount.toString(),
+                          ),
+                          _MetricTile(
+                            icon: Icons.psychology,
+                            color: AppColors.green,
+                            label: '知识点',
+                            value: pointCount.toString(),
+                          ),
+                          _MetricTile(
+                            icon: Icons.quiz,
+                            color: AppColors.gold,
+                            label: '题目',
+                            value: questionCount.toString(),
+                          ),
+                          _MetricTile(
+                            icon: Icons.fact_check,
+                            color: pendingCount > 0
+                                ? AppColors.streakOrange
+                                : AppColors.textLight,
+                            label: '待核验',
+                            value: pendingCount.toString(),
+                          ),
+                        ];
+                        return Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final tile in tiles)
+                              SizedBox(width: tileWidth, child: tile),
+                          ],
+                        );
+                      },
                     ),
                   ],
                 ),
               ),
               const TabBar(
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
                 labelColor: AppColors.textPrimary,
                 unselectedLabelColor: AppColors.textSecondary,
                 indicatorColor: AppColors.green,
@@ -250,6 +273,7 @@ class _KnowledgeSearchTabState extends ConsumerState<_KnowledgeSearchTab> {
     final answerSessionsAsync = ref.watch(knowledgeAnswerSessionListProvider);
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
@@ -353,24 +377,27 @@ class _KnowledgeSearchTabState extends ConsumerState<_KnowledgeSearchTab> {
             ),
           ),
         if (_answer != null || _answerError != null)
-          _KnowledgeAnswerPanel(
-            question: query,
-            answer: _answer,
-            error: _answerError,
-            answerCompletedAt: _answerCompletedAt,
-            answerFailedAt: _answerFailedAt,
-            answerAttemptCount: _answerAttemptCount,
-            recordSaved: _answerSaved,
-            recordSavedAt: _answerSavedAt,
-            isRecording: _isRecordingAnswer,
-            recordError: _answerRecordError,
-            recordFailedAt: _answerRecordFailedAt,
-            recordAttemptCount: _answerRecordAttemptCount,
-            sourceChunks: _answerChunks,
-            onRetryAnswer: _retryKnowledgeAnswer,
-            onRetryRecord: _retryRecordKnowledgeAnswer,
-            onSourceGapSelected: _useKnowledgeAnswerQuery,
-            onFollowUpSelected: _useKnowledgeAnswerQuery,
+          Flexible(
+            flex: 2,
+            child: _KnowledgeAnswerPanel(
+              question: query,
+              answer: _answer,
+              error: _answerError,
+              answerCompletedAt: _answerCompletedAt,
+              answerFailedAt: _answerFailedAt,
+              answerAttemptCount: _answerAttemptCount,
+              recordSaved: _answerSaved,
+              recordSavedAt: _answerSavedAt,
+              isRecording: _isRecordingAnswer,
+              recordError: _answerRecordError,
+              recordFailedAt: _answerRecordFailedAt,
+              recordAttemptCount: _answerRecordAttemptCount,
+              sourceChunks: _answerChunks,
+              onRetryAnswer: _retryKnowledgeAnswer,
+              onRetryRecord: _retryRecordKnowledgeAnswer,
+              onSourceGapSelected: _useKnowledgeAnswerQuery,
+              onFollowUpSelected: _useKnowledgeAnswerQuery,
+            ),
           ),
         Expanded(
           child: query.isEmpty
@@ -948,65 +975,67 @@ class _KnowledgeAnswerActionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 10,
+      runSpacing: 8,
       children: [
-        Expanded(
-          child: Text(
-            contextChunkCount == 0 ? '暂无可引用片段' : '$contextChunkCount 条可引用片段',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textSecondary,
-            ),
+        Text(
+          contextChunkCount == 0 ? '暂无可引用片段' : '$contextChunkCount 条可引用片段',
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textSecondary,
           ),
         ),
-        const SizedBox(width: 10),
-        if (contextChunkCount == 0) ...[
-          IconButton(
-            tooltip: '查看来源',
-            icon: const Icon(Icons.source, size: 18),
-            color: AppColors.textSecondary,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints.tightFor(
-              width: 30,
-              height: 30,
-            ),
-            visualDensity: VisualDensity.compact,
-            onPressed: () => DefaultTabController.of(context).animateTo(1),
+        if (contextChunkCount == 0)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                tooltip: '查看来源',
+                icon: const Icon(Icons.source, size: 18),
+                color: AppColors.textSecondary,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(
+                  width: 30,
+                  height: 30,
+                ),
+                visualDensity: VisualDensity.compact,
+                onPressed: () => DefaultTabController.of(context).animateTo(1),
+              ),
+              const SizedBox(width: 4),
+              IconButton(
+                tooltip: '重新匹配来源片段',
+                icon: const Icon(Icons.refresh, size: 18),
+                color: AppColors.textSecondary,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(
+                  width: 30,
+                  height: 30,
+                ),
+                visualDensity: VisualDensity.compact,
+                onPressed: onRefreshContext,
+              ),
+              const SizedBox(width: 4),
+              IconButton(
+                tooltip: '复制无引用诊断',
+                icon: const Icon(Icons.copy, size: 18),
+                color: AppColors.textSecondary,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(
+                  width: 30,
+                  height: 30,
+                ),
+                visualDensity: VisualDensity.compact,
+                onPressed: () => _copyAnswerNoContextDiagnostic(
+                  context,
+                  query: query,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 4),
-          IconButton(
-            tooltip: '重新匹配来源片段',
-            icon: const Icon(Icons.refresh, size: 18),
-            color: AppColors.textSecondary,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints.tightFor(
-              width: 30,
-              height: 30,
-            ),
-            visualDensity: VisualDensity.compact,
-            onPressed: onRefreshContext,
-          ),
-          const SizedBox(width: 4),
-          IconButton(
-            tooltip: '复制无引用诊断',
-            icon: const Icon(Icons.copy, size: 18),
-            color: AppColors.textSecondary,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints.tightFor(
-              width: 30,
-              height: 30,
-            ),
-            visualDensity: VisualDensity.compact,
-            onPressed: () => _copyAnswerNoContextDiagnostic(
-              context,
-              query: query,
-            ),
-          ),
-          const SizedBox(width: 6),
-        ],
         ElevatedButton.icon(
           onPressed: onAnswer,
           icon: isAnswering
@@ -1145,7 +1174,7 @@ class _KnowledgeAnswerPanel extends StatelessWidget {
       hasError: error != null,
     );
     if (error != null) {
-      return Padding(
+      return SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2239,49 +2268,44 @@ class _MetricTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        height: 76,
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppColors.border, width: 2),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: color, size: 22),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    value,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
-                    ),
+    return Container(
+      constraints: const BoxConstraints(minHeight: 76),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.border, width: 2),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 22),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
                   ),
-                  Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
+                ),
               ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textSecondary,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:anchor_learning/core/providers/providers.dart';
+import 'package:anchor_learning/core/theme/app_theme.dart';
 import 'package:anchor_learning/data/database/database_helper.dart';
 import 'package:anchor_learning/data/models/grounded_learning_context.dart';
 import 'package:anchor_learning/data/models/learning_session.dart';
@@ -15,6 +16,7 @@ import 'package:anchor_learning/services/agent/search_preferences.dart';
 import 'package:anchor_learning/services/ai/ai_task_result.dart';
 import 'package:anchor_learning/services/ai/tasks/knowledge_answer_task.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -174,6 +176,151 @@ void main() {
     expect(find.text('1 条可引用片段'), findsOneWidget);
     expect(find.text('暂无可引用片段'), findsNothing);
   });
+
+  testWidgets('recovers from an initial zero-size Android window',
+      (tester) async {
+    tester.view.physicalSize = Size.zero;
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await _pumpSearch(tester, initialQuery: 'old');
+    expect(tester.takeException(), isNull);
+
+    tester.view.physicalSize = const Size(390, 844);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    for (final label in ['来源', '知识点', '题目', '待核验']) {
+      _expectFullText(tester, find.text(label).first);
+    }
+    expect(_searchInput.hitTestable(), findsOneWidget);
+  });
+
+  testWidgets('answer errors remain scrollable with limited vertical space',
+      (tester) async {
+    tester.view.physicalSize = const Size(320, 740);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final task = _ControlledKnowledgeAnswerTask();
+    final repository = _ControlledLearningSessionRepository(deferSaves: false);
+    await _pumpSearch(
+      tester,
+      initialQuery: 'old',
+      answerTask: task,
+      sessionRepository: repository,
+      textScaler: const TextScaler.linear(2),
+    );
+    await tester.pumpAndSettle();
+    await _startAnswer(tester);
+    task.requests.single.fail('synthetic_retry_check');
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    final retryContext = find.text('重试会复用 1 条来源片段');
+    await tester.ensureVisible(retryContext);
+    await tester.pumpAndSettle();
+    expect(retryContext.hitTestable(), findsOneWidget);
+    _expectFullText(tester, retryContext);
+    final retry = find.byTooltip('重新生成回答');
+    await tester.ensureVisible(retry);
+    await tester.pumpAndSettle();
+    await tester.tap(retry);
+    await tester.pump();
+    task.requests.last.succeed('Current answer');
+    await tester.pumpAndSettle();
+    expect(repository.sessions, hasLength(1));
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final layout in [
+    (width: 390.0, scale: 1.0),
+    (width: 320.0, scale: 2.0),
+  ]) {
+    testWidgets(
+        'library labels and tabs remain readable at '
+        '${layout.width}px/${layout.scale}x', (tester) async {
+      tester.view.physicalSize = Size(layout.width, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await _pumpSearch(
+        tester,
+        initialQuery: 'old',
+        textScaler: TextScaler.linear(layout.scale),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+
+      for (final label in ['来源', '知识点', '题目', '待核验']) {
+        _expectFullText(tester, find.text(label).first);
+      }
+      _expectFullText(tester, find.text('暂无可引用片段'));
+      _expectFullText(tester, find.text('基于来源回答'));
+      for (final tooltip in ['查看来源', '重新匹配来源片段', '复制无引用诊断']) {
+        expect(find.byTooltip(tooltip).hitTestable(), findsOneWidget);
+      }
+
+      final finalTab = find.widgetWithText(Tab, '待核验');
+      await tester.ensureVisible(finalTab);
+      await tester.pumpAndSettle();
+      _expectFullText(
+        tester,
+        find.descendant(of: finalTab, matching: find.text('待核验')),
+      );
+      await tester.tap(finalTab);
+      await tester.pumpAndSettle();
+      expect(DefaultTabController.of(tester.element(finalTab)).index, 4);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets(
+        'answer and citation stay scrollable at '
+        '${layout.width}px/${layout.scale}x', (tester) async {
+      tester.view.physicalSize = Size(layout.width, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final task = _ControlledKnowledgeAnswerTask();
+      final repository =
+          _ControlledLearningSessionRepository(deferSaves: false);
+      await _pumpSearch(
+        tester,
+        initialQuery: 'old',
+        answerTask: task,
+        sessionRepository: repository,
+        textScaler: TextScaler.linear(layout.scale),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      _expectFullText(tester, find.text('1 条可引用片段'));
+      _expectFullText(tester, find.text('基于来源回答'));
+      await _startAnswer(tester);
+      task.requests.single.fail('Current failure');
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      _expectFullText(tester, find.text('Current failure'));
+      expect(find.byTooltip('重新生成回答').hitTestable(), findsOneWidget);
+      await tester.tap(find.byTooltip('重新生成回答'));
+      await tester.pump();
+      task.requests.last.succeed('Current answer');
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(repository.sessions, hasLength(1));
+
+      await tester.ensureVisible(find.text('Current answer'));
+      await tester.pumpAndSettle();
+      expect(find.text('Current answer').hitTestable(), findsOneWidget);
+      _expectFullText(tester, find.text('Current answer'));
+      await tester.ensureVisible(find.text('Synthetic section'));
+      await tester.pumpAndSettle();
+      expect(find.text('Synthetic section').hitTestable(), findsOneWidget);
+
+      await tester.tap(find.byTooltip('清空'));
+      await tester.pumpAndSettle();
+      expect(find.text('输入关键词检索知识库'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   for (final completeBeforeDebounce in [true, false]) {
     testWidgets(
@@ -395,6 +542,23 @@ void main() {
 Finder get _searchInput => find.byKey(const ValueKey('knowledge-search-input'));
 Finder get _answerAction => find.widgetWithText(ElevatedButton, '基于来源回答');
 
+void _expectFullText(WidgetTester tester, Finder finder) {
+  final paragraph = tester.renderObject<RenderParagraph>(finder);
+  expect(paragraph.didExceedMaxLines, isFalse,
+      reason:
+          'The complete label must be visible: ${paragraph.text.toPlainText()}');
+  final boxes = paragraph.getBoxesForSelection(TextSelection(
+    baseOffset: 0,
+    extentOffset: paragraph.text.toPlainText().length,
+  ));
+  expect(boxes, isNotEmpty);
+  for (final box in boxes) {
+    expect(box.left, greaterThanOrEqualTo(-0.1));
+    expect(box.right, lessThanOrEqualTo(paragraph.size.width + 0.1));
+    expect(box.bottom, lessThanOrEqualTo(paragraph.size.height + 0.1));
+  }
+}
+
 Future<void> _startAnswer(WidgetTester tester) async {
   await tester.tap(_answerAction);
   await tester.pump();
@@ -546,6 +710,7 @@ Future<void> _pumpSearch(
   String? initialQuery,
   _ControlledKnowledgeAnswerTask? answerTask,
   _ControlledLearningSessionRepository? sessionRepository,
+  TextScaler textScaler = TextScaler.noScaling,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -607,6 +772,11 @@ Future<void> _pumpSearch(
         ),
       ],
       child: MaterialApp(
+        theme: AppTheme.lightTheme,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(textScaler: textScaler),
+          child: child!,
+        ),
         home: KnowledgeBaseScreen(
           initialSearchQuery: initialQuery,
           searchDebounceDelay: const Duration(milliseconds: 100),
