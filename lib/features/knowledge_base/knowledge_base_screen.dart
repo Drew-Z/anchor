@@ -198,6 +198,7 @@ class _KnowledgeSearchTabState extends ConsumerState<_KnowledgeSearchTab> {
   late final SearchQueryDebouncer _queryDebouncer;
   String _draftQuery = '';
   String _query = '';
+  int _answerRequestId = 0;
   bool _isAnswering = false;
   KnowledgeAnswerResult? _answer;
   String? _answerError;
@@ -333,7 +334,9 @@ class _KnowledgeSearchTabState extends ConsumerState<_KnowledgeSearchTab> {
                 onRefreshContext: () => ref.invalidate(
                   knowledgeAnswerGroundedContextProvider(query),
                 ),
-                onAnswer: !groundedContext.isExecutable || _isAnswering
+                onAnswer: draftQuery != query ||
+                        !groundedContext.isExecutable ||
+                        _isAnswering
                     ? null
                     : () => _answerQuestion(query, groundedContext),
               ),
@@ -450,6 +453,8 @@ class _KnowledgeSearchTabState extends ConsumerState<_KnowledgeSearchTab> {
   void _setQuery(String value) {
     _queryDebouncer.cancel();
     setState(() {
+      // Editing away and back to the same text still supersedes old work.
+      _answerRequestId += 1;
       _draftQuery = value;
       if (value.trim().isEmpty) _query = '';
       _isAnswering = false;
@@ -478,6 +483,13 @@ class _KnowledgeSearchTabState extends ConsumerState<_KnowledgeSearchTab> {
     GroundedLearningContext groundedContext, {
     bool resetAttemptCount = true,
   }) async {
+    if (!mounted ||
+        _isAnswering ||
+        _draftQuery.trim() != query ||
+        _query.trim() != query) {
+      return;
+    }
+    final requestId = ++_answerRequestId;
     final sourceChunks = groundedContext.chunks;
     setState(() {
       _isAnswering = true;
@@ -501,7 +513,7 @@ class _KnowledgeSearchTabState extends ConsumerState<_KnowledgeSearchTab> {
           sourceChunks: sourceChunks,
           groundedContext: groundedContext,
         );
-    if (!mounted || _query.trim() != query) return;
+    if (!_isCurrentAnswerRequest(requestId)) return;
 
     setState(() {
       _isAnswering = false;
@@ -521,9 +533,13 @@ class _KnowledgeSearchTabState extends ConsumerState<_KnowledgeSearchTab> {
         query,
         result.requireData,
         groundedContext,
+        requestId: requestId,
       );
     }
   }
+
+  bool _isCurrentAnswerRequest(int requestId) =>
+      mounted && _answerRequestId == requestId;
 
   void _useKnowledgeAnswerQuery(String query) {
     _controller.text = query;
@@ -591,8 +607,10 @@ class _KnowledgeSearchTabState extends ConsumerState<_KnowledgeSearchTab> {
   Future<void> _recordKnowledgeAnswer(
     String query,
     KnowledgeAnswerResult answer,
-    GroundedLearningContext? groundedContext,
-  ) async {
+    GroundedLearningContext? groundedContext, {
+    required int requestId,
+  }) async {
+    if (!_isCurrentAnswerRequest(requestId)) return;
     setState(() {
       _isRecordingAnswer = true;
       _answerRecordError = null;
@@ -626,8 +644,9 @@ class _KnowledgeSearchTabState extends ConsumerState<_KnowledgeSearchTab> {
               ),
             ),
           );
+      if (!mounted) return;
       invalidateAgentLearningRecordProviders(ref);
-      if (!mounted || _query.trim() != query) return;
+      if (!_isCurrentAnswerRequest(requestId)) return;
       setState(() {
         _answerSaved = true;
         _answerSavedAt = now;
@@ -636,7 +655,7 @@ class _KnowledgeSearchTabState extends ConsumerState<_KnowledgeSearchTab> {
         _answerRecordFailedAt = null;
       });
     } catch (e) {
-      if (!mounted || _query.trim() != query) return;
+      if (!_isCurrentAnswerRequest(requestId)) return;
       final failedAt = DateTime.now();
       setState(() {
         _answerSaved = false;
@@ -658,7 +677,12 @@ class _KnowledgeSearchTabState extends ConsumerState<_KnowledgeSearchTab> {
         _answerRecordError == null) {
       return;
     }
-    await _recordKnowledgeAnswer(query, answer, _answerContext);
+    await _recordKnowledgeAnswer(
+      query,
+      answer,
+      _answerContext,
+      requestId: _answerRequestId,
+    );
   }
 
   Future<void> _retryKnowledgeAnswer() async {
