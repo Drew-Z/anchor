@@ -5,7 +5,7 @@
 [OPEN_SOURCE_CHECKLIST.md](OPEN_SOURCE_CHECKLIST.md) 和
 [OPEN_SOURCE_READY.md](OPEN_SOURCE_READY.md) 为准。
 
-> 更新于 2026-09-09：已切换为 Codex 单独开发；Private Alpha 仍因真实外部证据不足保持 `HOLD`。
+> 更新于 2026-09-10：已切换为 Codex 单独开发；Private Alpha 仍因真实外部证据不足保持 `HOLD`。
 > `.env.example` 只说明配置边界，应用凭据必须在“设置 → AI 配置”中保存。
 
 ## 当前有效队列
@@ -13,7 +13,7 @@
 以下事项取代本文档后面的早期时间估算和草案任务：
 
 1. 按 [DEVELOPMENT_LOOP.md](DEVELOPMENT_LOOP.md) 执行持续开发主任务：分析当前项目 → 选择一个 leaf → 实现并验收 → 返回主任务重新分析。唯一运行指针、当前 leaf 和精确验证结果在 `CURRENT_STATE.md`，本列表不另存状态。
-2. DL-001 至 DL-014 已完成；个人页每日/月度摘要、目标完成提示、成就网格和成就说明已通过正常/大字号/短屏验收。最新应用验收为 DL-014 的 37 项相关检查、526 项全量 Flutter 测试和三种 Android 配置共 25 次观察；文件选择与确认边界仍待后续复现。精确范围和下一轮决策见运行指针。以下发布工作仍等待授权或真实证据。用户已于 2026-09-08 取消自动唤醒，应用确认原 `anchor` 自动化不存在；通过当前任务直接消息恢复后，各 leaf 连续推进。已结束的 Claude 任务、旧执行队列和上游故障排查不作为后续产品任务恢复。
+2. DL-001 至 DL-015 已完成；DL-015 已通过恢复文件选择、确认、picker 取消/重试和三种 Android 尺寸验收，最新本地结果为 22 项隐私页检查、37 项相关检查和 530 项全量 Flutter 测试。当前没有已确认的本地实现缺陷；删除确认的 modal/busy 路径已完成 bounded review，未形成新 leaf。精确证据与运行指针见 `CURRENT_STATE.md`。以下发布工作仍等待授权或真实证据。用户已于 2026-09-08 取消自动唤醒，应用确认原 `anchor` 自动化不存在；通过当前任务直接消息恢复后，各 leaf 连续推进。已结束的 Claude 任务、旧执行队列和上游故障排查不作为后续产品任务恢复。
 3. 以下发布操作为待授权队列，不由开发任务自动执行：推送 `codex/anchor-web-demo`、同步 PR #1 的验证数量和 CI 记录、合并 PR，并将 `web/landing` 部署到
    `https://anchor.playlab.eu.cc/`，随后执行官网和 `/app/` smoke check。
 4. 临近发布窗口，用同一 `1.0.0+2005` 签名候选重新完成真机与模型五项验收。

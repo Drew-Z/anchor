@@ -248,44 +248,45 @@ class _PrivacyDataScreenState extends ConsumerState<PrivacyDataScreen> {
   }
 
   Future<void> _restoreDatabaseBackup() async {
-    final selection = await FilePicker.pickFile(
-      dialogTitle: '选择本地数据备份',
-      type: FileType.custom,
-      allowedExtensions: const ['db'],
-    );
-    if (selection == null || !mounted) return;
-    final sourcePath = selection.path;
-    if (sourcePath == null || sourcePath.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('无法读取所选备份文件')),
-      );
-      return;
-    }
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('替换本地学习数据？'),
-        content: const Text(
-          '恢复会用备份中的学习内容、学习记录和产品事件替换当前数据库。模型凭据、模型配置、首次运行状态和隐私偏好保持不变。\n\n恢复前会自动创建回滚快照；如果校验或迁移失败，应用会恢复当前数据。',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('取消'),
-          ),
-          FilledButton.icon(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            icon: const Icon(Icons.settings_backup_restore),
-            label: const Text('确认恢复'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-
+    if (_isBusy) return;
     setState(() => _isRestoring = true);
     try {
+      final selection = await FilePicker.pickFile(
+        dialogTitle: '选择本地数据备份',
+        type: FileType.custom,
+        allowedExtensions: const ['db'],
+      );
+      if (selection == null || !mounted) return;
+      final sourcePath = selection.path;
+      if (sourcePath == null || sourcePath.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('无法读取所选备份文件')),
+        );
+        return;
+      }
+
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('替换本地学习数据？'),
+          content: const Text(
+            '恢复会用备份中的学习内容、学习记录和产品事件替换当前数据库。模型凭据、模型配置、首次运行状态和隐私偏好保持不变。\n\n恢复前会自动创建回滚快照；如果校验或迁移失败，应用会恢复当前数据。',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('取消'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              icon: const Icon(Icons.settings_backup_restore),
+              label: const Text('确认恢复'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+
       final result =
           await ref.read(localDataOperationsProvider).restoreBackup(sourcePath);
       if (!mounted) return;

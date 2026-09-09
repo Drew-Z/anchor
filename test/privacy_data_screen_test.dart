@@ -86,7 +86,7 @@ void main() {
       scrollable: find.byType(Scrollable),
     );
     await tester.tap(find.text('从备份恢复'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 400));
 
     expect(find.text('替换本地学习数据？'), findsOneWidget);
     expect(find.textContaining('自动创建回滚快照'), findsOneWidget);
@@ -100,6 +100,168 @@ void main() {
       'C:/fixtures/anchor-learning-backup.db',
     );
     expect(find.text('本地数据恢复完成'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('restore owns a pending picker before accepting another tap',
+      (tester) async {
+    final picker = _ControlledFilePickerPlatform.pending();
+    final originalPicker = FilePickerPlatform.instance;
+    FilePickerPlatform.instance = picker;
+    addTearDown(() => FilePickerPlatform.instance = originalPicker);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          privacyPreferencesStoreProvider.overrideWithValue(
+            _MemoryPrivacyPreferencesStore(),
+          ),
+          productEventListProvider.overrideWith((ref) async => const []),
+          localDataBackupServiceProvider.overrideWithValue(
+            _FakeLocalDataBackupService(),
+          ),
+        ],
+        child: const MaterialApp(home: PrivacyDataScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('从备份恢复'),
+      200,
+      scrollable: find.byType(Scrollable),
+    );
+    await tester.tap(find.text('从备份恢复'));
+    await tester.pump();
+    await tester.tap(find.text('从备份恢复'));
+    await tester.pump();
+
+    expect(picker.pickCalls, 1);
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+
+    picker.pending!.complete();
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('picker failure is visible and restore can be retried',
+      (tester) async {
+    final picker = _ControlledFilePickerPlatform.throwing(
+      StateError('picker unavailable'),
+    );
+    final originalPicker = FilePickerPlatform.instance;
+    FilePickerPlatform.instance = picker;
+    addTearDown(() => FilePickerPlatform.instance = originalPicker);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          privacyPreferencesStoreProvider.overrideWithValue(
+            _MemoryPrivacyPreferencesStore(),
+          ),
+          productEventListProvider.overrideWith((ref) async => const []),
+        ],
+        child: const MaterialApp(home: PrivacyDataScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('从备份恢复'),
+      200,
+      scrollable: find.byType(Scrollable),
+    );
+    await tester.tap(find.text('从备份恢复'));
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.textContaining('恢复失败: Bad state: picker unavailable'),
+        findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('从备份恢复'));
+    await tester.pumpAndSettle();
+    expect(picker.pickCalls, 2);
+  });
+
+  testWidgets('cancelled and invalid selections release restore ownership',
+      (tester) async {
+    final originalPicker = FilePickerPlatform.instance;
+    FilePickerPlatform.instance = _ControlledFilePickerPlatform.cancelled();
+    addTearDown(() => FilePickerPlatform.instance = originalPicker);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          privacyPreferencesStoreProvider.overrideWithValue(
+            _MemoryPrivacyPreferencesStore(),
+          ),
+          productEventListProvider.overrideWith((ref) async => const []),
+        ],
+        child: const MaterialApp(home: PrivacyDataScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('从备份恢复'),
+      200,
+      scrollable: find.byType(Scrollable),
+    );
+    await tester.tap(find.text('从备份恢复'));
+    await tester.pumpAndSettle();
+    expect(find.text('替换本地学习数据？'), findsNothing);
+    expect(find.byType(LinearProgressIndicator), findsNothing);
+
+    FilePickerPlatform.instance = _ControlledFilePickerPlatform.invalid();
+    await tester.tap(find.text('从备份恢复'));
+    await tester.pumpAndSettle();
+    expect(find.text('无法读取所选备份文件'), findsOneWidget);
+    expect(find.byType(LinearProgressIndicator), findsNothing);
+  });
+
+  testWidgets('pending picker completion after route exit does not restore',
+      (tester) async {
+    final picker = _ControlledFilePickerPlatform.pending();
+    final backupService = _FakeLocalDataBackupService();
+    final originalPicker = FilePickerPlatform.instance;
+    FilePickerPlatform.instance = picker;
+    addTearDown(() => FilePickerPlatform.instance = originalPicker);
+    final navigator = GlobalKey<NavigatorState>();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          privacyPreferencesStoreProvider.overrideWithValue(
+            _MemoryPrivacyPreferencesStore(),
+          ),
+          productEventListProvider.overrideWith((ref) async => const []),
+          localDataBackupServiceProvider.overrideWithValue(backupService),
+        ],
+        child: MaterialApp(
+          navigatorKey: navigator,
+          home: const PrivacyDataScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('从备份恢复'),
+      200,
+      scrollable: find.byType(Scrollable),
+    );
+    await tester.tap(find.text('从备份恢复'));
+    await tester.pump();
+    navigator.currentState!.pop();
+    await tester.pumpAndSettle();
+
+    picker.pending!.complete(_FakePlatformFile(
+      'C:/fixtures/anchor-learning-backup.db',
+    ));
+    await tester.pumpAndSettle();
+
+    expect(backupService.restoreCalls, 0);
     expect(tester.takeException(), isNull);
   });
 
@@ -408,6 +570,51 @@ class _FakeFilePickerPlatform extends FilePickerPlatform {
       _FakePlatformFile(selectedPath);
 }
 
+class _ControlledFilePickerPlatform extends FilePickerPlatform {
+  final Completer<PlatformFile?>? pending;
+  final Object? failure;
+  final String? selectedPath;
+  int pickCalls = 0;
+
+  _ControlledFilePickerPlatform._({
+    this.pending,
+    this.failure,
+    this.selectedPath,
+  });
+
+  factory _ControlledFilePickerPlatform.pending() =>
+      _ControlledFilePickerPlatform._(pending: Completer<PlatformFile?>());
+
+  factory _ControlledFilePickerPlatform.cancelled() =>
+      _ControlledFilePickerPlatform._();
+
+  factory _ControlledFilePickerPlatform.invalid() =>
+      _ControlledFilePickerPlatform._(selectedPath: '');
+
+  factory _ControlledFilePickerPlatform.throwing(Object failure) =>
+      _ControlledFilePickerPlatform._(failure: failure);
+
+  @override
+  Future<PlatformFile?> pickFile({
+    String? dialogTitle,
+    String? initialDirectory,
+    FileType type = FileType.any,
+    List<String>? allowedExtensions,
+    Function(FilePickerStatus)? onFileLoading,
+    int compressionQuality = 0,
+    AndroidOptions androidOptions = const AndroidOptions(),
+    WindowsOptions windowsOptions = const WindowsOptions(),
+    LinuxOptions linuxOptions = const LinuxOptions(),
+    WebOptions webOptions = const WebOptions(),
+  }) {
+    pickCalls++;
+    if (failure != null) return Future<PlatformFile?>.error(failure!);
+    if (pending != null) return pending!.future;
+    final path = selectedPath;
+    return Future.value(path == null ? null : _FakePlatformFile(path));
+  }
+}
+
 base class _FakePlatformFile extends PlatformFile {
   final String selectedPath;
 
@@ -608,7 +815,7 @@ class _PrivacyHarness {
     await tester.scrollUntilVisible(find.text('从备份恢复'), 200,
         scrollable: find.byType(Scrollable));
     await tester.tap(find.text('从备份恢复'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 400));
     await tester.tap(find.text('确认恢复'));
     await tester.pump(const Duration(milliseconds: 400));
   }
