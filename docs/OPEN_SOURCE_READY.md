@@ -1,18 +1,18 @@
-# Anchor Learning 当前开源准备状态
+# Anchor Learning 开源与 Private Alpha 证据索引
 
-本文档只记录当前事实，不把推广素材或历史提交当作当前发布证据。
+本文档保留 2026-08-28 整理的仓库与发布证据。最新本地开发结果和任务状态见 [CURRENT_STATE.md](CURRENT_STATE.md)；下列测试数量与签名产物分别保留其原始日期，不随本地开发自动更新。
 
-## 已完成
+## 已完成的仓库质量项（2026-08-28 快照）
 
 - 核心用户、架构、开发和贡献文档已存在。
 - Android、Web、隐私数据和 AI profile 测试已纳入自动化验证。
-- 当前 Flutter 测试 386/386 通过；覆盖率快照为 60.84%（16274/26751），不是本轮发布门禁。
+- 该快照中的 Flutter 测试 386/386 通过；覆盖率快照为 60.84%（16274/26751），不单独作为发布门禁。
 - Web 测试 20/20 通过（5 个 Node 单元测试、15 个 Chromium Playwright 用例）。
 - Android release 签名门禁已配置为环境变量注入，debug 不依赖 release keystore。
 
 ## 当前状态
 
-Private Alpha 仍为 `HOLD`。当前 evaluator 有三个阻塞码：
+Private Alpha 仍为 `HOLD`。保留的 readiness 评估记录有三个阻塞码：
 
 1. `cohort_pending`：A01-A10 正式 cohort、观察窗口和最终决策尚未完成。
 2. `release_day_acceptance_primary_stale`：正式模型五项验收报告已超过 24 小时发布窗口。
@@ -20,9 +20,11 @@ Private Alpha 仍为 `HOLD`。当前 evaluator 有三个阻塞码：
 
 物理设备验收、正式 `2005` release-day 五项技术验收、participant-owned 凭据治理和数据处理负责人记录已经完成过，但模型与设备检查必须在最终发布窗口内、同一候选产物上重新执行。正式 cohort 不能用模拟器、fixture、旧 APK 或 Web Demo 替代。
 
-## 构建说明
+## 已记录的签名产物（2026-08-26）
 
-当前代码和 Gradle 配置已通过分析、测试和正式 release 构建。最新 Arm64 release APK 位于
+以下记录仅绑定 2026-08-26 的 release 候选。本地开发后的代码和 debug APK 检查以 [CURRENT_STATE.md](CURRENT_STATE.md) 为准，没有据此刷新签名发布验收。
+
+当时记录的 Arm64 release APK 路径为
 `build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`（2026-08-26，26,272,915 bytes），
 SHA-256 为 `74dcfb95cd9c123b51d9b35678ffd0153d23654bf6a5597de1070880d667207b`，包名
 `cc.eu.playlab.anchor`，versionName `1.0.0`，Flutter build number `2005` / Arm64 split APK
@@ -39,4 +41,4 @@ Demo 视频、截图、博客和社区发布是非阻塞推广事项。它们可
 - 在真实外部条件满足后，只更新 `build/validation/private-alpha-readiness.json` 中的匿名绑定，再运行 readiness CLI；`test/fixtures/release/private_alpha_readiness_current.json` 仅用于测试。
 - 继续维护发布文档中的构建身份、APK SHA-256、支持平台和凭据处理声明；产品文档统一使用 `Anchor Learning / 锚学`，正式应用标识见 `docs/PRODUCT_NAMING.md`。
 
-**最后更新**: 2026-08-28
+**最后更新**: 2026-09-09（澄清历史快照与当前开发指针；未重跑发布门禁）
