@@ -125,15 +125,6 @@ class _ProgrammingExerciseScreenState
 
   Future<void> _generateExercises() async {
     if (_isGenerating || _isSubmitting) return;
-    final hasKey = await ref.read(openaiServiceProvider).hasApiKey();
-    if (!hasKey) {
-      setState(() => _errorMessage = '请先在设置中配置 AI API Key');
-      return;
-    }
-    if (_evidenceChunks.isEmpty) {
-      setState(() => _errorMessage = '当前知识点没有来源片段，无法生成练习');
-      return;
-    }
 
     setState(() {
       _isGenerating = true;
@@ -141,6 +132,23 @@ class _ProgrammingExerciseScreenState
       _successMessage = null;
     });
     try {
+      final hasKey = await ref.read(openaiServiceProvider).hasApiKey();
+      if (!mounted) return;
+      if (!hasKey) {
+        setState(() {
+          _isGenerating = false;
+          _errorMessage = '请先在设置中配置 AI API Key';
+        });
+        return;
+      }
+      if (_evidenceChunks.isEmpty) {
+        setState(() {
+          _isGenerating = false;
+          _errorMessage = '当前知识点没有来源片段，无法生成练习';
+        });
+        return;
+      }
+
       final result =
           await ref.read(programmingExerciseGenerationTaskProvider).run(
                 knowledgePoint: widget.knowledgePoint,
@@ -150,10 +158,12 @@ class _ProgrammingExerciseScreenState
         throw StateError(result.errorMessage ?? '练习生成失败');
       }
 
+      if (!mounted) return;
       final repository = ref.read(programmingExerciseRepositoryProvider);
       final now = DateTime.now();
       final generated = <ProgrammingExercise>[];
       for (var index = 0; index < result.requireData.length; index++) {
+        if (!mounted) return;
         final exercise = result.requireData[index].toExercise(
           id: 'programming-exercise-${now.microsecondsSinceEpoch}-$index',
           knowledgePointId: widget.knowledgePoint.id,
@@ -280,20 +290,9 @@ class _ProgrammingExerciseScreenState
   Future<void> _submitAnswer() async {
     final exercise = _selectedExercise;
     final answer = _answerController.text.trim();
-    if (exercise == null || _isSubmitting) return;
+    if (exercise == null || _isSubmitting || _isGenerating) return;
     if (answer.isEmpty) {
       setState(() => _errorMessage = '请先完成当前练习');
-      return;
-    }
-    final hasKey = await ref.read(openaiServiceProvider).hasApiKey();
-    if (!hasKey) {
-      setState(() => _errorMessage = '请先在设置中配置 AI API Key');
-      return;
-    }
-    final citedChunks = _chunksForExercise(exercise);
-    if (citedChunks.length != exercise.citationIds.length ||
-        citedChunks.isEmpty) {
-      setState(() => _errorMessage = '当前练习引用不完整，无法评价');
       return;
     }
 
@@ -303,10 +302,30 @@ class _ProgrammingExerciseScreenState
       _successMessage = null;
     });
     try {
+      final hasKey = await ref.read(openaiServiceProvider).hasApiKey();
+      if (!mounted) return;
+      if (!hasKey) {
+        setState(() {
+          _isSubmitting = false;
+          _errorMessage = '请先在设置中配置 AI API Key';
+        });
+        return;
+      }
+      final citedChunks = _chunksForExercise(exercise);
+      if (citedChunks.length != exercise.citationIds.length ||
+          citedChunks.isEmpty) {
+        setState(() {
+          _isSubmitting = false;
+          _errorMessage = '当前练习引用不完整，无法评价';
+        });
+        return;
+      }
+
       final groundedContext = await _buildEvaluationContext(
         exercise,
         citedChunks,
       );
+      if (!mounted) return;
       if (!groundedContext.isExecutable) {
         throw StateError(groundedContext.diagnosticLines.join('\n'));
       }
@@ -318,6 +337,7 @@ class _ProgrammingExerciseScreenState
                 sourceChunks: groundedContext.chunks,
                 groundedContext: groundedContext,
               );
+      if (!mounted) return;
       if (!result.isSuccess) {
         throw StateError(result.errorMessage ?? '练习评价失败');
       }
@@ -345,7 +365,9 @@ class _ProgrammingExerciseScreenState
         groundingDisposition: evaluation.groundingDisposition,
         createdAt: now,
       );
+      if (!mounted) return;
       await repository.insertAttempt(attempt);
+      if (!mounted) return;
 
       ProgrammingExercise? retest;
       if (evaluation.retestExercise != null) {
@@ -356,9 +378,12 @@ class _ProgrammingExerciseScreenState
           isRetest: true,
           parentAttemptId: attempt.id,
         );
+        if (!mounted) return;
         await repository.insertExercise(retest);
+        if (!mounted) return;
         attempt = attempt.copyWith(retestExerciseId: retest.id);
         await repository.updateAttempt(attempt);
+        if (!mounted) return;
       }
 
       final masteryApplied = await ref
@@ -367,20 +392,23 @@ class _ProgrammingExerciseScreenState
             exercise: exercise,
             attempt: attempt,
           );
+      if (!mounted) return;
       if (masteryApplied) {
         attempt = attempt.copyWith(formalMasteryApplied: true);
         await repository.updateAttempt(attempt);
+        if (!mounted) return;
         ref.invalidate(knowledgePointProvider(widget.knowledgePoint.id));
         ref.invalidate(knowledgePointListProvider);
       }
+      if (!mounted) return;
       await ref
           .read(programmingReviewClosureServiceProvider)
           .closeExerciseAttempt(
             exercise: exercise,
             attempt: attempt,
           );
-
       if (!mounted) return;
+
       setState(() {
         _latestAttempt = attempt;
         if (retest != null) _exercises = [..._exercises, retest];
