@@ -1,6 +1,6 @@
 # 系统架构概览
 
-> 2026-09-08：题目预核验、人工审核与知识搜索部分已按当前代码核对；当前开发指针见 [CURRENT_STATE.md](../CURRENT_STATE.md)。下文其他设计说明和性能估算不构成当日发布验收证据。
+> 2026-09-09：复习调度、答题保存与共享状态刷新已按当前实现核对；题目预核验、人工审核与知识搜索的核对日期为 2026-09-08。当前开发指针见 [CURRENT_STATE.md](../CURRENT_STATE.md)。下文其他设计说明和性能估算不构成发布验收证据。
 
 ## 总体设计理念
 
@@ -168,64 +168,93 @@ graph TD
 
 ```mermaid
 graph TD
-    A[用户答题] --> B[StudyRecord 保存]
-    B --> C[MasteryService]
-    C --> D{计算掌握度}
-    
-    D -->|完全正确| E[ease += 0.1]
-    D -->|部分正确| F[ease 不变]
-    D -->|错误| G[ease -= 0.2, lapseCount++]
-    
-    E --> H[ReviewSchedulerService]
-    F --> H
-    G --> H
-    
-    H --> I{计算下次复习时间}
-    I -->|新题| J[1天后]
-    I -->|简单题| K[ease * 7天]
-    I -->|困难题| L[1天后]
-    
-    J --> M[更新 nextReviewAt]
-    K --> M
-    L --> M
-    
-    M --> N[TodayReviewQueue 刷新]
-    N --> O[主页显示待复习数量]
-    
-    style C fill:#e1f5e1
-    style H fill:#e1f5e1
+    A[QuizScreen 获得正确或错误判定] --> B[QuizOperations.saveAnswer]
+    B --> C[QuizPersistenceService.saveAnswer]
+    C --> D[答案事务：游戏化、复习字段、知识点掌握度、操作凭据]
+    D --> E[提交成功后返回保存结果]
+    E --> F[QuizOperations 刷新共享状态]
+    F --> G[首页读取当前待复习队列与统计]
+
+    H[用户完成本轮答题] --> I[QuizOperations.saveCompletion]
+    I --> J[QuizPersistenceService.saveCompletion]
+    J --> K[完成事务：奖励、完美计数、题包结果、操作凭据]
+    K --> E
+
+    style D fill:#e1f5e1
+    style K fill:#e1f5e1
 ```
 
-**调度算法**:
+**保存与刷新边界**:
 
-基于 SuperMemo 的间隔重复算法变体:
+- `saveAnswer` 接收布尔 `isCorrect`。首次保存会在事务中重新读取题目，确认它仍为 `verified`，且题目内容、答案、来源状态等与已判定输入一致；复习元数据可以在两次读取之间更新。
+- 答案事务一并提交打卡、XP/心数、累计答对、题目复习字段、知识点掌握度和操作凭据。调度与掌握度分别使用 `ReviewSchedulerService.reviewedQuestion` 和 `MasteryService.questionAttemptResult` 的纯计算结果。首次提交后的复习事件尽力记录，事件失败不会把已接受的保存改为失败。
+- `saveCompletion` 使用另一个事务提交完成奖励、完美次数、恢复心数及凭据；提供 `deckId` 时同时更新该题包的掌握度和 `StudyRecord`。记录 ID 为 `<deckId>_record`，只保留该题包最近一次完成结果。随机练习的 `deckId` 为 null，不创建题包记录。
+- 同一操作 ID 和相同输入重试返回已提交的结果，重复使用 ID 提交不同输入会被拒绝。凭据不保存题干、用户作答或来源正文；它可以在数据库重开后重放，当前没有自动恢复未完成答题页面的跨进程机制。schema v24 的保存、迁移和备份边界见 [数据模型当前说明](./DATA_MODEL.md)。
+- `QuizOperations` 在保存成功后刷新共享 providers，答题页面退出后仍然有效；所属 provider 释放后跳过刷新，已接受的保存可以完成。当前全局统计重新从存储读取，完成页奖励明细使用本次回执的快照。统计读取失败不会撤销已保存的结果。
+
+**题目复习字段**:
+
+`reviewedQuestion` 设置 `lastReviewedAt = now`，再从本次更新前的题目计算 `nextReviewAt`。`ease` 默认 1.0，`lapseCount` 默认 0：
+
+| 字段 | 答对 | 答错 |
+| --- | --- | --- |
+| `ease` | 原值 + 0.12，限制在 [0.6, 2.5] | 原值 - 0.2，限制在 [0.6, 2.5] |
+| `lapseCount` | 保持原值 | 原值 + 1 |
+| `nextReviewAt` | 按下面的间隔公式计算 | `now + Duration(days: 1)` |
+
+`ReviewSchedulerService._nextReviewAt` 的实际计算为：
 
 ```dart
-double calculateInterval(Question q, bool isCorrect) {
-  if (q.lastReviewedAt == null) return 1.0; // 新题1天后
-  
-  final daysSinceReview = DateTime.now()
-    .difference(q.lastReviewedAt!)
-    .inDays;
-  
-  if (isCorrect) {
-    return daysSinceReview * q.ease; // ease越高,间隔越长
-  } else {
-    return 1.0; // 错误后重置为1天
-  }
+static DateTime _nextReviewAt(
+  Question question,
+  bool isCorrect,
+  DateTime now,
+) {
+  if (!isCorrect) return now.add(const Duration(days: 1));
+
+  final difficultyPenalty = (question.difficulty - 1).clamp(0, 4);
+  final lapsePenalty = question.lapseCount.clamp(0, 4);
+  final intervalDays =
+      (1 + question.ease * 2.2 - difficultyPenalty - lapsePenalty)
+          .round()
+          .clamp(1, 14)
+          .toInt();
+  return now.add(Duration(days: intervalDays));
 }
 ```
 
-**掌握度追踪**:
-- `ease`: 1.0 起步,每次正确+0.1,错误-0.2
-- `lapseCount`: 累计错误次数,用于识别难点
-- `lastReviewedAt`: 上次复习时间
-- `nextReviewAt`: 下次应复习时间
+公式使用更新前的 `ease` 和 `lapseCount`，不依赖距上次复习的天数。默认 `ease=1.0`、`difficulty=1`、`lapseCount=0` 的题目首次答对时，间隔为 3 天，同时 ease 更新为 1.12；答错时为 1 天，ease 更新为 0.8。
+
+**知识点掌握度**:
+
+`MasteryService.questionAttemptResult` 将已有知识点的 `masteryLevel` 向本次目标值平滑更新，四舍五入后限制在 [0, 100]：
+
+```dart
+final target = isCorrect ? 82 : 32;
+final weight = isCorrect ? 0.24 : 0.34;
+final updated =
+    (point.masteryLevel + (target - point.masteryLevel) * weight)
+        .round()
+        .clamp(0, 100)
+        .toInt();
+```
+
+例如原掌握度为 40，答对后为 50，答错后为 37。题目没有关联知识点或该知识点已不存在时，保存题目复习结果而不更新知识点掌握度。
+
+**今日队列与练习范围**:
+
+1. 只纳入 `sourceStatus == verified` 且 `nextReviewAt` 为空或早于次日 00:00 的题目；按知识点分组，缺少知识点 ID 或无法读取知识点的题目不进入队列。逾期数只计算 `nextReviewAt` 早于当日 00:00 的题目。
+2. 知识点优先级为 `100 - masteryLevel + interviewRelevance * 2 + questionCount * 6 + overdueCount * 18`，按优先级降序、同分时按标题升序排列。`getTodayReviewQueue` 默认最多返回 12 个知识点条目。
+3. 题目按 `nextReviewAt` 升序排列（空值按 Unix epoch 比较），相同时间按难度降序排列。`getTodayReviewQuestions(limit: 10)` 先选最多 10 个知识点条目，再合并题目、按上述题目规则排序，最终取最多 10 题。因此首页队列中的总题数可能大于一次练习的题数。
 
 **涉及文件**:
-- `lib/services/scheduling/mastery_service.dart`
-- `lib/services/scheduling/review_scheduler_service.dart`
-- `lib/data/models/study_record.dart`
+- [quiz_persistence_service.dart](../../lib/services/quiz_persistence_service.dart)：`saveAnswer`、`saveCompletion` 和幂等凭据。
+- [providers.dart](../../lib/core/providers/providers.dart)：`QuizOperations`、统计刷新及队列 providers。
+- [review_scheduler_service.dart](../../lib/services/scheduling/review_scheduler_service.dart)：复习字段、队列筛选和排序。
+- [mastery_service.dart](../../lib/services/scheduling/mastery_service.dart)：`questionAttemptResult`。
+- [question.dart](../../lib/data/models/question.dart)：复习字段与默认值。
+- [study_record.dart](../../lib/data/models/study_record.dart)：题包最近一次完成结果。
+- [quiz_screen.dart](../../lib/features/learning/quiz_screen.dart)：判定、保存重试及完成页快照。
 
 ---
 
@@ -248,14 +277,16 @@ double calculateInterval(Question q, bool isCorrect) {
     ↓
 [Question 题库] 保存
     ↓
-[QuizScreen] 答题
+[QuizScreen + QuizOperations] 判定并提交答案
     ↓
-[MasteryService] 计算掌握度
+[QuizPersistenceService.saveAnswer] 同一事务保存奖励、复习、掌握度和凭据
     ↓
-[ReviewScheduler] 调度下次复习
+[QuizOperations] 保存成功后刷新共享状态
     ↓
-[主页待复习队列] 显示
+[主页待复习队列与统计] 读取当前已提交状态
 ```
+
+完成本轮答题时，另由 `saveCompletion` 事务保存完成奖励、题包最近结果和凭据，再触发对应共享状态刷新，详见上面的复习调度流程。
 
 ---
 
