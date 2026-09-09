@@ -41,6 +41,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   bool _isSubmitting = false;
   bool _isFinishing = false;
   bool _isCorrectAnswer = false; // 缓存的判题结果
+  UserStats? _completionStats;
   bool? _pendingIsCorrect;
   Object? _saveError;
   bool _retryCompletion = false;
@@ -94,6 +95,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     final questionIndex = _currentIndex;
     final question = _questions[questionIndex];
     var isCorrect = _pendingIsCorrect ?? _checkCorrect(question, answer);
+    UserStats? savedStats;
     FocusScope.of(context).unfocus();
     setState(() {
       _isSubmitting = true;
@@ -125,19 +127,15 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       }
 
       _pendingIsCorrect = isCorrect;
-      // The captured service can finish its transaction after this screen exits.
-      final persistence = ref.read(quizPersistenceServiceProvider);
-      final result = await persistence.saveAnswer(
+      // Shared learning state also refreshes if this route exits during saving.
+      final operations = ref.read(quizOperationsProvider);
+      final result = await operations.saveAnswer(
         operationId: '$_saveSessionId:answer:$questionIndex',
         question: question,
         isCorrect: isCorrect,
       );
+      savedStats = result.stats;
       if (!mounted) return;
-      ref.read(userStatsProvider.notifier).acceptSavedStats(result.stats);
-      _refreshAfterQuestionAttempt(result.question);
-      ref.invalidate(monthlyCheckInProvider);
-      ref.invalidate(earnedMedalsProvider);
-      ref.invalidate(totalCorrectProvider);
       setState(() {
         _questions[questionIndex] = result.question;
         _isCorrectAnswer = result.isCorrect;
@@ -160,37 +158,15 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     }
 
     // 心数耗尽时，延迟1.5秒后跳转到“心数用完”页面
-    if (mounted && !isCorrect) {
-      final stats = ref.read(userStatsProvider).value;
-      if (stats != null && stats.hearts <= 0) {
-        await Future.delayed(const Duration(milliseconds: 1500));
-        if (mounted &&
-            _currentIndex == questionIndex &&
-            _showResult &&
-            !_isFinishing &&
-            !_isComplete) {
-          setState(() => _outOfHearts = true);
-        }
+    if (mounted && !isCorrect && savedStats.hearts <= 0) {
+      await Future.delayed(const Duration(milliseconds: 1500));
+      if (mounted &&
+          _currentIndex == questionIndex &&
+          _showResult &&
+          !_isFinishing &&
+          !_isComplete) {
+        setState(() => _outOfHearts = true);
       }
-    }
-  }
-
-  void _refreshAfterQuestionAttempt(Question question) {
-    ref.invalidate(todayReviewQueueProvider);
-    ref.invalidate(allQuestionsProvider);
-    ref.invalidate(verifiedQuestionsProvider);
-    if (question.deckId.isNotEmpty) {
-      ref.invalidate(deckQuestionsProvider(question.deckId));
-      ref.invalidate(verifiedDeckQuestionsProvider(question.deckId));
-    }
-
-    final knowledgePointId = question.knowledgePointId;
-    if (knowledgePointId != null && knowledgePointId.isNotEmpty) {
-      ref.invalidate(knowledgePointListProvider);
-      ref.invalidate(evidenceBackedKnowledgePointListProvider);
-      ref.invalidate(practiceableKnowledgePointListProvider);
-      ref.invalidate(knowledgePointProvider(knowledgePointId));
-      ref.invalidate(knowledgePointQuestionsProvider(knowledgePointId));
     }
   }
 
@@ -238,21 +214,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       _retryCompletion = true;
     });
     try {
-      final persistence = ref.read(quizPersistenceServiceProvider);
-      final result = await persistence.saveCompletion(
+      final operations = ref.read(quizOperationsProvider);
+      final result = await operations.saveCompletion(
         operationId: '$_saveSessionId:completion',
         deckId: widget.deckId,
         correctCount: _correctCount,
         totalCount: _questions.length,
       );
       if (!mounted) return;
-      ref.read(userStatsProvider.notifier).acceptSavedStats(result.statsAfter);
-      ref.invalidate(perfectCountProvider);
-      ref.invalidate(deckListProvider);
-      if (widget.deckId != null) {
-        ref.invalidate(studyRecordProvider(widget.deckId!));
-      }
       setState(() {
+        _completionStats = result.statsAfter;
         _xpGained += result.xpGained;
         _heartRestored = result.allCorrect;
         _isComplete = true;
@@ -776,7 +747,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     final accuracy =
         _questions.isNotEmpty ? _correctCount / _questions.length : 0.0;
     final allCorrect = _correctCount == _questions.length;
-    final stats = ref.watch(userStatsProvider).value;
+    final stats = _completionStats;
     final streakBonus = (stats?.streak ?? 0) * 5;
 
     return Scaffold(

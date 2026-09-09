@@ -2,9 +2,14 @@ import 'dart:async';
 
 import 'package:anchor_learning/core/providers/providers.dart';
 import 'package:anchor_learning/core/theme/app_theme.dart';
+import 'package:anchor_learning/data/models/knowledge_point.dart';
 import 'package:anchor_learning/data/models/question.dart';
 import 'package:anchor_learning/data/models/question_type.dart';
+import 'package:anchor_learning/data/models/study_record.dart';
 import 'package:anchor_learning/data/models/user_stats.dart';
+import 'package:anchor_learning/data/repositories/knowledge_point_repository.dart';
+import 'package:anchor_learning/data/repositories/question_repository.dart';
+import 'package:anchor_learning/data/repositories/study_record_repository.dart';
 import 'package:anchor_learning/features/learning/quiz_screen.dart';
 import 'package:anchor_learning/features/learning/widgets/question_widgets.dart';
 import 'package:anchor_learning/services/gamification_service.dart';
@@ -19,6 +24,188 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  for (final correct in [true, false]) {
+    testWidgets('late $correct answer refreshes consumers after parent return',
+        (tester) async {
+      final harness = _Harness();
+      harness.game.checkInGate = Completer<void>();
+      await harness.pump(tester);
+      await tester.tap(find.text(correct ? 'First answer' : 'Second answer'));
+      await tester.pump();
+      _action(tester, '检查')();
+      await tester.pump();
+      harness.showQuiz.value = false;
+      await tester.pump();
+      await harness.refreshParent(tester);
+      expect(harness.container.read(userStatsProvider).value!.xp, 10000);
+      expect(
+          harness.container.read(todayReviewQueueProvider).value, hasLength(1));
+      harness.game.checkInGate!.complete();
+      await tester.pumpAndSettle();
+      final container = harness.container;
+      expect({
+        'xp': container.read(userStatsProvider).value!.xp,
+        'hearts': container.read(userStatsProvider).value!.hearts,
+        'due': container.read(todayReviewQueueProvider).value!.length,
+        'reviewed':
+            container.read(allQuestionsProvider).value!.single.lastReviewedAt !=
+                null,
+        'mastery': container
+            .read(knowledgePointProvider('quiz-point'))
+            .value!
+            .masteryLevel,
+        'correct': container.read(totalCorrectProvider).value,
+        'checkin':
+            container.read(monthlyCheckInProvider('2026_9')).value!.length,
+      }, {
+        'xp': correct ? 10010 : 10000,
+        'hearts': correct ? 5 : 4,
+        'due': 0,
+        'reviewed': true,
+        'mastery': correct ? 50 : 37,
+        'correct': correct ? 1 : 0,
+        'checkin': 1,
+      });
+      expect(find.text('Quiz closed'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('late completion refreshes the accepted record and perfect count',
+      (tester) async {
+    final harness = _Harness();
+    await harness.pump(tester);
+    await tester.tap(find.text('First answer'));
+    await tester.pump();
+    _action(tester, '检查')();
+    await tester.pumpAndSettle();
+    harness.game.completionGate = Completer<void>();
+    _action(tester, '完成')();
+    await tester.pump();
+    harness.showQuiz.value = false;
+    await tester.pump();
+    await harness.refreshParent(tester);
+    expect(
+        harness.container.read(studyRecordProvider('quiz-deck')).value, isNull);
+    expect(harness.container.read(perfectCountProvider).value, 0);
+    harness.game.completionGate!.complete();
+    await tester.pumpAndSettle();
+    final container = harness.container;
+    expect({
+      'xp': container.read(userStatsProvider).value!.xp,
+      'perfects': container.read(perfectCountProvider).value,
+      'correct':
+          container.read(studyRecordProvider('quiz-deck')).value?.correctCount,
+    }, {
+      'xp': 10110,
+      'perfects': 1,
+      'correct': 1
+    });
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final finishing in [false, true]) {
+    testWidgets(
+        'older ${finishing ? 'completion' : 'answer'} result keeps newer stats',
+        (tester) async {
+      final harness = _Harness();
+      await harness.pump(tester);
+      await tester.tap(find.text('First answer'));
+      await tester.pump();
+      final gate = Completer<void>();
+      if (finishing) {
+        _action(tester, '检查')();
+        await tester.pumpAndSettle();
+        harness.persistence.completionReplyGate = gate;
+      } else {
+        harness.persistence.answerReplyGate = gate;
+      }
+      _action(tester, finishing ? '完成' : '检查')();
+      await tester.pump();
+      harness.game.stats = harness.game.stats.copyWith(xp: 12000, streak: 7);
+      await harness.container.read(userStatsProvider.notifier).refresh();
+      gate.complete();
+      await tester.pumpAndSettle();
+      expect(harness.container.read(userStatsProvider).value!.xp, 12000);
+      if (finishing) expect(find.text('连续7天奖励'), findsNothing);
+      expect(find.textContaining('保存失败'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets(
+        'scope disposal during ${finishing ? 'completion' : 'answer'} is safe',
+        (tester) async {
+      final harness = _Harness();
+      await harness.pump(tester);
+      await tester.tap(find.text('First answer'));
+      await tester.pump();
+      final gate = Completer<void>();
+      if (finishing) {
+        _action(tester, '检查')();
+        await tester.pumpAndSettle();
+        harness.game.completionGate = gate;
+      } else {
+        harness.game.checkInGate = gate;
+      }
+      _action(tester, finishing ? '完成' : '检查')();
+      await tester.pump();
+      await tester.pumpWidget(const SizedBox.shrink());
+      gate.complete();
+      await tester.pumpAndSettle();
+      expect(harness.game.correct, 1);
+      expect(harness.game.completions, finishing ? 1 : 0);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  for (final finishing in [false, true]) {
+    for (final failedRead in [false, true]) {
+      testWidgets(
+          '${finishing ? 'completion' : 'answer'} succeeds with a ${failedRead ? 'failed' : 'pending'} stats refresh',
+          (tester) async {
+        final harness = _Harness();
+        await harness.pump(tester);
+        await tester.tap(find.text('First answer'));
+        await tester.pump();
+        if (finishing) {
+          _action(tester, '检查')();
+          await tester.pumpAndSettle();
+        }
+        if (failedRead) {
+          harness.game.failStatsReads = true;
+        } else {
+          harness.game.statsReadGate = Completer<UserStats>();
+        }
+        _action(tester, finishing ? '完成' : '检查')();
+        await tester.pumpAndSettle();
+        expect(find.text(finishing ? '答对 1 / 1 题' : '答对了！'), findsOneWidget);
+        expect(find.textContaining('保存失败'), findsNothing);
+        expect(harness.game.correct, 1);
+        expect(harness.game.completions, finishing ? 1 : 0);
+        harness.game.statsReadGate?.complete(harness.game.stats);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+      });
+    }
+  }
+
+  testWidgets('heart exhaustion uses the saved result when stats refresh fails',
+      (tester) async {
+    final harness = _Harness();
+    harness.game.stats = harness.game.stats.copyWith(hearts: 1);
+    await harness.pump(tester);
+    harness.game.failStatsReads = true;
+    await tester.tap(find.text('Second answer'));
+    await tester.pump();
+    _action(tester, '检查')();
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+    expect(find.text('心数用完了！'), findsOneWidget);
+    expect(harness.game.stats.hearts, 0);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('lost save acknowledgement retries the same committed operations',
       (tester) async {
     final harness = _Harness();
@@ -545,6 +732,31 @@ class _Harness {
   final ai = _AI();
   late final persistence = _Persistence(game, reviews, mastery, decks);
   final showQuiz = ValueNotifier(true);
+  late ProviderContainer container;
+
+  Future<void> refreshParent(WidgetTester tester) async {
+    await container.read(userStatsProvider.notifier).refresh();
+    container.invalidate(todayReviewQueueProvider);
+    container.invalidate(allQuestionsProvider);
+    container.invalidate(knowledgePointProvider('quiz-point'));
+    container.invalidate(monthlyCheckInProvider('2026_9'));
+    container.invalidate(totalCorrectProvider);
+    container.invalidate(perfectCountProvider);
+    container.invalidate(studyRecordProvider('quiz-deck'));
+    void observe<T>(ProviderListenable<T> provider) {
+      final subscription = container.listen(provider, (_, __) {});
+      addTearDown(subscription.close);
+    }
+
+    observe(todayReviewQueueProvider);
+    observe(allQuestionsProvider);
+    observe(knowledgePointProvider('quiz-point'));
+    observe(monthlyCheckInProvider('2026_9'));
+    observe(totalCorrectProvider);
+    observe(perfectCountProvider);
+    observe(studyRecordProvider('quiz-deck'));
+    await tester.pumpAndSettle();
+  }
 
   Future<void> pump(
     WidgetTester tester, {
@@ -565,6 +777,9 @@ class _Harness {
         deckOperationsProvider.overrideWithValue(decks),
         openaiServiceProvider.overrideWithValue(ai),
         quizPersistenceServiceProvider.overrideWithValue(persistence),
+        questionRepositoryProvider.overrideWithValue(_Questions(reviews)),
+        knowledgePointRepositoryProvider.overrideWithValue(_Points(mastery)),
+        studyRecordRepositoryProvider.overrideWithValue(_Records(decks)),
         questionCitationChunksProvider.overrideWith((ref, id) async => []),
       ],
       child: MaterialApp(
@@ -584,6 +799,10 @@ class _Harness {
       ),
     ));
     await tester.pumpAndSettle();
+    container = ProviderScope.containerOf(
+      tester.element(find.byType(QuizScreen)),
+      listen: false,
+    );
   }
 }
 
@@ -600,6 +819,8 @@ class _Persistence extends Fake implements QuizPersistenceService {
   final _completions = <String, QuizCompletionSaveResult>{};
   bool loseAnswerAcknowledgement = false;
   bool loseCompletionAcknowledgement = false;
+  Completer<void>? answerReplyGate;
+  Completer<void>? completionReplyGate;
 
   _Persistence(this.game, this.reviews, this.mastery, this.decks);
 
@@ -631,6 +852,7 @@ class _Persistence extends Fake implements QuizPersistenceService {
     final result = QuizAnswerSaveResult(
         question: updated, isCorrect: isCorrect, stats: game.stats);
     _answers[operationId] = result;
+    await answerReplyGate?.future;
     if (loseAnswerAcknowledgement) {
       loseAnswerAcknowledgement = false;
       throw StateError('Synthetic lost answer acknowledgement');
@@ -669,6 +891,7 @@ class _Persistence extends Fake implements QuizPersistenceService {
       allCorrect: allCorrect,
     );
     _completions[operationId] = result;
+    await completionReplyGate?.future;
     if (loseCompletionAcknowledgement) {
       loseCompletionAcknowledgement = false;
       throw StateError('Synthetic lost completion acknowledgement');
@@ -688,14 +911,19 @@ class _Game extends Fake implements GamificationService {
   int completions = 0;
   int perfects = 0;
   int perfectCount = 0;
+  bool failStatsReads = false;
+  Completer<UserStats>? statsReadGate;
 
   @override
-  Future<UserStats> getStats() async => stats;
+  Future<UserStats> getStats() async {
+    if (failStatsReads) throw StateError('Synthetic statistics read failure');
+    return statsReadGate == null ? stats : await statsReadGate!.future;
+  }
 
   @override
   Future<void> recordCheckIn() async {
-    checkIns++;
     await checkInGate?.future;
+    checkIns++;
   }
 
   @override
@@ -728,6 +956,16 @@ class _Game extends Fake implements GamificationService {
 
   @override
   Future<int> incrementPerfectCount() async => ++perfectCount;
+
+  @override
+  Future<int> getTotalCorrect() async => totalCorrect;
+
+  @override
+  Future<int> getPerfectCount() async => perfectCount;
+
+  @override
+  Future<List<String>> getMonthlyCheckInDates(int year, int month) async =>
+      checkIns == 0 ? [] : ['2026-09-08'];
 }
 
 class _Reviews extends Fake implements ReviewSchedulerService {
@@ -735,6 +973,19 @@ class _Reviews extends Fake implements ReviewSchedulerService {
   Completer<void>? gate;
   int failuresRemaining = 0;
   String errorMessage = 'Synthetic review save failure';
+
+  @override
+  Future<List<ReviewQueueItem>> getTodayReviewQueue(
+          {DateTime? now, int limit = 12}) async =>
+      answers.isEmpty
+          ? [
+              ReviewQueueItem(
+                  knowledgePoint: _point(40),
+                  questions: [_question('q1')],
+                  overdueCount: 0,
+                  priority: 1)
+            ]
+          : [];
 
   @override
   Future<Question> recordQuestionReview({
@@ -776,6 +1027,57 @@ class _Decks extends Fake implements DeckOperations {
       throw StateError('Synthetic record save failure');
     }
     records.add((deckId, correct, total));
+  }
+}
+
+KnowledgePoint _point(int mastery) => KnowledgePoint(
+      id: 'quiz-point',
+      title: 'Synthetic point',
+      summary: 'Synthetic summary',
+      masteryLevel: mastery,
+      createdAt: DateTime(2026, 9, 8),
+      updatedAt: DateTime(2026, 9, 8),
+    );
+
+class _Questions extends Fake implements QuestionRepository {
+  final _Reviews reviews;
+  _Questions(this.reviews);
+
+  @override
+  Future<List<Question>> getAllQuestions() async => [
+        _question('q1').copyWith(
+            lastReviewedAt:
+                reviews.answers.isEmpty ? null : DateTime(2026, 9, 8)),
+      ];
+}
+
+class _Points extends Fake implements KnowledgePointRepository {
+  final _Mastery mastery;
+  _Points(this.mastery);
+
+  @override
+  Future<KnowledgePoint?> getKnowledgePoint(String id) async =>
+      _point(mastery.answers.isEmpty
+          ? 40
+          : mastery.answers.last.$2
+              ? 50
+              : 37);
+}
+
+class _Records extends Fake implements StudyRecordRepository {
+  final _Decks decks;
+  _Records(this.decks);
+
+  @override
+  Future<StudyRecord?> getStudyRecord(String deckId) async {
+    if (decks.records.isEmpty) return null;
+    final record = decks.records.last;
+    return StudyRecord(
+        id: '${deckId}_record',
+        deckId: deckId,
+        correctCount: record.$2,
+        totalCount: record.$3,
+        lastStudiedAt: DateTime(2026, 9, 8));
   }
 }
 

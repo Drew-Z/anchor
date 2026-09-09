@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/database/database_helper.dart';
@@ -1003,6 +1005,80 @@ final studyRecordProvider =
 });
 
 // ============ 操作 Provider ============
+
+final quizOperationsProvider = Provider<QuizOperations>((ref) {
+  return QuizOperations(ref, ref.watch(quizPersistenceServiceProvider));
+});
+
+/// Keeps post-save refreshes independent of quiz route lifetime.
+class QuizOperations {
+  final Ref _ref;
+  final QuizPersistenceService _persistence;
+  bool _disposed = false;
+
+  QuizOperations(this._ref, this._persistence) {
+    _ref.onDispose(() => _disposed = true);
+  }
+
+  Future<QuizAnswerSaveResult> saveAnswer({
+    required String operationId,
+    required Question question,
+    required bool isCorrect,
+  }) async {
+    final result = await _persistence.saveAnswer(
+      operationId: operationId,
+      question: question,
+      isCorrect: isCorrect,
+    );
+    if (_disposed) return result;
+    _ref.invalidate(todayReviewQueueProvider);
+    _ref.invalidate(allQuestionsProvider);
+    _ref.invalidate(verifiedQuestionsProvider);
+    if (result.question.deckId.isNotEmpty) {
+      _ref.invalidate(deckQuestionsProvider(result.question.deckId));
+      _ref.invalidate(verifiedDeckQuestionsProvider(result.question.deckId));
+    }
+    final pointId = result.question.knowledgePointId;
+    if (pointId != null && pointId.isNotEmpty) {
+      _ref.invalidate(knowledgePointListProvider);
+      _ref.invalidate(evidenceBackedKnowledgePointListProvider);
+      _ref.invalidate(practiceableKnowledgePointListProvider);
+      _ref.invalidate(knowledgePointProvider(pointId));
+      _ref.invalidate(knowledgePointQuestionsProvider(pointId));
+    }
+    _ref.invalidate(monthlyCheckInProvider);
+    _ref.invalidate(earnedMedalsProvider);
+    _ref.invalidate(totalCorrectProvider);
+    _refreshStats();
+    return result;
+  }
+
+  Future<QuizCompletionSaveResult> saveCompletion({
+    required String operationId,
+    required String? deckId,
+    required int correctCount,
+    required int totalCount,
+  }) async {
+    final result = await _persistence.saveCompletion(
+      operationId: operationId,
+      deckId: deckId,
+      correctCount: correctCount,
+      totalCount: totalCount,
+    );
+    if (_disposed) return result;
+    _ref.invalidate(perfectCountProvider);
+    _ref.invalidate(deckListProvider);
+    if (deckId != null) _ref.invalidate(studyRecordProvider(deckId));
+    _refreshStats();
+    return result;
+  }
+
+  void _refreshStats() {
+    // A receipt's stats describe its original commit, which may predate other
+    // saves. Refresh reads current data and handles read errors independently.
+    unawaited(_ref.read(userStatsProvider.notifier).refresh());
+  }
+}
 
 /// 题包操作
 final deckOperationsProvider = Provider<DeckOperations>((ref) {
