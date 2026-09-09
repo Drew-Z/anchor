@@ -13,7 +13,7 @@
 以下事项取代本文档后面的早期时间估算和草案任务：
 
 1. 按 [DEVELOPMENT_LOOP.md](DEVELOPMENT_LOOP.md) 执行持续开发主任务：分析当前项目 → 选择一个 leaf → 实现并验收 → 返回主任务重新分析。唯一运行指针、当前 leaf 和精确验证结果在 `CURRENT_STATE.md`，本列表不另存状态。
-2. DL-001 至 DL-016 已完成；DL-016 已通过项目 ZIP/目录 picker ownership、取消/重试、route-exit 和三种 Android 尺寸验收，最新本地结果为 4 项聚焦检查、22 项相关导入/service 检查和 534 项全量 Flutter 测试。下一 leaf 由根任务重新分析后写入 `CURRENT_STATE.md`。以下发布工作仍等待授权或真实证据。用户已于 2026-09-08 取消自动唤醒，应用确认原 `anchor` 自动化不存在；通过当前任务直接消息恢复后，各 leaf 连续推进。已结束的 Claude 任务、旧执行队列和上游故障排查不作为后续产品任务恢复。
+2. DL-001 至 DL-017 已完成；DL-017 已通过文本/图片分析 ownership、route-exit、缺少凭据重试和正常/短屏大字号 Android 验收，最新本地结果为 4 项聚焦生命周期检查、31 项相关导入/首轮检查和 538 项全量 Flutter 测试。当前 DL-018 处理编程学习路径候选生成的 ownership 与 route-exit 边界，精确契约见 `CURRENT_STATE.md`。以下发布工作仍等待授权或真实证据。用户已于 2026-09-08 取消自动唤醒，应用确认原 `anchor` 自动化不存在；通过当前任务直接消息恢复后，各 leaf 连续推进。已结束的 Claude 任务、旧执行队列和上游故障排查不作为后续产品任务恢复。
 3. 以下发布操作为待授权队列，不由开发任务自动执行：推送 `codex/anchor-web-demo`、同步 PR #1 的验证数量和 CI 记录、合并 PR，并将 `web/landing` 部署到
    `https://anchor.playlab.eu.cc/`，随后执行官网和 `/app/` smoke check。
 4. 临近发布窗口，用同一 `1.0.0+2005` 签名候选重新完成真机与模型五项验收。
