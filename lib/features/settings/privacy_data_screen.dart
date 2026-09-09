@@ -286,10 +286,8 @@ class _PrivacyDataScreenState extends ConsumerState<PrivacyDataScreen> {
 
     setState(() => _isRestoring = true);
     try {
-      final result = await ref
-          .read(localDataBackupServiceProvider)
-          .restoreBackup(sourcePath);
-      invalidateDatabaseBackedProviders(ref);
+      final result =
+          await ref.read(localDataOperationsProvider).restoreBackup(sourcePath);
       if (!mounted) return;
       final message =
           result.migrationApplied ? '恢复完成，旧版备份已升级到当前数据库版本' : '本地数据恢复完成';
@@ -366,8 +364,7 @@ class _PrivacyDataScreenState extends ConsumerState<PrivacyDataScreen> {
 
     setState(() => _isDeleting = true);
     try {
-      await ref.read(localDataDeletionServiceProvider).delete(selected);
-      _invalidateDeletedData(selected);
+      await ref.read(localDataOperationsProvider).delete(selected);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -419,42 +416,6 @@ class _PrivacyDataScreenState extends ConsumerState<PrivacyDataScreen> {
   static String _backupErrorMessage(Object error) {
     if (error is LocalDataBackupException) return error.message;
     return error.toString();
-  }
-
-  void _invalidateDeletedData(Set<LocalDataScope> scopes) {
-    if (scopes.contains(LocalDataScope.productEvents)) {
-      ref.invalidate(productEventListProvider);
-    }
-    if (scopes.contains(LocalDataScope.onboardingState)) {
-      ref.invalidate(firstRunProgressProvider);
-    }
-    if (scopes.contains(LocalDataScope.modelConfiguration)) {
-      ref.invalidate(firstRunModelReadinessProvider);
-    }
-
-    final learningDataChanged =
-        scopes.contains(LocalDataScope.learningHistory) ||
-            scopes.contains(LocalDataScope.learningContent);
-    if (!learningDataChanged) return;
-
-    ref.invalidate(deckListProvider);
-    ref.invalidate(knowledgePointListProvider);
-    ref.invalidate(allQuestionsProvider);
-    ref.invalidate(verifiedQuestionsProvider);
-    ref.invalidate(pendingQuestionListProvider);
-    ref.invalidate(learningSessionListProvider);
-    ref.invalidate(agentSessionListProvider);
-    ref.invalidate(agentSessionMemoryIndexProvider);
-    ref.invalidate(todayReviewQueueProvider);
-    ref.invalidate(userStatsProvider);
-
-    if (scopes.contains(LocalDataScope.learningContent)) {
-      ref.invalidate(sourceListProvider);
-      ref.invalidate(allProgrammingExercisesProvider);
-      ref.invalidate(allProgrammingExerciseAttemptsProvider);
-      ref.invalidate(allProgrammingReviewActionsProvider);
-      ref.invalidate(knowledgeSearchCorpusProvider);
-    }
   }
 }
 

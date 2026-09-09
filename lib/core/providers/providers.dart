@@ -260,6 +260,68 @@ final localDataBackupServiceProvider = Provider<LocalDataBackupService>((ref) {
   return LocalDataBackupService(databaseHelper: ref.read(databaseProvider));
 });
 
+final localDataOperationsProvider = Provider<LocalDataOperations>((ref) {
+  return LocalDataOperations(
+    ref,
+    ref.watch(localDataBackupServiceProvider),
+    ref.watch(localDataDeletionServiceProvider),
+  );
+});
+
+/// Refreshes persisted data independently of the privacy route's lifetime.
+class LocalDataOperations {
+  final Ref _ref;
+  final LocalDataBackupService _backup;
+  final LocalDataDeletionService _deletion;
+  bool _disposed = false;
+
+  LocalDataOperations(this._ref, this._backup, this._deletion) {
+    _ref.onDispose(() => _disposed = true);
+  }
+
+  Future<LocalDataRestoreResult> restoreBackup(String sourcePath) async {
+    try {
+      return await _backup.restoreBackup(sourcePath);
+    } finally {
+      // A consumer may have read the candidate before a failed restore rolls
+      // back. Reload the final stored state on either outcome.
+      if (!_disposed) _invalidateDatabaseBackedProviders(_invalidate);
+    }
+  }
+
+  Future<LocalDataDeletionResult> delete(Set<LocalDataScope> scopes) async {
+    final selected = Set<LocalDataScope>.unmodifiable(scopes);
+    try {
+      return await _deletion.delete(selected);
+    } finally {
+      // SQLite deletion can finish before separate preference cleanup fails.
+      // Keep the error, while showing the data that actually remains.
+      if (!_disposed) {
+        _invalidate(productEventListProvider);
+        if (selected.contains(LocalDataScope.learningHistory) ||
+            selected.contains(LocalDataScope.learningContent)) {
+          _invalidateDatabaseBackedProviders(_invalidate);
+        }
+        if (selected.contains(LocalDataScope.onboardingState)) {
+          _invalidate(firstRunProgressProvider);
+          _invalidate(learningAgentGoalProvider);
+        }
+        if (selected.contains(LocalDataScope.modelConfiguration)) {
+          _invalidate(firstRunModelReadinessProvider);
+        }
+      }
+    }
+  }
+
+  void _invalidate(ProviderOrFamily provider) {
+    // Ref.invalidate's debug dependency check initializes unread providers.
+    // Only existing caches need refreshing; avoid starting onboarding or other
+    // unrelated data work as a side effect of invalidation.
+    if (provider is ProviderBase<Object?> && !_ref.exists(provider)) return;
+    _ref.invalidate(provider);
+  }
+}
+
 final aiModelAcceptanceRunnerProvider =
     Provider<AiModelAcceptanceRunner>((ref) {
   return AiModelAcceptanceRunner(
@@ -756,63 +818,72 @@ final learningAgentWorkspaceServiceProvider =
 });
 
 void invalidateAgentLearningRecordProviders(WidgetRef ref) {
-  ref.invalidate(learningSessionListProvider);
-  ref.invalidate(interviewSessionListProvider);
-  ref.invalidate(tutorSessionListProvider);
-  ref.invalidate(knowledgeAnswerSessionListProvider);
-  ref.invalidate(agentSessionListProvider);
-  ref.invalidate(agentSessionMemoryIndexProvider);
-  ref.invalidate(allInterviewTurnsProvider);
-  ref.invalidate(allTutorTurnsProvider);
-  ref.invalidate(allProgrammingExerciseAttemptsProvider);
-  ref.invalidate(allProgrammingReviewActionsProvider);
-  ref.invalidate(allKnowledgePointSourcesProvider);
-  ref.invalidate(learningAgentMemoryBuildResultProvider);
-  ref.invalidate(learningAgentMemoryStoreProvider);
-  ref.invalidate(projectInterviewOutcomeProvider);
+  _invalidateAgentLearningRecordProviders(ref.invalidate);
 }
 
-void invalidateDatabaseBackedProviders(WidgetRef ref) {
-  ref.invalidate(productEventListProvider);
-  ref.invalidate(deckListProvider);
-  ref.invalidate(sourceListProvider);
-  ref.invalidate(sourceProvider);
-  ref.invalidate(knowledgePointListProvider);
-  ref.invalidate(evidenceBackedKnowledgePointListProvider);
-  ref.invalidate(knowledgePointProvider);
-  ref.invalidate(pendingQuestionListProvider);
-  ref.invalidate(sourceChunksProvider);
-  ref.invalidate(sourceKnowledgePointsProvider);
-  ref.invalidate(knowledgePointSourcesProvider);
-  ref.invalidate(knowledgePointEvidenceChunksProvider);
-  ref.invalidate(questionCitationChunksProvider);
-  ref.invalidate(knowledgePointQuestionsProvider);
-  ref.invalidate(interviewTurnsProvider);
-  ref.invalidate(tutorTurnsProvider);
-  ref.invalidate(programmingExercisesProvider);
-  ref.invalidate(programmingExerciseAttemptsProvider);
-  ref.invalidate(programmingReviewQueueProvider);
-  ref.invalidate(userStatsProvider);
-  ref.invalidate(deckQuestionsProvider);
-  ref.invalidate(verifiedDeckQuestionsProvider);
-  ref.invalidate(studyRecordProvider);
-  ref.invalidate(allQuestionsProvider);
-  ref.invalidate(verifiedQuestionsProvider);
-  ref.invalidate(verifiedPracticeTargetsProvider);
-  ref.invalidate(practiceableKnowledgePointListProvider);
-  ref.invalidate(knowledgeSearchCorpusProvider);
-  ref.invalidate(knowledgeSearchResultsProvider);
-  ref.invalidate(knowledgeAnswerGroundedContextProvider);
-  ref.invalidate(knowledgeAnswerContextChunksProvider);
-  ref.invalidate(learningAgentActiveCheckpointListProvider);
-  ref.invalidate(learningAgentPlanProvider);
-  ref.invalidate(learningAgentWorkspaceProvider);
-  ref.invalidate(todayReviewQueueProvider);
-  ref.invalidate(monthlyCheckInProvider);
-  ref.invalidate(earnedMedalsProvider);
-  ref.invalidate(totalCorrectProvider);
-  ref.invalidate(perfectCountProvider);
-  invalidateAgentLearningRecordProviders(ref);
+void _invalidateAgentLearningRecordProviders(
+  void Function(ProviderOrFamily) invalidate,
+) {
+  invalidate(learningSessionListProvider);
+  invalidate(interviewSessionListProvider);
+  invalidate(tutorSessionListProvider);
+  invalidate(knowledgeAnswerSessionListProvider);
+  invalidate(agentSessionListProvider);
+  invalidate(agentSessionMemoryIndexProvider);
+  invalidate(allInterviewTurnsProvider);
+  invalidate(allTutorTurnsProvider);
+  invalidate(allProgrammingExerciseAttemptsProvider);
+  invalidate(allProgrammingReviewActionsProvider);
+  invalidate(allKnowledgePointSourcesProvider);
+  invalidate(learningAgentMemoryBuildResultProvider);
+  invalidate(learningAgentMemoryStoreProvider);
+  invalidate(projectInterviewOutcomeProvider);
+}
+
+void _invalidateDatabaseBackedProviders(
+  void Function(ProviderOrFamily) invalidate,
+) {
+  invalidate(productEventListProvider);
+  invalidate(deckListProvider);
+  invalidate(sourceListProvider);
+  invalidate(sourceProvider);
+  invalidate(knowledgePointListProvider);
+  invalidate(evidenceBackedKnowledgePointListProvider);
+  invalidate(knowledgePointProvider);
+  invalidate(pendingQuestionListProvider);
+  invalidate(sourceChunksProvider);
+  invalidate(sourceKnowledgePointsProvider);
+  invalidate(knowledgePointSourcesProvider);
+  invalidate(knowledgePointEvidenceChunksProvider);
+  invalidate(questionCitationChunksProvider);
+  invalidate(knowledgePointQuestionsProvider);
+  invalidate(interviewTurnsProvider);
+  invalidate(tutorTurnsProvider);
+  invalidate(allProgrammingExercisesProvider);
+  invalidate(programmingExercisesProvider);
+  invalidate(programmingExerciseAttemptsProvider);
+  invalidate(programmingReviewQueueProvider);
+  invalidate(userStatsProvider);
+  invalidate(deckQuestionsProvider);
+  invalidate(verifiedDeckQuestionsProvider);
+  invalidate(studyRecordProvider);
+  invalidate(allQuestionsProvider);
+  invalidate(verifiedQuestionsProvider);
+  invalidate(verifiedPracticeTargetsProvider);
+  invalidate(practiceableKnowledgePointListProvider);
+  invalidate(knowledgeSearchCorpusProvider);
+  invalidate(knowledgeSearchResultsProvider);
+  invalidate(knowledgeAnswerGroundedContextProvider);
+  invalidate(knowledgeAnswerContextChunksProvider);
+  invalidate(learningAgentActiveCheckpointListProvider);
+  invalidate(learningAgentPlanProvider);
+  invalidate(learningAgentWorkspaceProvider);
+  invalidate(todayReviewQueueProvider);
+  invalidate(monthlyCheckInProvider);
+  invalidate(earnedMedalsProvider);
+  invalidate(totalCorrectProvider);
+  invalidate(perfectCountProvider);
+  _invalidateAgentLearningRecordProviders(invalidate);
 }
 
 void invalidateLearningAgentPlanInputProviders(
