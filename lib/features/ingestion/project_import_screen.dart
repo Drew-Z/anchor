@@ -290,12 +290,23 @@ class _ProjectImportScreenState extends ConsumerState<ProjectImportScreen> {
   }
 
   Future<void> _pickProjectDirectory() async {
+    if (_isSaving || _isScanning) return;
+    setState(() {
+      _isScanning = true;
+      _errorMessage = null;
+      _statusMessage = '正在打开项目选择器...';
+    });
     await _recordImportStarted('directory');
+    if (!mounted) return;
     try {
       if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
         final bridge = ref.read(androidProjectDirectoryBridgeProvider);
         final selection = await bridge.pickDirectory();
-        if (selection == null) return;
+        if (!mounted) return;
+        if (selection == null) {
+          _clearScanningOwnership();
+          return;
+        }
         final service = ref.read(projectSourceImportServiceProvider);
         await _loadProjectSnapshot(
           bridge
@@ -317,7 +328,11 @@ class _ProjectImportScreenState extends ConsumerState<ProjectImportScreen> {
       final directoryPath = await FilePicker.getDirectoryPath(
         dialogTitle: '选择项目目录',
       );
-      if (directoryPath == null) return;
+      if (!mounted) return;
+      if (directoryPath == null) {
+        _clearScanningOwnership();
+        return;
+      }
       await _loadProjectSnapshot(
         ref.read(projectSourceImportServiceProvider).scanDirectory(
               directoryPath,
@@ -329,14 +344,25 @@ class _ProjectImportScreenState extends ConsumerState<ProjectImportScreen> {
   }
 
   Future<void> _pickProjectZip() async {
+    if (_isSaving || _isScanning) return;
+    setState(() {
+      _isScanning = true;
+      _errorMessage = null;
+      _statusMessage = '正在打开项目选择器...';
+    });
     await _recordImportStarted('zip');
+    if (!mounted) return;
     try {
       final result = await FilePicker.pickFiles(
         dialogTitle: '选择项目 ZIP',
         type: FileType.custom,
         allowedExtensions: const ['zip'],
       );
-      if (result.isEmpty) return;
+      if (!mounted) return;
+      if (result.isEmpty) {
+        _clearScanningOwnership();
+        return;
+      }
 
       final file = result.single;
       final service = ref.read(projectSourceImportServiceProvider);
@@ -355,9 +381,18 @@ class _ProjectImportScreenState extends ConsumerState<ProjectImportScreen> {
     }
   }
 
+  void _clearScanningOwnership() {
+    if (!mounted) return;
+    setState(() {
+      _isScanning = false;
+      _statusMessage = '';
+    });
+  }
+
   Future<void> _loadProjectSnapshot(
     Future<ProjectSourceSnapshot> future,
   ) async {
+    if (!mounted) return;
     final startedAt = DateTime.now();
     setState(() {
       _isScanning = true;
@@ -367,6 +402,7 @@ class _ProjectImportScreenState extends ConsumerState<ProjectImportScreen> {
 
     try {
       final snapshot = await future;
+      if (!mounted) return;
       final selectedCount =
           snapshot.files.where((file) => file.selectedByDefault).length;
       final totalBytes = snapshot.files.fold<int>(
@@ -407,6 +443,7 @@ class _ProjectImportScreenState extends ConsumerState<ProjectImportScreen> {
   }
 
   Future<void> _showScanError(Object error) async {
+    if (!mounted) return;
     await _recordImportFailure(error, phase: 'scan');
     if (!mounted) return;
     setState(() {
