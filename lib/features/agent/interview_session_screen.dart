@@ -76,6 +76,7 @@ class _InterviewSessionScreenState
   InterviewQuestionDraft? _pendingFollowUp;
   int _currentIndex = 0;
   bool _isLoading = true;
+  bool _isStarting = false;
   bool _isEvaluating = false;
   bool _isPreparingNext = false;
   bool _isComplete = false;
@@ -97,6 +98,8 @@ class _InterviewSessionScreenState
   }
 
   Future<void> _startSession() async {
+    if (!mounted || _isStarting) return;
+    _isStarting = true;
     try {
       final resumeSession = widget.resumeSession;
       if (resumeSession != null &&
@@ -106,6 +109,7 @@ class _InterviewSessionScreenState
         return;
       }
       final hasKey = await ref.read(openaiServiceProvider).hasApiKey();
+      if (!mounted) return;
       if (!hasKey) {
         _fail('请先在设置中配置 AI API Key');
         return;
@@ -114,10 +118,12 @@ class _InterviewSessionScreenState
       final allPoints = await ref
           .read(knowledgePointRepositoryProvider)
           .getAllKnowledgePoints();
+      if (!mounted) return;
       final scopedPoints = resumeSession == null
           ? allPoints
           : _resumeInterviewPoints(allPoints, resumeSession);
       final evidenceBackedPoints = await _evidenceBackedPoints(scopedPoints);
+      if (!mounted) return;
       final candidatePoints = resumeSession == null
           ? _selectInterviewPoints(evidenceBackedPoints)
           : evidenceBackedPoints;
@@ -128,10 +134,12 @@ class _InterviewSessionScreenState
 
       _setStatus('正在读取来源依据...');
       final candidateChunksByPoint = await _loadEvidenceChunks(candidatePoints);
+      if (!mounted) return;
       final contextsByPoint = await _buildInterviewContexts(
         candidatePoints,
         candidateChunksByPoint,
       );
+      if (!mounted) return;
       final selectedPoints = candidatePoints
           .where((point) => contextsByPoint[point.id]?.isExecutable == true)
           .toList(growable: false);
@@ -152,6 +160,7 @@ class _InterviewSessionScreenState
       final persistedTurns = resumeSession == null
           ? const <InterviewTurn>[]
           : await sessionRepository.getInterviewTurns(resumeSession.id);
+      if (!mounted) return;
       _askedBasePointIds.addAll(
         persistedTurns
             .map((turn) => turn.knowledgePointId)
@@ -214,6 +223,7 @@ class _InterviewSessionScreenState
         followUpQuestion:
             resumeSession == null ? _followUpQuestionFor(selectedPoints) : null,
       );
+      if (!mounted) return;
       final session = resumeSession ??
           LearningSession(
             id: DateTime.now().microsecondsSinceEpoch.toString(),
@@ -223,6 +233,7 @@ class _InterviewSessionScreenState
           );
       if (resumeSession == null) {
         await sessionRepository.insertLearningSession(session);
+        if (!mounted) return;
       }
 
       if (!mounted) return;
@@ -239,7 +250,9 @@ class _InterviewSessionScreenState
         _statusText = '';
       });
     } catch (e) {
-      _fail('启动面试失败: $e');
+      if (mounted) _fail('启动面试失败: $e');
+    } finally {
+      _isStarting = false;
     }
   }
 
@@ -274,6 +287,7 @@ class _InterviewSessionScreenState
       final relations = await ref
           .read(knowledgePointRepositoryProvider)
           .getKnowledgePointSources(point.id);
+      if (!mounted) return const [];
       if (relations.isEmpty) continue;
 
       var hasChunk = false;
@@ -281,6 +295,7 @@ class _InterviewSessionScreenState
         final chunk = await ref
             .read(sourceChunkRepositoryProvider)
             .getSourceChunk(relation.sourceChunkId);
+        if (!mounted) return const [];
         if (chunk != null) {
           hasChunk = true;
           break;
@@ -300,10 +315,12 @@ class _InterviewSessionScreenState
       final relations = await ref
           .read(knowledgePointRepositoryProvider)
           .getKnowledgePointSources(point.id);
+      if (!mounted) return {};
       for (final relation in relations) {
         final chunk = await ref
             .read(sourceChunkRepositoryProvider)
             .getSourceChunk(relation.sourceChunkId);
+        if (!mounted) return {};
         if (chunk != null) chunks[chunk.id] = chunk;
       }
       if (chunks.isNotEmpty) chunksByPointId[point.id] = chunks.values.toList();
@@ -321,6 +338,7 @@ class _InterviewSessionScreenState
         .map((chunk) => chunk.sourceId)
         .toSet()) {
       final source = await ref.read(sourceProvider(sourceId).future);
+      if (!mounted) return {};
       if (source != null) sources[source.id] = source;
     }
     final service = ref.read(groundedLearningContextServiceProvider);
@@ -368,7 +386,14 @@ class _InterviewSessionScreenState
 
   Future<void> _evaluateCurrentAnswer() async {
     final session = _session;
-    if (session == null || _questions.isEmpty) return;
+    if (!mounted ||
+        session == null ||
+        _questions.isEmpty ||
+        _isEvaluating ||
+        _isPreparingNext ||
+        _isEnding) {
+      return;
+    }
 
     final answer = _answerController.text.trim();
     if (answer.isEmpty) {
@@ -412,8 +437,8 @@ class _InterviewSessionScreenState
             citedChunks: citedChunks,
             groundedContext: evaluationContext,
           );
+      if (!mounted) return;
       if (!result.isSuccess) {
-        if (!mounted) return;
         setState(() {
           _isEvaluating = false;
           _errorMessage = _evaluationFailureMessage(result);
@@ -452,10 +477,12 @@ class _InterviewSessionScreenState
       final turn = await ref
           .read(interviewReviewClosureServiceProvider)
           .closeAndPersistTurn(turn: draftTurn, now: now);
+      if (!mounted) return;
       await ref.read(masteryServiceProvider).updateFromInterviewTurn(
             turn: turn,
             knowledgePointIds: question.knowledgePointIds,
           );
+      if (!mounted) return;
       ref.invalidate(knowledgePointListProvider);
       ref.invalidate(evidenceBackedKnowledgePointListProvider);
       ref.invalidate(practiceableKnowledgePointListProvider);
@@ -539,7 +566,13 @@ class _InterviewSessionScreenState
   }
 
   Future<void> _nextQuestion() async {
-    if (_isPreparingNext) return;
+    if (!mounted ||
+        _isPreparingNext ||
+        _isEvaluating ||
+        _isEnding ||
+        _isComplete) {
+      return;
+    }
 
     final followUp = _pendingFollowUp;
     if (followUp != null) {
@@ -606,23 +639,38 @@ class _InterviewSessionScreenState
   }
 
   Future<void> _finishSession() async {
+    if (!mounted || _isEnding || _isComplete) return;
+    setState(() {
+      _isEnding = true;
+      _errorMessage = null;
+    });
     final session = _session;
-    if (session != null) {
-      final completedSession = session.copyWith(
-        endedAt: DateTime.now(),
-        xpGained: _turns.length * 15,
-        summary: _interviewSessionSummary(),
-      );
-      await ref
-          .read(learningSessionRepositoryProvider)
-          .updateLearningSession(completedSession);
-      invalidateAgentLearningRecordProviders(ref);
-      if (mounted) {
+    try {
+      if (session != null) {
+        final completedSession = session.copyWith(
+          endedAt: DateTime.now(),
+          xpGained: _turns.length * 15,
+          summary: _interviewSessionSummary(),
+        );
+        await ref
+            .read(learningSessionRepositoryProvider)
+            .updateLearningSession(completedSession);
+        if (!mounted) return;
+        invalidateAgentLearningRecordProviders(ref);
         setState(() => _session = completedSession);
       }
+      if (!mounted) return;
+      setState(() {
+        _isEnding = false;
+        _isComplete = true;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isEnding = false;
+        _errorMessage = '结束面试失败: $e';
+      });
     }
-    if (!mounted) return;
-    setState(() => _isComplete = true);
   }
 
   Future<bool> _confirmExit() async {
@@ -654,22 +702,34 @@ class _InterviewSessionScreenState
       ),
     );
     if (shouldEnd != true) return false;
+    if (!mounted) return false;
 
-    if (mounted) setState(() => _isEnding = true);
+    setState(() {
+      _isEnding = true;
+      _errorMessage = null;
+    });
     final interruptedSession = session.copyWith(
       endedAt: DateTime.now(),
       xpGained: _turns.length * 15,
       summary: '中断面试，已保存 ${_turns.length} 轮评分。',
     );
-    await ref
-        .read(learningSessionRepositoryProvider)
-        .updateLearningSession(interruptedSession);
-    invalidateAgentLearningRecordProviders(ref);
-    if (mounted) {
+    try {
+      await ref
+          .read(learningSessionRepositoryProvider)
+          .updateLearningSession(interruptedSession);
+      if (!mounted) return false;
+      invalidateAgentLearningRecordProviders(ref);
       setState(() {
         _session = interruptedSession;
         _isEnding = false;
       });
+    } catch (e) {
+      if (!mounted) return false;
+      setState(() {
+        _isEnding = false;
+        _errorMessage = '结束面试失败: $e';
+      });
+      return false;
     }
     return true;
   }
@@ -793,6 +853,7 @@ class _InterviewSessionScreenState
                     ),
                     const SizedBox(height: 14),
                     TextField(
+                      key: const ValueKey('interview-answer-input'),
                       controller: _answerController,
                       enabled: evaluation == null && !_isEvaluating,
                       maxLines: 8,
@@ -839,6 +900,7 @@ class _InterviewSessionScreenState
                 isEvaluating: _isEvaluating,
                 isPreparingNext: _isPreparingNext,
                 hasNext: _hasNextQuestion,
+                isEnding: _isEnding,
                 onEvaluate: () => _evaluateCurrentAnswer(),
                 onNext: () => _nextQuestion(),
               ),
@@ -1007,25 +1069,28 @@ class _QuestionCard extends StatelessWidget {
           ],
           if (citedChunks.isNotEmpty) ...[
             const SizedBox(height: 8),
-            ExpansionTile(
-              tilePadding: EdgeInsets.zero,
-              childrenPadding: EdgeInsets.zero,
-              title: const Text(
-                '题目依据',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
+            Material(
+              color: Colors.transparent,
+              child: ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                childrenPadding: EdgeInsets.zero,
+                title: const Text(
+                  '题目依据',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
+                children: citedChunks
+                    .map(
+                      (chunk) => SourceCitationBlock(
+                        chunk: chunk,
+                        margin: const EdgeInsets.only(bottom: 8),
+                      ),
+                    )
+                    .toList(),
               ),
-              children: citedChunks
-                  .map(
-                    (chunk) => SourceCitationBlock(
-                      chunk: chunk,
-                      margin: const EdgeInsets.only(bottom: 8),
-                    ),
-                  )
-                  .toList(),
             ),
           ],
         ],
@@ -1123,6 +1188,7 @@ class _BottomActionBar extends StatelessWidget {
   final bool hasEvaluation;
   final bool isEvaluating;
   final bool isPreparingNext;
+  final bool isEnding;
   final bool hasNext;
   final VoidCallback onEvaluate;
   final VoidCallback onNext;
@@ -1131,6 +1197,7 @@ class _BottomActionBar extends StatelessWidget {
     required this.hasEvaluation,
     required this.isEvaluating,
     required this.isPreparingNext,
+    required this.isEnding,
     required this.hasNext,
     required this.onEvaluate,
     required this.onNext,
@@ -1149,11 +1216,14 @@ class _BottomActionBar extends StatelessWidget {
           label: hasEvaluation
               ? (isPreparingNext ? '正在生成下一题...' : (hasNext ? '继续下一题' : '完成面试'))
               : (isEvaluating ? '评估中...' : '提交回答'),
+          key: ValueKey(
+            hasEvaluation ? 'interview-next-action' : 'interview-submit-answer',
+          ),
           color: hasEvaluation ? AppColors.blue : AppColors.green,
           width: double.infinity,
           height: 56,
           icon: hasEvaluation ? Icons.arrow_forward : Icons.check,
-          enabled: !isEvaluating && !isPreparingNext,
+          enabled: !isEvaluating && !isPreparingNext && !isEnding,
           onPressed: hasEvaluation ? onNext : onEvaluate,
         ),
       ),
