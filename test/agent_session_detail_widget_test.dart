@@ -325,6 +325,221 @@ void main() {
     expect(find.textContaining('追问处理记录保存失败'), findsOneWidget);
     expect(repository.inserted, isEmpty);
   });
+
+  testWidgets('pending follow-up lookup owns both actions', (tester) async {
+    final pendingRead = Completer<List<LearningSession>>();
+    final repository = _TestLearningSessionRepository([session])
+      ..nextRead = pendingRead;
+    await tester.pumpWidget(_app(
+      session: session,
+      memory: AgentSessionMemoryIndex([session]),
+      repository: repository,
+      pointOverride: (ref) async => point,
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('导师追问'));
+    await tester.tap(find.text('面试追问'));
+    await tester.pump();
+    expect(repository.readCount, 1);
+    for (final label in ['导师追问', '面试追问']) {
+      final button = find.ancestor(
+        of: find.text(label),
+        matching: find.byType(OutlinedButton),
+      );
+      expect(tester.widget<OutlinedButton>(button).onPressed, isNull);
+    }
+
+    pendingRead.complete([session]);
+    await tester.pumpAndSettle();
+    expect(find.text('导师模式'), findsOneWidget);
+    expect(find.text('面试官模式'), findsNothing);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(repository.inserted, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('failed initial follow-up lookup shows an error and can retry',
+      (tester) async {
+    final repository = _TestLearningSessionRepository([session])
+      ..failNextRead = true;
+    await tester.pumpWidget(_app(
+      session: session,
+      memory: AgentSessionMemoryIndex([session]),
+      repository: repository,
+      pointOverride: (ref) async => point,
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('导师追问'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.textContaining('追问处理失败'), findsOneWidget);
+    expect(repository.inserted, isEmpty);
+
+    await tester.tap(find.text('导师追问'));
+    await tester.pumpAndSettle();
+    expect(find.text('导师模式'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(repository.readCount, 3);
+    expect(repository.inserted, isEmpty);
+  });
+
+  testWidgets('late initial follow-up lookup ignores a closed detail route',
+      (tester) async {
+    final navigatorKey = GlobalKey<NavigatorState>();
+    final pendingRead = Completer<List<LearningSession>>();
+    final repository = _TestLearningSessionRepository([session])
+      ..nextRead = pendingRead;
+    await tester.pumpWidget(_app(
+      session: session,
+      memory: AgentSessionMemoryIndex([session]),
+      repository: repository,
+      navigatorKey: navigatorKey,
+      pointOverride: (ref) async => point,
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('导师追问'));
+    await tester.pump();
+    await _replaceDetailRoute(tester, navigatorKey);
+
+    pendingRead.complete([session]);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.text('Returned from detail'), findsOneWidget);
+    expect(repository.readCount, 1);
+    expect(repository.inserted, isEmpty);
+  });
+
+  testWidgets('late initial follow-up failure ignores a disposed scope',
+      (tester) async {
+    final pendingRead = Completer<List<LearningSession>>();
+    final repository = _TestLearningSessionRepository([session])
+      ..nextRead = pendingRead;
+    await tester.pumpWidget(_app(
+      session: session,
+      memory: AgentSessionMemoryIndex([session]),
+      repository: repository,
+      pointOverride: (ref) async => point,
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('导师追问'));
+    await tester.pump();
+    await tester.pumpWidget(const SizedBox.shrink());
+
+    pendingRead.completeError(StateError('late follow-up read failure'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(repository.inserted, isEmpty);
+  });
+
+  testWidgets('failed final follow-up lookup leaves actions retryable',
+      (tester) async {
+    final repository = _TestLearningSessionRepository([session]);
+    await tester.pumpWidget(_app(
+      session: session,
+      memory: AgentSessionMemoryIndex([session]),
+      repository: repository,
+      pointOverride: (ref) async => point,
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('导师追问'));
+    await tester.pumpAndSettle();
+    repository.failNextRead = true;
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.textContaining('追问处理失败'), findsOneWidget);
+    expect(repository.inserted, isEmpty);
+
+    await tester.tap(find.text('导师追问'));
+    await tester.pumpAndSettle();
+    repository.values.add(_completedTutorSession(point, session));
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(repository.inserted, hasLength(1));
+    expect(find.text('已记录为已处理追问。'), findsOneWidget);
+  });
+
+  testWidgets('late final follow-up lookup does not start a handled record',
+      (tester) async {
+    final navigatorKey = GlobalKey<NavigatorState>();
+    final pendingRead = Completer<List<LearningSession>>();
+    final repository = _TestLearningSessionRepository([session]);
+    await tester.pumpWidget(_app(
+      session: session,
+      memory: AgentSessionMemoryIndex([session]),
+      repository: repository,
+      navigatorKey: navigatorKey,
+      pointOverride: (ref) async => point,
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('导师追问'));
+    await tester.pumpAndSettle();
+    repository.nextRead = pendingRead;
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(repository.readCount, 2);
+    await _replaceDetailRoute(tester, navigatorKey);
+
+    pendingRead.complete([session, _completedTutorSession(point, session)]);
+    await tester.pumpAndSettle();
+    expect(repository.insertCount, 0);
+    expect(tester.takeException(), isNull);
+    expect(find.text('Returned from detail'), findsOneWidget);
+  });
+
+  for (final failInsert in [false, true]) {
+    testWidgets('late handled-record insert ignores route exit: $failInsert',
+        (tester) async {
+      final navigatorKey = GlobalKey<NavigatorState>();
+      final pendingInsert = Completer<String>();
+      final repository = _TestLearningSessionRepository([session])
+        ..nextInsert = pendingInsert;
+      await tester.pumpWidget(_app(
+        session: session,
+        memory: AgentSessionMemoryIndex([session]),
+        repository: repository,
+        navigatorKey: navigatorKey,
+        pointOverride: (ref) async => point,
+      ));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('导师追问'));
+      await tester.pumpAndSettle();
+      repository.values.add(_completedTutorSession(point, session));
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(repository.insertCount, 1);
+      await _replaceDetailRoute(tester, navigatorKey);
+
+      if (failInsert) {
+        pendingInsert.completeError(StateError('late handled-record failure'));
+      } else {
+        pendingInsert.complete('saved');
+      }
+      await tester.pumpAndSettle();
+      expect(repository.inserted, hasLength(failInsert ? 0 : 1));
+      expect(tester.takeException(), isNull);
+      expect(find.text('Returned from detail'), findsOneWidget);
+    });
+  }
+}
+
+Future<void> _replaceDetailRoute(
+  WidgetTester tester,
+  GlobalKey<NavigatorState> navigatorKey,
+) async {
+  navigatorKey.currentState!.pushReplacement<void, void>(
+    MaterialPageRoute(
+      builder: (context) => const Scaffold(
+        body: Text('Returned from detail'),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
 }
 
 Widget _app({
@@ -332,6 +547,7 @@ Widget _app({
   required AgentSessionMemoryIndex memory,
   Future<KnowledgePoint?> Function(Ref ref)? pointOverride,
   LearningSessionRepository? repository,
+  GlobalKey<NavigatorState>? navigatorKey,
 }) {
   return ProviderScope(
     overrides: [
@@ -343,6 +559,7 @@ Widget _app({
       openaiServiceProvider.overrideWithValue(_TestOpenAIService()),
     ],
     child: MaterialApp(
+      navigatorKey: navigatorKey,
       home: AgentSessionDetailScreen(session: session),
     ),
   );
@@ -373,6 +590,11 @@ class _TestLearningSessionRepository extends LearningSessionRepository {
   final List<LearningSession> values;
   final List<LearningSession> inserted = [];
   bool failNextInsert;
+  bool failNextRead = false;
+  Completer<List<LearningSession>>? nextRead;
+  Completer<String>? nextInsert;
+  int readCount = 0;
+  int insertCount = 0;
 
   _TestLearningSessionRepository(
     this.values, {
@@ -380,14 +602,28 @@ class _TestLearningSessionRepository extends LearningSessionRepository {
   }) : super(DatabaseHelper());
 
   @override
-  Future<List<LearningSession>> getLearningSessions() async => values;
+  Future<List<LearningSession>> getLearningSessions() async {
+    readCount += 1;
+    if (failNextRead) {
+      failNextRead = false;
+      throw StateError('follow-up records unavailable');
+    }
+    final pendingRead = nextRead;
+    nextRead = null;
+    if (pendingRead != null) return pendingRead.future;
+    return values;
+  }
 
   @override
   Future<String> insertLearningSession(LearningSession session) async {
+    insertCount += 1;
     if (failNextInsert) {
       failNextInsert = false;
       throw StateError('follow-up record unavailable');
     }
+    final pendingInsert = nextInsert;
+    nextInsert = null;
+    if (pendingInsert != null) await pendingInsert.future;
     inserted.add(session);
     return session.id;
   }

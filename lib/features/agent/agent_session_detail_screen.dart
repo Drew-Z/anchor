@@ -352,38 +352,37 @@ class AgentSessionDetailScreen extends ConsumerWidget {
     required LearningSessionMode mode,
     required Future<Object?> Function() openAction,
   }) async {
-    final beforeCount = await _completedSessionCount(
-      ref,
-      mode,
-      point.id,
-      question,
-    );
-    if (!context.mounted) {
-      _refreshLearningRecords(ref);
-      return;
-    }
-
-    await openAction();
     if (!context.mounted) return;
+    var isSavingRecord = false;
+    try {
+      final beforeCount = await _completedSessionCount(
+        ref,
+        mode,
+        point.id,
+        question,
+      );
+      if (!context.mounted) return;
 
-    final afterCount = await _completedSessionCount(
-      ref,
-      mode,
-      point.id,
-      question,
-    );
-    if (afterCount <= beforeCount) {
-      _refreshLearningRecords(ref);
-      if (context.mounted) {
+      await openAction();
+      if (!context.mounted) return;
+
+      final afterCount = await _completedSessionCount(
+        ref,
+        mode,
+        point.id,
+        question,
+      );
+      if (!context.mounted) return;
+      if (afterCount <= beforeCount) {
+        _refreshLearningRecords(ref);
         _showFollowUpMessage(
           context,
           '还没有检测到完成的$actionLabel，追问仍保持未处理。',
         );
+        return;
       }
-      return;
-    }
 
-    try {
+      isSavingRecord = true;
       await _recordFollowUpHandled(
         ref,
         point,
@@ -392,13 +391,17 @@ class AgentSessionDetailScreen extends ConsumerWidget {
         actionLabel,
       );
       if (!context.mounted) return;
+      _refreshLearningRecords(ref);
       _showFollowUpMessage(
         context,
         '已记录为已处理追问。',
       );
-    } catch (e) {
+    } catch (error) {
       if (!context.mounted) return;
-      _showFollowUpMessage(context, '追问处理记录保存失败: $e');
+      _showFollowUpMessage(
+        context,
+        isSavingRecord ? '追问处理记录保存失败: $error' : '追问处理失败: $error',
+      );
     }
   }
 
@@ -460,7 +463,6 @@ class AgentSessionDetailScreen extends ConsumerWidget {
             summary: lines.join('\n'),
           ),
         );
-    _refreshLearningRecords(ref);
   }
 
   String _followUpStatusTitle(bool? hasOpenFollowUp) {
@@ -825,7 +827,7 @@ class _FollowUpActionCardState extends State<_FollowUpActionCard> {
   bool _isRunning = false;
 
   Future<void> _runAction(Future<void> Function() action) async {
-    if (_isRunning) return;
+    if (!mounted || _isRunning) return;
     setState(() => _isRunning = true);
     try {
       await action();
