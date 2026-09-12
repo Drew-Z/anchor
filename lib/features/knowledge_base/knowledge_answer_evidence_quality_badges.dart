@@ -131,12 +131,14 @@ class _EvidenceQualityBadge extends StatelessWidget {
           children: [
             Icon(data.icon, size: 13, color: data.color),
             const SizedBox(width: 4),
-            Text(
-              data.label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w900,
-                color: data.color,
+            Flexible(
+              child: Text(
+                data.label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  color: data.color,
+                ),
               ),
             ),
           ],

@@ -498,6 +498,7 @@ class AgentHomeScreen extends ConsumerWidget {
     WidgetRef ref,
     LearningAgentPlan plan,
   ) async {
+    if (!context.mounted) return;
     final nextAction = plan.nextAction;
     if (nextAction != null && !nextAction.executable) {
       _showAgentMessage(
@@ -508,8 +509,16 @@ class AgentHomeScreen extends ConsumerWidget {
     }
     if (nextAction?.resumesCheckpoint == true) {
       final sessionId = nextAction!.checkpointSessionId!;
-      final checkpoint =
-          await ref.read(learningAgentCheckpointStoreProvider).load(sessionId);
+      final LearningAgentCheckpoint? checkpoint;
+      try {
+        checkpoint = await ref
+            .read(learningAgentCheckpointStoreProvider)
+            .load(sessionId);
+      } catch (error) {
+        if (!context.mounted) return;
+        _showAgentMessage(context, '未完成会话读取失败: $error');
+        return;
+      }
       if (!context.mounted) return;
       if (checkpoint == null) {
         ref.invalidate(learningAgentActiveCheckpointListProvider);
@@ -994,9 +1003,17 @@ class AgentHomeScreen extends ConsumerWidget {
     WidgetRef ref,
     LearningAgentFocusPoint focusPoint,
   ) async {
-    final point = await ref
-        .read(knowledgePointRepositoryProvider)
-        .getKnowledgePoint(focusPoint.id);
+    if (!context.mounted) return;
+    final KnowledgePoint? point;
+    try {
+      point = await ref
+          .read(knowledgePointRepositoryProvider)
+          .getKnowledgePoint(focusPoint.id);
+    } catch (error) {
+      if (!context.mounted) return;
+      _showAgentMessage(context, '知识点读取失败: $error');
+      return;
+    }
     if (!context.mounted) return;
 
     if (point == null) {

@@ -1,9 +1,15 @@
+import 'dart:async';
+
 import 'package:anchor_learning/core/providers/providers.dart';
+import 'package:anchor_learning/data/database/database_helper.dart';
+import 'package:anchor_learning/data/models/knowledge_point.dart';
 import 'package:anchor_learning/data/models/learning_session.dart';
+import 'package:anchor_learning/data/repositories/knowledge_point_repository.dart';
 import 'package:anchor_learning/features/agent/agent_home_screen.dart';
 import 'package:anchor_learning/features/agent/agent_session_detail_screen.dart';
 import 'package:anchor_learning/features/agent/agent_session_history_screen.dart';
 import 'package:anchor_learning/features/agent/agent_session_launch_screen.dart';
+import 'package:anchor_learning/features/knowledge_base/knowledge_base_screen.dart';
 import 'package:anchor_learning/services/agent/agent_session_memory_index.dart';
 import 'package:anchor_learning/services/agent/learning_agent_memory_record.dart';
 import 'package:anchor_learning/services/agent/learning_agent_runtime_contracts.dart';
@@ -221,6 +227,191 @@ void main() {
     expect(store.saveCount, 1);
   });
 
+  testWidgets('workspace checkpoint lookup failure can retry', (tester) async {
+    final checkpoint = _checkpoint(_plan());
+    final store = _MemoryCheckpointStore(checkpoint: checkpoint)
+      ..failNextLoad = true;
+    await _pumpHome(tester, store: store, plan: _resumePlan(checkpoint));
+
+    await _tapVisibleText(tester, '继续未完成会话');
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.textContaining('未完成会话读取失败'), findsOneWidget);
+    expect(find.byType(AgentSessionLaunchScreen), findsNothing);
+    expect(store.saveCount, 0);
+
+    await _tapVisibleText(tester, '继续未完成会话');
+    await tester.pumpAndSettle();
+    expect(find.byType(AgentSessionLaunchScreen), findsOneWidget);
+    expect(store.loadCount, 2);
+    expect(store.saveCount, 1);
+    expect(store.checkpoint!.plan, same(checkpoint.plan));
+  });
+
+  testWidgets('late checkpoint lookup ignores a replaced home route',
+      (tester) async {
+    final checkpoint = _checkpoint(_plan());
+    final pending = Completer<LearningAgentCheckpoint?>();
+    final store = _MemoryCheckpointStore(checkpoint: checkpoint)
+      ..nextLoad = pending;
+    final navigatorKey = GlobalKey<NavigatorState>();
+    await _pumpHome(
+      tester,
+      store: store,
+      plan: _resumePlan(checkpoint),
+      navigatorKey: navigatorKey,
+    );
+    await _tapVisibleText(tester, '继续未完成会话');
+    await tester.pump();
+    await _replaceHomeRoute(tester, navigatorKey);
+
+    pending.complete(checkpoint);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.text('Returned from Agent home'), findsOneWidget);
+    expect(find.byType(AgentSessionLaunchScreen), findsNothing);
+    expect(store.saveCount, 0);
+  });
+
+  testWidgets('late checkpoint lookup failure ignores a disposed scope',
+      (tester) async {
+    final checkpoint = _checkpoint(_plan());
+    final pending = Completer<LearningAgentCheckpoint?>();
+    final store = _MemoryCheckpointStore(checkpoint: checkpoint)
+      ..nextLoad = pending;
+    await _pumpHome(tester, store: store, plan: _resumePlan(checkpoint));
+    await _tapVisibleText(tester, '继续未完成会话');
+    await tester.pumpWidget(const SizedBox.shrink());
+
+    pending.completeError(StateError('late checkpoint lookup failure'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(store.saveCount, 0);
+  });
+
+  testWidgets('missing workspace checkpoint keeps the existing recovery path',
+      (tester) async {
+    final store = _MemoryCheckpointStore();
+    await _pumpHome(
+      tester,
+      store: store,
+      plan: _resumePlan(_checkpoint(_plan())),
+    );
+    await _tapVisibleText(tester, '继续未完成会话');
+    await tester.pumpAndSettle();
+
+    expect(find.text('未完成会话已不存在，正在重新规划下一动作。'), findsOneWidget);
+    expect(find.byType(AgentSessionLaunchScreen), findsNothing);
+    expect(store.loadCount, 1);
+    expect(store.saveCount, 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('focus point lookup failure can retry', (tester) async {
+    final plan = _planWithDetailedEvidence();
+    final point = _knowledgePoint(plan.focusPoints.single);
+    final repository = _ReadControlledKnowledgePointRepository(point)
+      ..failNextRead = true;
+    await _pumpHome(
+      tester,
+      store: _MemoryCheckpointStore(),
+      plan: plan,
+      pointRepository: repository,
+    );
+    await _tapVisibleText(tester, '计划依据');
+    await _tapVisibleText(tester, plan.focusPoints.single.title);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.textContaining('知识点读取失败'), findsOneWidget);
+    expect(find.byType(KnowledgePointDetailScreen), findsNothing);
+    await _tapVisibleText(tester, plan.focusPoints.single.title);
+    await tester.pumpAndSettle();
+    expect(find.byType(KnowledgePointDetailScreen), findsOneWidget);
+    expect(
+        tester
+            .widget<KnowledgePointDetailScreen>(
+              find.byType(KnowledgePointDetailScreen),
+            )
+            .point,
+        same(point));
+    expect(repository.readCount, 2);
+  });
+
+  testWidgets('late focus point lookup ignores a replaced home route',
+      (tester) async {
+    final plan = _planWithDetailedEvidence();
+    final point = _knowledgePoint(plan.focusPoints.single);
+    final pending = Completer<KnowledgePoint?>();
+    final repository = _ReadControlledKnowledgePointRepository(point)
+      ..nextRead = pending;
+    final navigatorKey = GlobalKey<NavigatorState>();
+    await _pumpHome(
+      tester,
+      store: _MemoryCheckpointStore(),
+      plan: plan,
+      pointRepository: repository,
+      navigatorKey: navigatorKey,
+    );
+    await _tapVisibleText(tester, '计划依据');
+    await _tapVisibleText(tester, plan.focusPoints.single.title);
+    await _replaceHomeRoute(tester, navigatorKey);
+
+    pending.complete(point);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.text('Returned from Agent home'), findsOneWidget);
+    expect(find.byType(KnowledgePointDetailScreen), findsNothing);
+    expect(repository.readCount, 1);
+  });
+
+  testWidgets('late focus point lookup failure ignores a disposed scope',
+      (tester) async {
+    final plan = _planWithDetailedEvidence();
+    final pending = Completer<KnowledgePoint?>();
+    final repository = _ReadControlledKnowledgePointRepository(null)
+      ..nextRead = pending;
+    await _pumpHome(
+      tester,
+      store: _MemoryCheckpointStore(),
+      plan: plan,
+      pointRepository: repository,
+    );
+    await _tapVisibleText(tester, '计划依据');
+    await _tapVisibleText(tester, plan.focusPoints.single.title);
+    await tester.pumpWidget(const SizedBox.shrink());
+
+    pending.completeError(StateError('late knowledge point lookup failure'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(repository.readCount, 1);
+  });
+
+  testWidgets('missing focus point keeps the knowledge library fallback',
+      (tester) async {
+    final plan = _planWithDetailedEvidence();
+    final repository = _ReadControlledKnowledgePointRepository(null);
+    await _pumpHome(
+      tester,
+      store: _MemoryCheckpointStore(),
+      plan: plan,
+      pointRepository: repository,
+    );
+    await _tapVisibleText(tester, '计划依据');
+    await _tapVisibleText(tester, plan.focusPoints.single.title);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(KnowledgeBaseScreen), findsOneWidget);
+    expect(
+        tester
+            .widget<KnowledgeBaseScreen>(find.byType(KnowledgeBaseScreen))
+            .initialTabIndex,
+        2);
+    expect(find.byType(KnowledgePointDetailScreen), findsNothing);
+    expect(repository.readCount, 1);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('checkpoint deletion confirms and refreshes the home screen',
       (tester) async {
     final plan = _plan();
@@ -370,6 +561,8 @@ Future<void> _pumpHome(
       workspaceLoader,
   Future<List<LearningAgentCheckpoint>> Function(Ref)? checkpointLoader,
   Future<ProjectInterviewOutcome> Function(Ref)? outcomeLoader,
+  KnowledgePointRepository? pointRepository,
+  GlobalKey<NavigatorState>? navigatorKey,
   Size viewport = const Size(390, 844),
   double textScale = 1,
 }) async {
@@ -390,6 +583,22 @@ Future<void> _pumpHome(
         privacyPreferencesStoreProvider.overrideWithValue(
           const DisabledPrivacyPreferencesStore(),
         ),
+        if (pointRepository != null) ...[
+          knowledgePointRepositoryProvider.overrideWithValue(pointRepository),
+          knowledgePointEvidenceChunksProvider.overrideWith(
+            (ref, pointId) async => const [],
+          ),
+          knowledgePointQuestionsProvider.overrideWith(
+            (ref, pointId) async => const [],
+          ),
+          learningTargetMemoryProvider.overrideWith(
+            (ref, pointId) async => const LearningAgentMemorySnapshot(),
+          ),
+          sourceListProvider.overrideWith((ref) async => const []),
+          knowledgePointListProvider.overrideWith((ref) async => const []),
+          allQuestionsProvider.overrideWith((ref) async => const []),
+          pendingQuestionListProvider.overrideWith((ref) async => const []),
+        ],
         learningAgentWorkspaceProvider.overrideWith(
           workspaceLoader ?? (ref, goal) async => workspace,
         ),
@@ -420,6 +629,7 @@ Future<void> _pumpHome(
         ),
       ],
       child: MaterialApp(
+        navigatorKey: navigatorKey,
         builder: (context, child) => MediaQuery(
           data: MediaQuery.of(context).copyWith(
             textScaler: TextScaler.linear(textScale),
@@ -437,6 +647,57 @@ Future<void> _tapVisibleText(WidgetTester tester, String label) async {
   final target = find.text(label);
   await _scrollTo(tester, target);
   await tester.tap(target);
+}
+
+Future<void> _replaceHomeRoute(
+  WidgetTester tester,
+  GlobalKey<NavigatorState> navigatorKey,
+) async {
+  navigatorKey.currentState!.pushReplacement<void, void>(
+    MaterialPageRoute(
+      builder: (context) => const Scaffold(
+        body: Text('Returned from Agent home'),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+KnowledgePoint _knowledgePoint(LearningAgentFocusPoint focusPoint) {
+  final now = DateTime(2026, 9, 12);
+  return KnowledgePoint(
+    id: focusPoint.id,
+    title: focusPoint.title,
+    summary: 'Synthetic source-grounded knowledge point.',
+    kind: KnowledgePointKind.architecture,
+    createdAt: now,
+    updatedAt: now,
+  );
+}
+
+LearningAgentPlan _resumePlan(LearningAgentCheckpoint checkpoint) {
+  final base = checkpoint.plan!;
+  final candidate = LearningAgentNextActionCandidate.unfinishedCheckpoint(
+    sessionId: checkpoint.sessionId,
+    title: '继续原 checkpoint',
+    reason: '保留原计划恢复未完成会话',
+    updatedAt: checkpoint.state.updatedAt,
+  );
+  return LearningAgentPlan(
+    goal: base.goal,
+    readiness: base.readiness,
+    memory: base.memory,
+    steps: base.steps,
+    sessionSummary: base.sessionSummary,
+    nextAction: LearningAgentNextAction(
+      selectedCandidate: candidate,
+      inputSnapshot: LearningAgentNextActionInputSnapshot(
+        goalValue: base.goal.value,
+        plannedAt: checkpoint.state.updatedAt,
+        candidates: [candidate],
+      ),
+    ),
+  );
 }
 
 Future<void> _scrollTo(WidgetTester tester, Finder target) async {
@@ -616,6 +877,9 @@ LearningSession _session() {
 
 class _MemoryCheckpointStore implements LearningAgentCheckpointStore {
   LearningAgentCheckpoint? checkpoint;
+  bool failNextLoad = false;
+  Completer<LearningAgentCheckpoint?>? nextLoad;
+  int loadCount = 0;
   int saveCount = 0;
   final List<String> deletedSessionIds = [];
 
@@ -629,6 +893,14 @@ class _MemoryCheckpointStore implements LearningAgentCheckpointStore {
 
   @override
   Future<LearningAgentCheckpoint?> load(String sessionId) async {
+    loadCount += 1;
+    if (failNextLoad) {
+      failNextLoad = false;
+      throw StateError('checkpoint lookup unavailable');
+    }
+    final pending = nextLoad;
+    nextLoad = null;
+    if (pending != null) return pending.future;
     return checkpoint?.sessionId == sessionId ? checkpoint : null;
   }
 
@@ -653,5 +925,27 @@ class _MemoryCheckpointStore implements LearningAgentCheckpointStore {
     saveCount += 1;
     checkpoint = candidate.withRevision(currentRevision + 1);
     return checkpoint!;
+  }
+}
+
+class _ReadControlledKnowledgePointRepository extends KnowledgePointRepository {
+  final KnowledgePoint? point;
+  bool failNextRead = false;
+  Completer<KnowledgePoint?>? nextRead;
+  int readCount = 0;
+
+  _ReadControlledKnowledgePointRepository(this.point) : super(DatabaseHelper());
+
+  @override
+  Future<KnowledgePoint?> getKnowledgePoint(String id) async {
+    readCount += 1;
+    if (failNextRead) {
+      failNextRead = false;
+      throw StateError('knowledge point lookup unavailable');
+    }
+    final pending = nextRead;
+    nextRead = null;
+    if (pending != null) return pending.future;
+    return point?.id == id ? point : null;
   }
 }
