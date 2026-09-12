@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:anchor_learning/core/providers/providers.dart';
 import 'package:anchor_learning/core/theme/app_theme.dart';
 import 'package:anchor_learning/data/models/grounded_claim.dart';
@@ -59,6 +61,72 @@ void main() {
         );
         if (tab.index == 1) {
           expect(find.text('导入来源').hitTestable(), findsOneWidget);
+        }
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('${tab.label} read failure recovers at ${layout.name}',
+          (tester) async {
+        final reads = <int, int>{};
+        final retryCompletion = Completer<void>();
+        addTearDown(() {
+          if (!retryCompletion.isCompleted) retryCompletion.complete();
+        });
+        await _pumpLibrary(
+          tester,
+          tabIndex: tab.index,
+          size: layout.size,
+          textScale: layout.scale,
+          beforeRead: (index) async {
+            reads[index] = (reads[index] ?? 0) + 1;
+            if (index != tab.index) return;
+            if (reads[index] == 1) {
+              throw StateError('synthetic_list_read_failure');
+            }
+            await retryCompletion.future;
+          },
+        );
+        expect(tester.takeException(), isNull);
+        if (layout.scale > 1) {
+          await tester.drag(
+            find.byType(KnowledgeBaseScreen),
+            const Offset(0, -280),
+          );
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull);
+        }
+
+        final retry = find.text('重试读取${tab.label}');
+        final safeViewport = Rect.fromLTWH(
+          0,
+          24,
+          layout.size.width,
+          layout.size.height - 48,
+        );
+        for (final control in [find.text('复制诊断'), retry]) {
+          if (control.hitTestable().evaluate().isEmpty) {
+            await tester.ensureVisible(control);
+            await tester.pumpAndSettle();
+          }
+          expect(control.hitTestable(), findsOneWidget);
+          final bounds = tester.getRect(control);
+          expect(safeViewport.contains(bounds.topLeft), isTrue);
+          expect(safeViewport.contains(bounds.bottomRight), isTrue);
+        }
+
+        await tester.tap(retry);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+        expect(reads[tab.index], 2);
+        expect(
+            find.textContaining('synthetic_list_read_failure'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+
+        retryCompletion.complete();
+        await tester.pumpAndSettle();
+        expect(find.text(tab.empty).hitTestable(), findsOneWidget);
+        for (final index in [1, 2, 3, 4]) {
+          expect(reads[index], index == tab.index ? 2 : 1);
         }
         expect(tester.takeException(), isNull);
       });
@@ -283,6 +351,7 @@ Future<void> _pumpLibrary(
   required double textScale,
   String? searchQuery,
   Future<List<KnowledgeSearchResult>> Function()? searchResults,
+  Future<void> Function(int tab)? beforeRead,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -291,10 +360,22 @@ Future<void> _pumpLibrary(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
-        sourceListProvider.overrideWith((ref) async => const []),
-        knowledgePointListProvider.overrideWith((ref) async => const []),
-        allQuestionsProvider.overrideWith((ref) async => const []),
-        pendingQuestionListProvider.overrideWith((ref) async => const []),
+        sourceListProvider.overrideWith((ref) async {
+          await beforeRead?.call(1);
+          return const [];
+        }),
+        knowledgePointListProvider.overrideWith((ref) async {
+          await beforeRead?.call(2);
+          return const [];
+        }),
+        allQuestionsProvider.overrideWith((ref) async {
+          await beforeRead?.call(3);
+          return const [];
+        }),
+        pendingQuestionListProvider.overrideWith((ref) async {
+          await beforeRead?.call(4);
+          return const [];
+        }),
         knowledgeAnswerSessionListProvider
             .overrideWith((ref) async => const []),
         if (searchQuery != null) ...[

@@ -1854,13 +1854,15 @@ class _SourcesTab extends ConsumerWidget {
         );
       },
       loading: () => const _LoadingState(),
-      error: (error, _) => KnowledgeLibraryErrorState(
-        title: '来源读取失败',
-        retryLabel: '重试读取来源',
-        diagnosticTitle: '知识库来源列表读取失败',
-        diagnosticSuccessMessage: '已复制来源读取诊断',
-        error: error,
-        onRetry: () => ref.invalidate(sourceListProvider),
+      error: (error, _) => _LibraryStateViewport(
+        child: KnowledgeLibraryErrorState(
+          title: '来源读取失败',
+          retryLabel: '重试读取来源',
+          diagnosticTitle: '知识库来源列表读取失败',
+          diagnosticSuccessMessage: '已复制来源读取诊断',
+          error: error,
+          onRetry: () => ref.invalidate(sourceListProvider),
+        ),
       ),
     );
   }
@@ -1871,7 +1873,7 @@ class _SourcesEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _EmptyStateViewport(
+    return _LibraryStateViewport(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -1948,13 +1950,15 @@ class _KnowledgePointsTab extends ConsumerWidget {
         );
       },
       loading: () => const _LoadingState(),
-      error: (error, _) => KnowledgeLibraryErrorState(
-        title: '知识点读取失败',
-        retryLabel: '重试读取知识点',
-        diagnosticTitle: '知识库知识点列表读取失败',
-        diagnosticSuccessMessage: '已复制知识点读取诊断',
-        error: error,
-        onRetry: () => ref.invalidate(knowledgePointListProvider),
+      error: (error, _) => _LibraryStateViewport(
+        child: KnowledgeLibraryErrorState(
+          title: '知识点读取失败',
+          retryLabel: '重试读取知识点',
+          diagnosticTitle: '知识库知识点列表读取失败',
+          diagnosticSuccessMessage: '已复制知识点读取诊断',
+          error: error,
+          onRetry: () => ref.invalidate(knowledgePointListProvider),
+        ),
       ),
     );
   }
@@ -2033,13 +2037,15 @@ class _QuestionsTabState extends ConsumerState<_QuestionsTab> {
         );
       },
       loading: () => const _LoadingState(),
-      error: (error, _) => KnowledgeLibraryErrorState(
-        title: '题目读取失败',
-        retryLabel: '重试读取题目',
-        diagnosticTitle: '知识库题目列表读取失败',
-        diagnosticSuccessMessage: '已复制题目读取诊断',
-        error: error,
-        onRetry: () => ref.invalidate(allQuestionsProvider),
+      error: (error, _) => _LibraryStateViewport(
+        child: KnowledgeLibraryErrorState(
+          title: '题目读取失败',
+          retryLabel: '重试读取题目',
+          diagnosticTitle: '知识库题目列表读取失败',
+          diagnosticSuccessMessage: '已复制题目读取诊断',
+          error: error,
+          onRetry: () => ref.invalidate(allQuestionsProvider),
+        ),
       ),
     );
   }
@@ -2302,13 +2308,15 @@ class _PendingQuestionsTabState extends ConsumerState<_PendingQuestionsTab> {
         );
       },
       loading: () => const _LoadingState(),
-      error: (error, _) => KnowledgeLibraryErrorState(
-        title: '待核验内容读取失败',
-        retryLabel: '重试读取待核验',
-        diagnosticTitle: '知识库待核验列表读取失败',
-        diagnosticSuccessMessage: '已复制待核验读取诊断',
-        error: error,
-        onRetry: () => ref.invalidate(pendingQuestionListProvider),
+      error: (error, _) => _LibraryStateViewport(
+        child: KnowledgeLibraryErrorState(
+          title: '待核验内容读取失败',
+          retryLabel: '重试读取待核验',
+          diagnosticTitle: '知识库待核验列表读取失败',
+          diagnosticSuccessMessage: '已复制待核验读取诊断',
+          error: error,
+          onRetry: () => ref.invalidate(pendingQuestionListProvider),
+        ),
       ),
     );
   }
@@ -3958,11 +3966,11 @@ class _EmptyBlock extends StatelessWidget {
   }
 }
 
-class _EmptyStateViewport extends StatelessWidget {
+class _LibraryStateViewport extends StatelessWidget {
   final Widget child;
   final bool asSliver;
 
-  const _EmptyStateViewport({required this.child, this.asSliver = false});
+  const _LibraryStateViewport({required this.child, this.asSliver = false});
 
   @override
   Widget build(BuildContext context) {
@@ -4010,7 +4018,7 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _EmptyStateViewport(
+    return _LibraryStateViewport(
       asSliver: asSliver,
       child: Column(
         mainAxisSize: MainAxisSize.min,
