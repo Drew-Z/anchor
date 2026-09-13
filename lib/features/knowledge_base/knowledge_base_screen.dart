@@ -2161,15 +2161,17 @@ class _PendingQuestionsTabState extends ConsumerState<_PendingQuestionsTab> {
   bool _isVerifying = false;
 
   Future<void> _verifyAll(List<Question> questions) async {
-    if (_isVerifying) return;
+    if (!mounted || _isVerifying) return;
     setState(() => _isVerifying = true);
     try {
       final sourceChunkRepository = ref.read(sourceChunkRepositoryProvider);
       final plan =
           await const QuestionBulkVerificationService().buildPlanFromLoader(
         questions: questions,
-        citationExists: (citationId) async =>
-            await sourceChunkRepository.getSourceChunk(citationId) != null,
+        citationExists: (citationId) async {
+          if (!mounted) return false;
+          return await sourceChunkRepository.getSourceChunk(citationId) != null;
+        },
       );
       if (!mounted) return;
       if (!plan.hasUpdates) {
@@ -2185,6 +2187,7 @@ class _PendingQuestionsTabState extends ConsumerState<_PendingQuestionsTab> {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
+          scrollable: true,
           title: const Text('批量确认来源核验？'),
           content: Text(
             '将 ${plan.updates.length} 道引用片段仍可读取的题目标记为已核验。'
@@ -2208,6 +2211,7 @@ class _PendingQuestionsTabState extends ConsumerState<_PendingQuestionsTab> {
       await ref
           .read(questionRepositoryProvider)
           .updateQuestions(plan.updatedQuestions);
+      if (!mounted) return;
       ref.invalidate(pendingQuestionListProvider);
       ref.invalidate(allQuestionsProvider);
       ref.invalidate(verifiedQuestionsProvider);
