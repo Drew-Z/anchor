@@ -3175,7 +3175,7 @@ class _QuestionEvidenceScreenState
     SourceStatus status,
     List<SourceChunk> citationChunks,
   ) async {
-    if (_isSaving) return;
+    if (!mounted || _isSaving) return;
     if (status == SourceStatus.verified && citationChunks.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -3196,23 +3196,10 @@ class _QuestionEvidenceScreenState
         sourceStatus: validCitationIds.isEmpty ? SourceStatus.noSource : status,
         citationIds: validCitationIds,
       );
-      await ref.read(questionRepositoryProvider).updateQuestion(updated);
-      ref.invalidate(pendingQuestionListProvider);
-      ref.invalidate(allQuestionsProvider);
-      ref.invalidate(verifiedQuestionsProvider);
-      ref.invalidate(knowledgeSearchCorpusProvider);
-      ref.invalidate(practiceableKnowledgePointListProvider);
-      ref.invalidate(todayReviewQueueProvider);
-      ref.invalidate(questionCitationChunksProvider(previousCitationKey));
-      ref.invalidate(
-        questionCitationChunksProvider(updated.citationIds.join('\x00')),
-      );
-      ref.invalidate(deckQuestionsProvider(updated.deckId));
-      ref.invalidate(verifiedDeckQuestionsProvider(updated.deckId));
-      if (updated.knowledgePointId != null) {
-        ref.invalidate(
-            knowledgePointQuestionsProvider(updated.knowledgePointId!));
-      }
+      await ref.read(questionVerificationOperationsProvider).saveStatus(
+            updated,
+            previousCitationKey: previousCitationKey,
+          );
 
       if (!mounted) return;
       setState(() {

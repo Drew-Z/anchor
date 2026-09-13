@@ -1077,6 +1077,53 @@ final studyRecordProvider =
 
 // ============ 操作 Provider ============
 
+final questionVerificationOperationsProvider =
+    Provider<QuestionVerificationOperations>((ref) {
+  return QuestionVerificationOperations(
+    ref,
+    ref.watch(questionRepositoryProvider),
+  );
+});
+
+/// Refreshes a saved verification while the shared provider scope is alive.
+class QuestionVerificationOperations {
+  final Ref _ref;
+  final QuestionRepository _repository;
+  bool _disposed = false;
+
+  QuestionVerificationOperations(this._ref, this._repository) {
+    _ref.onDispose(() => _disposed = true);
+  }
+
+  Future<void> saveStatus(
+    Question question, {
+    required String previousCitationKey,
+  }) async {
+    await _repository.updateQuestion(question);
+    if (_disposed) return;
+
+    _invalidate(pendingQuestionListProvider);
+    _invalidate(allQuestionsProvider);
+    _invalidate(verifiedQuestionsProvider);
+    _invalidate(knowledgeSearchCorpusProvider);
+    _invalidate(practiceableKnowledgePointListProvider);
+    _invalidate(todayReviewQueueProvider);
+    _invalidate(questionCitationChunksProvider(previousCitationKey));
+    _invalidate(
+        questionCitationChunksProvider(question.citationIds.join('\x00')));
+    _invalidate(deckQuestionsProvider(question.deckId));
+    _invalidate(verifiedDeckQuestionsProvider(question.deckId));
+    if (question.knowledgePointId != null) {
+      _invalidate(knowledgePointQuestionsProvider(question.knowledgePointId!));
+    }
+  }
+
+  void _invalidate(ProviderBase<Object?> provider) {
+    // Avoid initializing unread providers through Ref's debug dependency check.
+    if (_ref.exists(provider)) _ref.invalidate(provider);
+  }
+}
+
 final quizOperationsProvider = Provider<QuizOperations>((ref) {
   return QuizOperations(ref, ref.watch(quizPersistenceServiceProvider));
 });
