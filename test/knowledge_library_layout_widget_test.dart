@@ -4,6 +4,8 @@ import 'package:anchor_learning/core/providers/providers.dart';
 import 'package:anchor_learning/core/theme/app_theme.dart';
 import 'package:anchor_learning/data/models/grounded_claim.dart';
 import 'package:anchor_learning/data/models/grounded_learning_context.dart';
+import 'package:anchor_learning/data/models/question.dart';
+import 'package:anchor_learning/data/models/question_type.dart';
 import 'package:anchor_learning/features/knowledge_base/knowledge_answer_evidence_quality_badges.dart';
 import 'package:anchor_learning/features/knowledge_base/knowledge_base_screen.dart';
 import 'package:anchor_learning/services/agent/knowledge_answer_session_summary.dart';
@@ -18,6 +20,127 @@ void main() {
     (name: 'ordinary', size: const Size(390, 844), scale: 1.0),
     (name: 'short large text', size: const Size(320, 420), scale: 2.0),
   ]) {
+    for (final initialTab in [3, 1]) {
+      testWidgets(
+          'populated question filters stay usable at ${layout.name} from tab $initialTab',
+          (tester) async {
+        final questions = _questionFilterFixtures();
+        final reads = <int, int>{};
+        await _pumpLibrary(
+          tester,
+          tabIndex: initialTab,
+          size: layout.size,
+          textScale: layout.scale,
+          questions: questions,
+          beforeRead: (index) async {
+            reads[index] = (reads[index] ?? 0) + 1;
+          },
+        );
+        expect(tester.takeException(), isNull);
+        if (initialTab != 3) {
+          final tab = find.widgetWithText(Tab, '题目');
+          if (tab.hitTestable().evaluate().isEmpty) {
+            await tester.drag(find.byType(TabBar), const Offset(-280, 0));
+            await tester.pumpAndSettle();
+          }
+          expect(tab.hitTestable(), findsOneWidget);
+          await tester.tap(tab);
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull);
+        }
+        if (layout.scale > 1) {
+          await tester.drag(
+            find.byType(KnowledgeBaseScreen),
+            const Offset(0, -280),
+          );
+          await tester.pumpAndSettle();
+        }
+
+        for (final question in questions) {
+          final filter = find.widgetWithText(
+            FilterChip,
+            '${question.sourceStatus.label} 1',
+          );
+          await _revealQuestionControl(tester, filter);
+          await tester.tap(filter);
+          await tester.pumpAndSettle();
+          expect(tester.widget<FilterChip>(filter).selected, isTrue);
+          for (final candidate in questions) {
+            expect(find.text(candidate.content),
+                candidate == question ? findsOneWidget : findsNothing);
+          }
+          final row = find.text(question.content);
+          await _revealQuestionControl(tester, row);
+          expect(tester.takeException(), isNull);
+
+          if (question.sourceStatus == SourceStatus.noSource) {
+            await tester.tap(row);
+            await tester.pumpAndSettle();
+            expect(
+              tester
+                  .widget<QuestionEvidenceScreen>(
+                    find.byType(QuestionEvidenceScreen),
+                  )
+                  .question,
+              same(question),
+            );
+            expect(tester.takeException(), isNull);
+            await tester.pageBack();
+            await tester.pumpAndSettle();
+            expect(tester.widget<FilterChip>(filter).selected, isTrue);
+            await _revealQuestionControl(tester, row);
+          }
+        }
+        final all = find.widgetWithText(FilterChip, '全部 3');
+        await _revealQuestionControl(tester, all);
+        await tester.tap(all);
+        await tester.pumpAndSettle();
+        expect(tester.widget<FilterChip>(all).selected, isTrue);
+        for (final question in questions) {
+          await _revealQuestionControl(tester, find.text(question.content));
+        }
+        expect(reads, {1: 1, 2: 1, 3: 1, 4: 1});
+        expect(tester.takeException(), isNull);
+      });
+    }
+
+    testWidgets('empty question filter recovers at ${layout.name}',
+        (tester) async {
+      final question = _questionFilterFixtures().first;
+      await _pumpLibrary(
+        tester,
+        tabIndex: 3,
+        size: layout.size,
+        textScale: layout.scale,
+        questions: [question],
+      );
+      expect(tester.takeException(), isNull);
+      if (layout.scale > 1) {
+        await tester.drag(
+          find.byType(KnowledgeBaseScreen),
+          const Offset(0, -280),
+        );
+        await tester.pumpAndSettle();
+      }
+      final noSource = find.widgetWithText(FilterChip, '无来源 0');
+      await _revealQuestionControl(tester, noSource);
+      await tester.tap(noSource);
+      await tester.pumpAndSettle();
+      expect(tester.widget<FilterChip>(noSource).selected, isTrue);
+      expect(find.text(question.content), findsNothing);
+      await _revealQuestionControl(tester, find.text('暂无无来源题目'));
+      expect(tester.takeException(), isNull);
+
+      final all = find.widgetWithText(FilterChip, '全部 1');
+      await _revealQuestionControl(tester, all);
+      await tester.tap(all);
+      await tester.pumpAndSettle();
+      expect(tester.widget<FilterChip>(all).selected, isTrue);
+      expect(find.text('暂无无来源题目'), findsNothing);
+      await _revealQuestionControl(tester, find.text(question.content));
+      expect(tester.takeException(), isNull);
+    });
+
     for (final tab in [
       (index: 1, label: '来源', empty: '暂无来源'),
       (index: 2, label: '知识点', empty: '暂无知识点'),
@@ -344,6 +467,38 @@ void main() {
   }
 }
 
+List<Question> _questionFilterFixtures() => [
+      for (final status in SourceStatus.values)
+        Question(
+          id: 'layout-${status.value}',
+          deckId: 'layout-deck',
+          type: QuestionType.trueFalse,
+          content: '${status.label}例题',
+          options: const ['对', '错'],
+          answer: '对',
+          sourceStatus: status,
+          citationIds: status == SourceStatus.noSource
+              ? const []
+              : ['layout-${status.value}-citation'],
+        ),
+    ];
+
+Future<void> _revealQuestionControl(WidgetTester tester, Finder finder) async {
+  final size = tester.view.physicalSize;
+  final viewport = Rect.fromLTWH(0, 24, size.width, size.height - 48);
+  final bounds = tester.getRect(finder);
+  if (finder.hitTestable().evaluate().isEmpty ||
+      !viewport.contains(bounds.topLeft) ||
+      !viewport.contains(bounds.bottomRight)) {
+    await tester.ensureVisible(finder);
+    await tester.pumpAndSettle();
+  }
+  expect(finder.hitTestable(), findsOneWidget);
+  final visibleBounds = tester.getRect(finder);
+  expect(viewport.contains(visibleBounds.topLeft), isTrue);
+  expect(viewport.contains(visibleBounds.bottomRight), isTrue);
+}
+
 Future<void> _pumpLibrary(
   WidgetTester tester, {
   required int tabIndex,
@@ -352,6 +507,7 @@ Future<void> _pumpLibrary(
   String? searchQuery,
   Future<List<KnowledgeSearchResult>> Function()? searchResults,
   Future<void> Function(int tab)? beforeRead,
+  List<Question> questions = const [],
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -370,7 +526,7 @@ Future<void> _pumpLibrary(
         }),
         allQuestionsProvider.overrideWith((ref) async {
           await beforeRead?.call(3);
-          return const [];
+          return questions;
         }),
         pendingQuestionListProvider.overrideWith((ref) async {
           await beforeRead?.call(4);
@@ -378,6 +534,9 @@ Future<void> _pumpLibrary(
         }),
         knowledgeAnswerSessionListProvider
             .overrideWith((ref) async => const []),
+        for (final question in questions)
+          questionCitationChunksProvider(question.citationIds.join('\x00'))
+              .overrideWith((ref) async => const []),
         if (searchQuery != null) ...[
           knowledgeSearchResultsProvider(searchQuery).overrideWith(
             (ref) => searchResults!(),

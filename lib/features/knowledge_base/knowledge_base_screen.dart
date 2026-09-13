@@ -1993,46 +1993,50 @@ class _QuestionsTabState extends ConsumerState<_QuestionsTab> {
                 .where((question) => question.sourceStatus == _selectedStatus)
                 .toList();
 
-        return Column(
-          children: [
-            _QuestionStatusFilters(
-              questions: questions,
-              selectedStatus: _selectedStatus,
-              onSelected: (status) {
-                setState(() => _selectedStatus = status);
-              },
+        return CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: _QuestionStatusFilters(
+                questions: questions,
+                selectedStatus: _selectedStatus,
+                onSelected: (status) {
+                  setState(() => _selectedStatus = status);
+                },
+              ),
             ),
-            Expanded(
-              child: filteredQuestions.isEmpty
-                  ? _EmptyState(
-                      icon: Icons.filter_alt_off,
-                      title: '暂无${_selectedStatus?.label ?? ''}题目',
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: filteredQuestions.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 10),
-                      itemBuilder: (context, index) {
-                        final question = filteredQuestions[index];
-                        return _LibraryRow(
-                          icon: Icons.help_outline,
-                          color: _sourceStatusColor(question.sourceStatus),
-                          title: question.content,
-                          subtitle:
-                              '${question.type.label} · ${question.sourceStatus.label} · ${question.citationIds.length} 条引用',
-                          trailing: Icons.chevron_right,
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    QuestionEvidenceScreen(question: question),
-                              ),
-                            );
-                          },
+            if (filteredQuestions.isEmpty)
+              _EmptyState(
+                icon: Icons.filter_alt_off,
+                title: '暂无${_selectedStatus?.label ?? ''}题目',
+                asSliver: true,
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.all(16),
+                sliver: SliverList.separated(
+                  itemCount: filteredQuestions.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (context, index) {
+                    final question = filteredQuestions[index];
+                    return _LibraryRow(
+                      icon: Icons.help_outline,
+                      color: _sourceStatusColor(question.sourceStatus),
+                      title: question.content,
+                      subtitle:
+                          '${question.type.label} · ${question.sourceStatus.label} · ${question.citationIds.length} 条引用',
+                      trailing: Icons.chevron_right,
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                QuestionEvidenceScreen(question: question),
+                          ),
                         );
                       },
-                    ),
-            ),
+                    );
+                  },
+                ),
+              ),
           ],
         );
       },
