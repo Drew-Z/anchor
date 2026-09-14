@@ -11,24 +11,23 @@ repository.
 - Product: `Anchor Learning / 锚学`
 - Candidate: `1.0.0+2005`
 - Arm64 APK SHA-256:
-  `74dcfb95cd9c123b51d9b35678ffd0153d23654bf6a5597de1070880d667207b`
-- Current release-day profile fingerprint:
-  `a8cfa8bca5eb59e87a45da8e63dd60244493a5392d451a4c15c7db8206ece4c4`
+  `641a1a107c687e4903b3c64a65111c4eeff88804d2cc056374026fafa29c54b3`
+- Current release-day profile fingerprints:
+  - primary `grok-4.6`: `56632da5ea078a596fa6b941751b9bdfb15dcc0ace860653831f05516055a056`
+  - fallback `glm-5.3-flash`: `c8a89bf232de988c8bdd9ded8abaae99c6133d4ddd1af8a7363d475c8db5a32f`
 - Current technical credential scope: `participantOwned`
 - Readiness status: `HOLD`
-- Current blockers: `cohort_pending`, `release_day_acceptance_primary_stale`,
-  `physical_device_evidence_stale`
+- Current blocker: `cohort_pending`
 
-The 2026-08-26 model and physical-device reports remain the identity-bound
-technical records for candidate `1.0.0+2005`, but they are outside the
-24-hour release window. Re-run both real checks only when the cohort is ready
-for final release evaluation; do not refresh timestamps without new evidence.
+The 2026-09-15 Windhub model and physical-device reports are the current
+identity-bound technical records for candidate `1.0.0+2005`. Re-run both real
+checks again if the APK, endpoint, protocol, model, or credential scope changes.
 
 ## 1. Controlled Credential
 
-Status: completed through opaque reference `CRED-PRIMARY-2005` on
-`2026-08-26`. The external record is access-restricted and the repository
-contains no API key.
+Status: completed through opaque references `CRED-PRIMARY-2005` and
+`CRED-FALLBACK-2005` on `2026-09-15`. The external records are access-restricted
+and the repository contains no API key.
 
 Create one external credential record for every profile that will be offered
 to participants. The record must provide an opaque reference such as
@@ -45,14 +44,14 @@ Required non-secret assertions:
 - retention policy and data-handling policy;
 - access restrictions and an external record locator owned by the operator.
 
-The release-day five-task report must be rerun with this exact controlled
-profile and the exact signed APK if the controlled profile differs from the
-current participant-owned technical run. Do not use a ping, model-list result,
-or external script as a substitute.
+The release-day five-task report must be rerun with the exact controlled
+profile and signed APK if either controlled profile changes. Do not use a ping,
+model-list result, or external script as a substitute.
 
 ## 2. Data-Processing Owner
 
-Status: completed through opaque reference `OPS-ALPHA-2005` on `2026-08-26`.
+Status: completed through opaque reference `OPS-ALPHA-2005`; the operator pack
+remains unchanged and access-restricted.
 The same external governance record assigns `alphaOwner`, `privacyReviewer`,
 `reliabilityOwner`, and data-processing responsibility.
 

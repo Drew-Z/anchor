@@ -244,7 +244,7 @@ Run the read-only preflight before installing on a physical candidate:
   --apk build\app\outputs\flutter-apk\app-arm64-v8a-release.apk `
   --adb 'C:\Users\zhang\AppData\Local\Android\sdk\platform-tools\adb.exe' `
   --serial <adb-serial> `
-  --expected-sha256 74dcfb95cd9c123b51d9b35678ffd0153d23654bf6a5597de1070880d667207b `
+  --expected-sha256 641a1a107c687e4903b3c64a65111c4eeff88804d2cc056374026fafa29c54b3 `
   --format json
 ```
 
@@ -265,7 +265,7 @@ modify device settings, or create files in shared device storage.
   --apk build\app\outputs\flutter-apk\app-arm64-v8a-release.apk `
   --adb 'C:\Users\zhang\AppData\Local\Android\sdk\platform-tools\adb.exe' `
   --serial <adb-serial> `
-  --expected-sha256 74dcfb95cd9c123b51d9b35678ffd0153d23654bf6a5597de1070880d667207b `
+  --expected-sha256 641a1a107c687e4903b3c64a65111c4eeff88804d2cc056374026fafa29c54b3 `
   --format json `
   --execute
 ```
@@ -382,7 +382,7 @@ Sources were fetched through `smart-search fetch` on 2026-07-16.
 
 The current release candidate is tracked in `docs/PRODUCTIZATION_RELEASE_PLAN.md`
 and `docs/OPEN_SOURCE_CHECKLIST.md`. Its signed Arm64 APK is bound to SHA-256
-`74dcfb95cd9c123b51d9b35678ffd0153d23654bf6a5597de1070880d667207b`, uses
+`641a1a107c687e4903b3c64a65111c4eeff88804d2cc056374026fafa29c54b3`, uses
 package `cc.eu.playlab.anchor`, and has completed the physical-device smoke on
 the OnePlus PGP110 (API 35, Arm64). This evidence does not replace the
 release-day model, controlled-credential, owner, or cohort gates below.
