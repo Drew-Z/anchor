@@ -1,6 +1,6 @@
 # Current Development State
 
-Updated: 2026-09-14. This is the current execution pointer, not a release approval.
+Updated: 2026-09-15. This is the current execution pointer, not a release approval.
 
 ## Development Mode
 
@@ -17,7 +17,7 @@ Updated: 2026-09-14. This is the current execution pointer, not a release approv
 - Root task: `anchor-development-loop`, defined in [DEVELOPMENT_LOOP.md](DEVELOPMENT_LOOP.md). This section is the single execution pointer.
 - Round: 29. Phase: `waiting_external`. Active leaf: none. DL-001 through DL-029 are complete. DL-029 closes the bulk verification stale-cache boundary after route exit; the application commit and required local/Android acceptance, screenshot review, restoration, shutdown and cleanup are complete. The root reassessment found no additional actionable local work; publication authorization, fresh release acceptance and formal cohort evidence remain external.
 - Latest application verification: DL-029 at `b903c2a`; 95 focused bulk/single/library/search checks and 654 final full Flutter tests pass. Final analysis found no issues (63.8 seconds), three Dart files format with zero changes, and the application diff check passes. Android normal/short-large-text acceptance has 32 observations and 24 screenshots, all visually inspected. Evidence: `D:\Agent\codex\visualizations\2026\09\12\01a09531-76ee-7b91-839d-0daa7fe4c68e\anchor-dl029-20260914-evidence.json`. Ordinary APK/display/database restoration and emulator shutdown are complete. These are local synthetic-fixture results, not remote CI, live-model, physical-device or release approval; coverage was not remeasured.
-- Current assessment: DL-029 closes the reproduced bulk-save freshness boundary. Reassessment found no additional actionable local defect or incomplete repository-local gate. The remaining candidates are publication authorization, fresh release/model/physical-device acceptance and formal cohort evidence, which remain external. Private Alpha `HOLD`, its three blockers and cancelled automatic wake-ups are unchanged.
+- Current assessment: DL-029 closes the reproduced bulk-save freshness boundary. The current signed release candidate, physical-device smoke and Windhub primary/fallback five-case model acceptance are now recorded in the local readiness evidence. Formal A01-A10 cohort evidence remains external, so Private Alpha is still `HOLD` with `cohort_pending`; cancelled automatic wake-ups are unchanged.
 
 ### Active Leaf DL-029 - Bulk verification save completion
 
@@ -626,4 +626,4 @@ The `anchor-checkpoint-20260908-large.png` baseline exposed title/phase/delete c
 
 Android identity remains `cc.eu.playlab.anchor`, database `anchor_learning.db`, candidate `1.0.0+2005`. Web remains a separate static demo with local data and no AI provider calls.
 
-Private Alpha remains `HOLD`: `cohort_pending`, `release_day_acceptance_primary_stale`, and `physical_device_evidence_stale`. See `PRODUCTIZATION_RELEASE_PLAN.md` for dated artifact evidence. Emulator/UI checks do not establish real-device acceptance or a cohort decision. Push, deployment, release signing, and distribution remain outside the current task.
+Private Alpha remains `HOLD` for `cohort_pending`. The readiness evidence now binds the signed arm64 APK (`641a1a107c687e4903b3c64a65111c4eeff88804d2cc056374026fafa29c54b3`), the connected API 35 physical-device smoke, and the Windhub primary `grok-4.6` plus fallback `glm-5.3-flash` five-case acceptance. Push, deployment and distribution remain outside the current task.

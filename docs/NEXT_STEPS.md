@@ -5,7 +5,7 @@
 [OPEN_SOURCE_CHECKLIST.md](OPEN_SOURCE_CHECKLIST.md) 和
 [OPEN_SOURCE_READY.md](OPEN_SOURCE_READY.md) 为准。
 
-> 更新于 2026-09-14：已切换为 Codex 单独开发；Private Alpha 仍因真实外部证据不足保持 `HOLD`。
+> 更新于 2026-09-15：已切换为 Codex 单独开发；当前签名候选、真机冒烟和 Windhub 主备模型五项验收已写入 readiness，Private Alpha 仍因 `cohort_pending` 保持 `HOLD`。
 > `.env.example` 只说明配置边界，应用凭据必须在“设置 → AI 配置”中保存。
 
 ## 当前有效队列
@@ -16,8 +16,8 @@
 2. DL-001 至 DL-029 已完成。DL-029 已独立复现并修复批量核验写入中退出知识库后，共享缓存及重新打开列表仍显示旧状态的问题；95 项聚焦、654 项全量、静态分析、格式和差异检查通过，普通屏及短屏大字号 Android 验收、截图复核、普通 APK/显示/数据库恢复、模拟器关闭和五个本轮临时文件清理均完成。唯一指针、范围和精确结果见 `CURRENT_STATE.md`。以下发布工作仍等待授权或真实证据。用户已于 2026-09-08 取消自动唤醒；后续通过当前任务直接消息恢复。已结束的 Claude 任务、旧执行队列和上游故障排查不作为后续产品任务恢复。
 3. 以下发布操作为待授权队列，不由开发任务自动执行：推送 `codex/anchor-web-demo`、同步 PR #1 的验证数量和 CI 记录、合并 PR，并将 `web/landing` 部署到
    `https://anchor.playlab.eu.cc/`，随后执行官网和 `/app/` smoke check。
-4. 临近发布窗口，用同一 `1.0.0+2005` 签名候选重新完成真机与模型五项验收。
-5. 执行 A01-A10 正式 cohort 及 D0/D7/D14 观察，形成匿名外部证据并运行 readiness evaluator。
+4. [x] 临近发布窗口，用同一 `1.0.0+2005` 签名候选重新完成真机与模型五项验收，并更新 readiness 证据。
+5. 执行 A01-A10 正式 cohort 及 D0/D7/D14 观察，形成匿名外部证据并运行 readiness evaluator；当前唯一 blocker 是 `cohort_pending`。
 6. 只有 evaluator 返回 `GO` 后，才进入 Private Alpha 分发。
 
 后文的“历史待办事项”不再是当前执行队列。
