@@ -2208,36 +2208,10 @@ class _PendingQuestionsTabState extends ConsumerState<_PendingQuestionsTab> {
       );
       if (confirmed != true || !mounted) return;
 
-      await ref
-          .read(questionRepositoryProvider)
-          .updateQuestions(plan.updatedQuestions);
-      if (!mounted) return;
-      ref.invalidate(pendingQuestionListProvider);
-      ref.invalidate(allQuestionsProvider);
-      ref.invalidate(verifiedQuestionsProvider);
-      ref.invalidate(knowledgeSearchCorpusProvider);
-      ref.invalidate(practiceableKnowledgePointListProvider);
-      ref.invalidate(todayReviewQueueProvider);
-      ref.invalidate(learningAgentPlanProvider);
-      for (final update in plan.updates) {
-        final previousQuestion = questions[update.index];
-        ref.invalidate(
-          questionCitationChunksProvider(
-            previousQuestion.citationIds.join('\x00'),
-          ),
-        );
-        ref.invalidate(
-          questionCitationChunksProvider(
-            update.question.citationIds.join('\x00'),
-          ),
-        );
-        ref.invalidate(deckQuestionsProvider(update.question.deckId));
-        ref.invalidate(verifiedDeckQuestionsProvider(update.question.deckId));
-        final pointId = update.question.knowledgePointId;
-        if (pointId != null) {
-          ref.invalidate(knowledgePointQuestionsProvider(pointId));
-        }
-      }
+      await ref.read(questionVerificationOperationsProvider).saveBulk(
+            plan,
+            previousQuestions: questions,
+          );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

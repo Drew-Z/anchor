@@ -68,6 +68,7 @@ import '../../services/ingestion/android_project_directory_bridge.dart';
 import '../../services/ingestion/project_learning_draft_service.dart';
 import '../../services/ingestion/project_source_import_service.dart';
 import '../../services/ingestion/programming_source_import_service.dart';
+import '../../services/ingestion/question_bulk_verification_service.dart';
 import '../../services/ingestion/semantic_chunker.dart';
 import '../../services/ingestion/source_grounded_ingestion_service.dart';
 import '../../services/onboarding/first_run_model_readiness.dart';
@@ -1115,6 +1116,41 @@ class QuestionVerificationOperations {
     _invalidate(verifiedDeckQuestionsProvider(question.deckId));
     if (question.knowledgePointId != null) {
       _invalidate(knowledgePointQuestionsProvider(question.knowledgePointId!));
+    }
+  }
+
+  Future<void> saveBulk(
+    QuestionBulkVerificationPlan plan, {
+    required List<Question> previousQuestions,
+  }) async {
+    await _repository.updateQuestions(plan.updatedQuestions);
+    if (_disposed) return;
+
+    _invalidate(pendingQuestionListProvider);
+    _invalidate(allQuestionsProvider);
+    _invalidate(verifiedQuestionsProvider);
+    _invalidate(knowledgeSearchCorpusProvider);
+    _invalidate(practiceableKnowledgePointListProvider);
+    _invalidate(todayReviewQueueProvider);
+    _ref.invalidate(learningAgentPlanProvider);
+    for (final update in plan.updates) {
+      final previousQuestion = previousQuestions[update.index];
+      _invalidate(
+        questionCitationChunksProvider(
+          previousQuestion.citationIds.join('\x00'),
+        ),
+      );
+      _invalidate(
+        questionCitationChunksProvider(
+          update.question.citationIds.join('\x00'),
+        ),
+      );
+      _invalidate(deckQuestionsProvider(update.question.deckId));
+      _invalidate(verifiedDeckQuestionsProvider(update.question.deckId));
+      final pointId = update.question.knowledgePointId;
+      if (pointId != null) {
+        _invalidate(knowledgePointQuestionsProvider(pointId));
+      }
     }
   }
 

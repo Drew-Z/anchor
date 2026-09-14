@@ -3,12 +3,15 @@ import 'dart:async';
 import 'package:anchor_learning/core/providers/providers.dart';
 import 'package:anchor_learning/core/theme/app_theme.dart';
 import 'package:anchor_learning/data/database/database_helper.dart';
+import 'package:anchor_learning/data/models/knowledge_point.dart';
 import 'package:anchor_learning/data/models/question.dart';
 import 'package:anchor_learning/data/models/question_type.dart';
 import 'package:anchor_learning/data/models/source_chunk.dart';
+import 'package:anchor_learning/data/repositories/knowledge_point_repository.dart';
 import 'package:anchor_learning/data/repositories/question_repository.dart';
 import 'package:anchor_learning/data/repositories/source_chunk_repository.dart';
 import 'package:anchor_learning/features/knowledge_base/knowledge_base_screen.dart';
+import 'package:anchor_learning/services/agent/learning_agent_planner_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,6 +22,62 @@ final _bulkButton = find.byKey(const ValueKey('bulk_verify_pending_questions'));
 final _confirmButton = find.widgetWithText(ElevatedButton, '确认批量核验');
 
 void main() {
+  for (final shortLarge in [false, true]) {
+    for (final failWrite in [false, true]) {
+      testWidgets(
+          'bulk save refreshes reopened library: short=$shortLarge failure=$failWrite',
+          (tester) async {
+        final harness = _Harness();
+        final gate = Completer<void>();
+        harness.onWrite = (_) => gate.future;
+        await _pumpLibrary(
+          tester,
+          harness,
+          size: shortLarge ? const Size(320, 420) : const Size(390, 844),
+          textScale: shortLarge ? 2 : 1,
+        );
+        final container = ProviderScope.containerOf(
+            tester.element(find.byType(KnowledgeBaseScreen)));
+        await _confirm(tester);
+        expect(harness.batches, hasLength(1));
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+        expect(find.text('Neutral route'), findsOneWidget);
+        if (failWrite) {
+          gate.completeError(StateError('synthetic late batch failure'));
+        } else {
+          gate.complete();
+        }
+        await tester.pumpAndSettle();
+        expect(harness.completedWrites, failWrite ? 0 : 1);
+        expect(find.byType(SnackBar), findsNothing);
+        harness.navigator.currentState!.push(MaterialPageRoute<void>(
+          builder: (_) => const KnowledgeBaseScreen(initialTabIndex: 3),
+        ));
+        await tester.pumpAndSettle();
+        expect(find.widgetWithText(FilterChip, failWrite ? '待核验 2' : '已核验 1'),
+            findsOneWidget);
+        expect(
+            container
+                .read(pendingQuestionListProvider)
+                .requireValue
+                .map((question) => question.id),
+            failWrite ? ['eligible', 'missing'] : ['missing']);
+        final saved = container
+            .read(allQuestionsProvider)
+            .requireValue
+            .firstWhere((question) => question.id == 'eligible');
+        expect(saved.sourceStatus,
+            failWrite ? SourceStatus.pending : SourceStatus.verified);
+        expect(saved.citationIds,
+            failWrite ? ['first', 'missing', 'first'] : ['first']);
+        expect(harness.batches, hasLength(1));
+        expect(harness.database.opens, 0);
+        expect(tester.takeException(), isNull);
+      });
+    }
+  }
+
   for (final shortLarge in [false, true]) {
     testWidgets(
         'bulk confirmation remains readable and actionable: short=$shortLarge',
@@ -57,6 +116,103 @@ void main() {
       expect(harness.questions.last.sourceStatus, SourceStatus.pending);
       expect(harness.listReads, [1, 1, 2, 2]);
       expect(harness.database.opens, 0);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  for (final leaveLibrary in [false, true]) {
+    testWidgets('bulk save refreshes existing read models: back=$leaveLibrary',
+        (tester) async {
+      final harness = _Harness(watchListsOnHome: true);
+      final gate = Completer<void>();
+      harness.onWrite = (_) => gate.future;
+      await _pumpLibrary(tester, harness);
+      final container = ProviderScope.containerOf(
+          tester.element(find.byType(KnowledgeBaseScreen)));
+      final oldKey = harness.questions.first.citationIds.join('\x00');
+      expect(await container.read(verifiedQuestionsProvider.future), isEmpty);
+      await container.read(deckQuestionsProvider('bulk-deck').future);
+      expect(
+          await container
+              .read(verifiedDeckQuestionsProvider('bulk-deck').future),
+          isEmpty);
+      await container
+          .read(knowledgePointQuestionsProvider('bulk-point').future);
+      await container.read(knowledgeSearchCorpusProvider.future);
+      expect(
+          await container.read(practiceableKnowledgePointListProvider.future),
+          isEmpty);
+      await container.read(todayReviewQueueProvider.future);
+      for (final key in [oldKey, 'first', 'unrelated']) {
+        await container.read(questionCitationChunksProvider(key).future);
+      }
+      await container.read(deckQuestionsProvider('unrelated').future);
+      final goals = LearningAgentGoal.values.take(2).toList();
+      for (final goal in goals) {
+        await container.read(learningAgentPlanProvider(goal).future);
+        expect(harness.planReads[goal], 1);
+      }
+      await _confirm(tester);
+      if (leaveLibrary) {
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+        expect(find.text('Verified 0, pending 2'), findsOneWidget);
+      }
+      harness.chunkContent = 'Fresh batch evidence';
+      gate.complete();
+      await tester.pumpAndSettle();
+      if (leaveLibrary) {
+        expect(find.text('Verified 1, pending 1'), findsOneWidget);
+        expect(find.byType(SnackBar), findsNothing);
+      }
+      expect((await container.read(verifiedQuestionsProvider.future)).single.id,
+          'eligible');
+      expect(
+          (await container.read(deckQuestionsProvider('bulk-deck').future))
+              .first
+              .sourceStatus,
+          SourceStatus.verified);
+      expect(
+          (await container
+                  .read(verifiedDeckQuestionsProvider('bulk-deck').future))
+              .single
+              .id,
+          'eligible');
+      expect(
+          (await container
+                  .read(knowledgePointQuestionsProvider('bulk-point').future))
+              .single
+              .sourceStatus,
+          SourceStatus.verified);
+      final corpus = await container.read(knowledgeSearchCorpusProvider.future);
+      expect(corpus.questions.first.sourceStatus, SourceStatus.verified);
+      expect(corpus.questions.first.citationIds, ['first']);
+      expect(
+          (await container.read(practiceableKnowledgePointListProvider.future))
+              .single
+              .id,
+          'bulk-point');
+      await container.read(todayReviewQueueProvider.future);
+      expect(harness.reviewReads, 2);
+      for (final key in [oldKey, 'first']) {
+        expect(
+            (await container.read(questionCitationChunksProvider(key).future))
+                .map((chunk) => chunk.content),
+            everyElement(harness.chunkContent));
+      }
+      for (final goal in goals) {
+        await container.read(learningAgentPlanProvider(goal).future);
+        expect(harness.planReads[goal], 2);
+      }
+      await container.read(questionCitationChunksProvider('unrelated').future);
+      await container.read(deckQuestionsProvider('unrelated').future);
+      expect(harness.loads.where((id) => id == 'unrelated'), hasLength(1));
+      expect(harness.deckReads['unrelated'], 1);
+      expect(harness.listReads, [1, 1, 2, 2]);
+      expect(harness.completedWrites, 1);
+      expect(harness.batches, hasLength(1));
+      expect(harness.database.opens, 0);
+      expect(harness.modelAccesses, 0);
       expect(tester.takeException(), isNull);
     });
   }
@@ -191,32 +347,40 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  for (final failWrite in [false, true]) {
-    testWidgets('started bulk write settles after exit: failure=$failWrite',
-        (tester) async {
-      final harness = _Harness();
-      final gate = Completer<void>();
-      harness.onWrite = (_) => gate.future;
-      await _pumpLibrary(tester, harness);
-      await _confirm(tester);
-      expect(harness.batches, hasLength(1));
-      harness.navigator.currentState!.pop();
-      await tester.pumpAndSettle();
+  for (final disposeScope in [false, true]) {
+    for (final failWrite in [false, true]) {
+      testWidgets(
+          'started bulk write settles after exit: scope=$disposeScope failure=$failWrite',
+          (tester) async {
+        final harness = _Harness();
+        final gate = Completer<void>();
+        harness.onWrite = (_) => gate.future;
+        await _pumpLibrary(tester, harness);
+        await _confirm(tester);
+        expect(harness.batches, hasLength(1));
+        if (disposeScope) {
+          await tester.pumpWidget(const SizedBox.shrink());
+          await tester.pump();
+        } else {
+          harness.navigator.currentState!.pop();
+          await tester.pumpAndSettle();
+        }
 
-      if (failWrite) {
-        gate.completeError(StateError('synthetic late write failure'));
-      } else {
-        gate.complete();
-      }
-      await tester.pumpAndSettle();
-      expect(harness.batches, hasLength(1));
-      expect(harness.completedWrites, failWrite ? 0 : 1);
-      expect(harness.listReads, [1, 1, 1, 1]);
-      expect(find.byType(AlertDialog), findsNothing);
-      expect(find.byType(SnackBar), findsNothing);
-      expect(harness.database.opens, 0);
-      expect(tester.takeException(), isNull);
-    });
+        if (failWrite) {
+          gate.completeError(StateError('synthetic late write failure'));
+        } else {
+          gate.complete();
+        }
+        await tester.pumpAndSettle();
+        expect(harness.batches, hasLength(1));
+        expect(harness.completedWrites, failWrite ? 0 : 1);
+        expect(harness.listReads, [1, 1, 1, 1]);
+        expect(find.byType(AlertDialog), findsNothing);
+        expect(find.byType(SnackBar), findsNothing);
+        expect(harness.database.opens, 0);
+        expect(tester.takeException(), isNull);
+      });
+    }
   }
 }
 
@@ -321,6 +485,27 @@ Future<void> _pumpLibrary(
         ),
         sourceChunkRepositoryProvider.overrideWithValue(_Chunks(harness)),
         questionRepositoryProvider.overrideWithValue(_Questions(harness)),
+        knowledgePointRepositoryProvider.overrideWithValue(_Points()),
+        allProgrammingExercisesProvider.overrideWith((ref) async => const []),
+        todayReviewQueueProvider.overrideWith((ref) async {
+          harness.reviewReads++;
+          return const [];
+        }),
+        learningAgentPlanProvider.overrideWith((ref, goal) async {
+          harness.planReads
+              .update(goal, (count) => count + 1, ifAbsent: () => 1);
+          return const LearningAgentPlannerService().buildPlan(
+            goal: goal,
+            evidenceBackedPoints: const [],
+            practiceablePoints: const [],
+            practiceTargets: const [],
+            pendingQuestions: const [],
+          );
+        }),
+        openaiServiceProvider.overrideWith((ref) {
+          harness.modelAccesses++;
+          throw StateError('Model access is blocked in the bulk fixture');
+        }),
         sourceListProvider.overrideWith((ref) async {
           harness.listReads[0]++;
           return const [];
@@ -352,7 +537,9 @@ Future<void> _pumpLibrary(
           child: child!,
         ),
         navigatorKey: harness.navigator,
-        home: const Scaffold(body: Text('Neutral route')),
+        home: harness.watchListsOnHome
+            ? const _ListSnapshot()
+            : const Scaffold(body: Text('Neutral route')),
       ),
     ),
   );
@@ -364,11 +551,19 @@ Future<void> _pumpLibrary(
 }
 
 class _Harness {
+  final bool watchListsOnHome;
+  _Harness({this.watchListsOnHome = false});
+
   final navigator = GlobalKey<NavigatorState>();
   final database = _BlockedDatabase();
   final loads = <String>[];
   final batches = <List<Question>>[];
   final listReads = [0, 0, 0, 0];
+  final deckReads = <String, int>{};
+  final planReads = <LearningAgentGoal, int>{};
+  int reviewReads = 0;
+  int modelAccesses = 0;
+  String chunkContent = 'Synthetic readable evidence';
   int completedWrites = 0;
   Future<SourceChunk?> Function(String)? onRead;
   Future<void> Function(List<Question>)? onWrite;
@@ -376,6 +571,7 @@ class _Harness {
     Question(
       id: 'eligible',
       deckId: 'bulk-deck',
+      knowledgePointId: 'bulk-point',
       type: QuestionType.trueFalse,
       content: '待核验例题',
       answer: '对',
@@ -412,13 +608,26 @@ class _Chunks extends Fake implements SourceChunkRepository {
   Future<SourceChunk?> getSourceChunk(String id) {
     harness.loads.add(id);
     return harness.onRead?.call(id) ??
-        Future.value(id == 'first' ? _chunk : null);
+        Future.value(id == 'first'
+            ? _chunk.copyWith(content: harness.chunkContent)
+            : null);
   }
 }
 
 class _Questions extends Fake implements QuestionRepository {
   final _Harness harness;
   _Questions(this.harness);
+
+  @override
+  Future<List<Question>> getAllQuestions() async => List.of(harness.questions);
+
+  @override
+  Future<List<Question>> getQuestionsByDeck(String deckId) async {
+    harness.deckReads.update(deckId, (count) => count + 1, ifAbsent: () => 1);
+    return harness.questions
+        .where((question) => question.deckId == deckId)
+        .toList();
+  }
 
   @override
   Future<void> updateQuestions(List<Question> questions) async {
@@ -442,5 +651,33 @@ class _BlockedDatabase extends Fake implements DatabaseFactory {
     opens++;
     throw StateError(
         'Database access is blocked in the bulk-verification fixture');
+  }
+}
+
+final _point = KnowledgePoint(
+  id: 'bulk-point',
+  title: '批量核验知识点',
+  summary: 'Synthetic batch evidence',
+  createdAt: DateTime(2026, 9, 14),
+  updatedAt: DateTime(2026, 9, 14),
+);
+
+class _Points extends Fake implements KnowledgePointRepository {
+  @override
+  Future<List<KnowledgePoint>> getAllKnowledgePoints() async => [_point];
+}
+
+class _ListSnapshot extends ConsumerWidget {
+  const _ListSnapshot();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final questions = ref.watch(allQuestionsProvider).valueOrNull ?? [];
+    final pending = ref.watch(pendingQuestionListProvider).valueOrNull ?? [];
+    final verified = questions
+        .where((question) => question.sourceStatus == SourceStatus.verified)
+        .length;
+    return Scaffold(
+        body: Text('Verified $verified, pending ${pending.length}'));
   }
 }
