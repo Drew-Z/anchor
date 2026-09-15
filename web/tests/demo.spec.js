@@ -24,6 +24,14 @@ import {
 import { STORAGE_KEY as LOCALE_STORAGE_KEY } from '../landing/scripts/i18n.js';
 
 const expectedOrigin = new URL(process.env.ANCHOR_BASE_URL ?? 'http://127.0.0.1:4173').origin;
+const analyticsOrigin = 'https://static.cloudflareinsights.com';
+
+/** Cloudflare may inject its versioned Web Analytics script at the edge; every other origin is unexpected. */
+function isPermittedRequest(request) {
+  const url = new URL(request.url());
+  return url.origin === expectedOrigin
+    || (url.origin === analyticsOrigin && /^\/beacon\.min\.js(?:\/|$)/.test(url.pathname));
+}
 
 const IMPORT_FIXTURE = [
   '# Anchor overview',
@@ -133,7 +141,7 @@ test('landing and demo share a persistent bilingual locale', async ({ page }) =>
 test('the 404 page follows the stored locale and returns home without leaving origin', async ({ page }) => {
   const offOriginRequests = [];
   page.on('request', (request) => {
-    if (new URL(request.url()).origin !== expectedOrigin) offOriginRequests.push(request.url());
+    if (!isPermittedRequest(request)) offOriginRequests.push(request.url());
   });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
@@ -167,7 +175,7 @@ test('the 404 page follows the stored locale and returns home without leaving or
 test('landing separates the Android Private Alpha from the static browser demo', async ({ page }) => {
   const offOriginRequests = [];
   page.on('request', (request) => {
-    if (new URL(request.url()).origin !== expectedOrigin) offOriginRequests.push(request.url());
+    if (!isPermittedRequest(request)) offOriginRequests.push(request.url());
   });
 
   await page.goto('/');
@@ -398,7 +406,7 @@ test('the native gallery keeps its frame contract at 390px without horizontal ov
 test('a learner can answer, inspect evidence, use tutor hints, and continue', async ({ page }) => {
   const offOriginRequests = [];
   page.on('request', (request) => {
-    if (new URL(request.url()).origin !== expectedOrigin) offOriginRequests.push(request.url());
+    if (!isPermittedRequest(request)) offOriginRequests.push(request.url());
   });
 
   await page.goto('/app/#/decks');
@@ -420,7 +428,7 @@ test('a learner can answer, inspect evidence, use tutor hints, and continue', as
 test('all bundled datasets complete with citations, tutor disclosure, recovery, and reset', async ({ page }) => {
   const offOriginRequests = [];
   page.on('request', (request) => {
-    if (new URL(request.url()).origin !== expectedOrigin) offOriginRequests.push(request.url());
+    if (!isPermittedRequest(request)) offOriginRequests.push(request.url());
   });
 
   await page.goto('/app/#/decks');
@@ -512,7 +520,7 @@ async function seedCompletedDataset(page, datasetId, plan) {
 test('the completion review shows every answer against the source that settles it', async ({ page }) => {
   const offOrigin = [];
   page.on('request', (request) => {
-    if (new URL(request.url()).origin !== expectedOrigin) offOrigin.push(request.url());
+    if (!isPermittedRequest(request)) offOrigin.push(request.url());
   });
 
   // Two supported, one not, one never submitted: every state the review can report, on one screen.
@@ -572,7 +580,7 @@ test('the completion review shows every answer against the source that settles i
 test('a review row opens its source in the library and its question in the deck', async ({ page }) => {
   const offOrigin = [];
   page.on('request', (request) => {
-    if (new URL(request.url()).origin !== expectedOrigin) offOrigin.push(request.url());
+    if (!isPermittedRequest(request)) offOrigin.push(request.url());
   });
 
   const dataset = await seedCompletedDataset(page, 'git', ['correct', 'incorrect', 'unanswered', 'correct']);
@@ -712,7 +720,7 @@ async function submitAnswer(page, datasetId, { correct = true } = {}) {
 test('a submitted answer links its citation into the library and browser back returns to it', async ({ page }) => {
   const offOrigin = [];
   page.on('request', (request) => {
-    if (new URL(request.url()).origin !== expectedOrigin) offOrigin.push(request.url());
+    if (!isPermittedRequest(request)) offOrigin.push(request.url());
   });
 
   const { dataset, question, picked } = await submitAnswer(page, 'flutter', { correct: true });
@@ -770,7 +778,7 @@ test('a submitted answer links its citation into the library and browser back re
 test('a wrong answer keeps its source link and its open tutor panel across the trip', async ({ page }) => {
   const offOrigin = [];
   page.on('request', (request) => {
-    if (new URL(request.url()).origin !== expectedOrigin) offOrigin.push(request.url());
+    if (!isPermittedRequest(request)) offOrigin.push(request.url());
   });
 
   // A wrong answer is exactly when the passage matters, so the link is offered on the same terms.
@@ -1280,10 +1288,10 @@ test('the deck library takes the keyboard and stays announced', async ({ page })
   expect((await deckSearch(page).inputValue()).length).toBe(60);
 });
 
-test('the deck library fits a 390px viewport and asks nothing of the network', async ({ page }) => {
+test('the deck library fits a 390px viewport and allows only configured analytics traffic', async ({ page }) => {
   const offOrigin = [];
   page.on('request', (request) => {
-    if (new URL(request.url()).origin !== expectedOrigin) offOrigin.push(request.url());
+    if (!isPermittedRequest(request)) offOrigin.push(request.url());
   });
   const overflow = () => page.evaluate(() => Math.max(
     document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -1454,10 +1462,10 @@ test('home stops promising a goal once every bundled question is answered', asyn
   await expect(homeFocus(page).locator('.button')).toContainText(SHELL_TEXT.decks.actionReview.en);
 });
 
-test('home reaches every next surface, stays bilingual, and asks for nothing off-origin', async ({ page }) => {
+test('home reaches every next surface, stays bilingual, and allows only configured analytics traffic', async ({ page }) => {
   const offOriginRequests = [];
   page.on('request', (request) => {
-    if (new URL(request.url()).origin !== expectedOrigin) offOriginRequests.push(request.url());
+    if (!isPermittedRequest(request)) offOriginRequests.push(request.url());
   });
 
   await openHomeFresh(page);
@@ -1646,7 +1654,7 @@ test('home resumes the guided agent session this browser is part-way through', a
 test('home offers a review of a finished agent session, in either language, on a phone', async ({ page }) => {
   const offOrigin = [];
   page.on('request', (request) => {
-    if (new URL(request.url()).origin !== expectedOrigin) offOrigin.push(request.url());
+    if (!isPermittedRequest(request)) offOrigin.push(request.url());
   });
   const pageErrors = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
@@ -1740,7 +1748,7 @@ test('home offers a review of a finished agent session, in either language, on a
 test('the shell exposes every product surface on desktop and mobile', async ({ page }) => {
   const offOriginRequests = [];
   page.on('request', (request) => {
-    if (new URL(request.url()).origin !== expectedOrigin) offOriginRequests.push(request.url());
+    if (!isPermittedRequest(request)) offOriginRequests.push(request.url());
   });
 
   await page.goto('/app/');
@@ -1832,7 +1840,7 @@ test('the shell surfaces stay bilingual and honest about unavailable capabilitie
 test('an imported file is reviewed before it is stored, then survives a reload', async ({ page }) => {
   const offOriginRequests = [];
   page.on('request', (request) => {
-    if (new URL(request.url()).origin !== expectedOrigin) offOriginRequests.push(request.url());
+    if (!isPermittedRequest(request)) offOriginRequests.push(request.url());
   });
 
   await page.goto('/app/#/import');
@@ -2131,7 +2139,7 @@ const searchResults = (page) => page.locator('[data-library-result]');
 test('library search matches bundled evidence and says which field matched', async ({ page }) => {
   const offOrigin = [];
   page.on('request', (request) => {
-    if (new URL(request.url()).origin !== expectedOrigin) offOrigin.push(request.url());
+    if (!isPermittedRequest(request)) offOrigin.push(request.url());
   });
 
   await page.goto('/app/#/library');
@@ -2175,7 +2183,7 @@ test('library search matches bundled evidence and says which field matched', asy
 test('a bundled result opens the cited question, and back returns to the same search', async ({ page }) => {
   const offOrigin = [];
   page.on('request', (request) => {
-    if (new URL(request.url()).origin !== expectedOrigin) offOrigin.push(request.url());
+    if (!isPermittedRequest(request)) offOrigin.push(request.url());
   });
   const dataset = getDataset('flutter');
   const cited = dataset.questions[1];
@@ -2268,7 +2276,7 @@ test('library search matches imported file text and leads back to that section',
 test('an imported result opens the exact section, and back and reload both hold it', async ({ page }) => {
   const offOrigin = [];
   page.on('request', (request) => {
-    if (new URL(request.url()).origin !== expectedOrigin) offOrigin.push(request.url());
+    if (!isPermittedRequest(request)) offOrigin.push(request.url());
   });
   await seedSearchLibrary(page);
 
@@ -2526,10 +2534,10 @@ test('library search renders hostile file text and hostile queries as text', asy
   expect(pageErrors).toEqual([]);
 });
 
-test('library search fits a 390px viewport and asks nothing of the network', async ({ page }) => {
+test('library search fits a 390px viewport and allows only configured analytics traffic', async ({ page }) => {
   const offOrigin = [];
   page.on('request', (request) => {
-    if (new URL(request.url()).origin !== expectedOrigin) offOrigin.push(request.url());
+    if (!isPermittedRequest(request)) offOrigin.push(request.url());
   });
   const overflow = () => page.evaluate(() => Math.max(
     document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -2565,7 +2573,7 @@ test('library search fits a 390px viewport and asks nothing of the network', asy
 test('a guided agent session runs on bundled content from start to completion', async ({ page }) => {
   const offOriginRequests = [];
   page.on('request', (request) => {
-    if (new URL(request.url()).origin !== expectedOrigin) offOriginRequests.push(request.url());
+    if (!isPermittedRequest(request)) offOriginRequests.push(request.url());
   });
   const pageErrors = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
@@ -2910,7 +2918,7 @@ const agentSourceHash = (turn) => routeHash({ view: 'library', search: turn.cita
 test('an agent turn links its citation into the library and back returns to the same turn', async ({ page }) => {
   const offOrigin = [];
   page.on('request', (request) => {
-    if (new URL(request.url()).origin !== expectedOrigin) offOrigin.push(request.url());
+    if (!isPermittedRequest(request)) offOrigin.push(request.url());
   });
   const agentText = SHELL_TEXT.agent;
   const dataset = getDataset('flutter');
@@ -3000,7 +3008,7 @@ test('an agent turn links its citation into the library and back returns to the 
 test('every completed agent recap row links its passage and back returns to the recap', async ({ page }) => {
   const offOrigin = [];
   page.on('request', (request) => {
-    if (new URL(request.url()).origin !== expectedOrigin) offOrigin.push(request.url());
+    if (!isPermittedRequest(request)) offOrigin.push(request.url());
   });
   const agentText = SHELL_TEXT.agent;
   const dataset = getDataset('git');
@@ -3059,7 +3067,7 @@ test('every completed agent recap row links its passage and back returns to the 
 test('the agent source link reads in both languages and fits a phone', async ({ page }) => {
   const offOrigin = [];
   page.on('request', (request) => {
-    if (new URL(request.url()).origin !== expectedOrigin) offOrigin.push(request.url());
+    if (!isPermittedRequest(request)) offOrigin.push(request.url());
   });
   const overflow = () =>
     page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -3382,7 +3390,7 @@ test('the profile lists every Anchor key it holds and measures what is stored', 
 test('a backup exports the three local sections and no credentials', async ({ page }) => {
   const offOriginRequests = [];
   page.on('request', (request) => {
-    if (new URL(request.url()).origin !== expectedOrigin) offOriginRequests.push(request.url());
+    if (!isPermittedRequest(request)) offOriginRequests.push(request.url());
   });
 
   // A key some other feature might have left on this origin. It must not reach the file.
@@ -3695,7 +3703,7 @@ test('the system hint only decides the first visit, and a stale theme key is ign
 test('the profile reads in both languages and fits a 390px screen in either theme', async ({ page }) => {
   const offOriginRequests = [];
   page.on('request', (request) => {
-    if (new URL(request.url()).origin !== expectedOrigin) offOriginRequests.push(request.url());
+    if (!isPermittedRequest(request)) offOriginRequests.push(request.url());
   });
   const overflow = () => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 

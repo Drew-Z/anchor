@@ -2623,8 +2623,8 @@ if (typeof document !== 'undefined') {
 
   /**
    * Writes the backup to the learner's own download folder using a Blob and an object URL. There is no
-   * upload path here by design: the deployed CSP sets `connect-src 'none'`, so a backup can only ever
-   * travel as a file the browser saves locally.
+   * upload path here by design: the deployed CSP permits only same-origin connections plus the
+   * Cloudflare Web Analytics beacon, so a backup can only ever travel as a file the browser saves locally.
    */
   function exportBackup() {
     const record = createBackup({ progress, library, agent: agentSession, exportedAt: Date.now() });

@@ -30,7 +30,8 @@ Cloudflare Pages publishes `web/landing`. Do not move the demo back to `web/app`
 - `/app/` is a static guided demo with Flutter, Git, and JavaScript datasets.
 - The demo contains 12 bundled questions across `single`, `multiple`, and `boolean` types.
 - Answers show feedback, explanation, source locator, source excerpt, and clearly labeled scripted tutor hints.
-- The demo has no login, backend, analytics, or live AI request. It is not the full Flutter application.
+- The demo has no login, backend, or live AI request. Cloudflare Web Analytics may measure page performance;
+  it does not receive learning files or local storage contents. It is not the full Flutter application.
 
 ## Browser Storage
 
@@ -50,7 +51,7 @@ The demo's Profile surface lists all five keys with their measured sizes, includ
 
 The demo reads local `.md`, `.markdown`, and `.txt` files (up to 128 KB) through a file picker or drag and drop, so a learner can see how Anchor splits a document into sections. Restore reads a `.json` backup the same way.
 
-Reading a file is browser-local: contents are parsed in the page and kept in `anchor.demo.library.v1` on this device. Nothing is sent to a backend, storage service, or AI provider, and there is none to send to. The deployed `_headers` sets `connect-src 'none'`, and a Playwright check asserts no off-origin request.
+Reading a file is browser-local: contents are parsed in the page and kept in `anchor.demo.library.v1` on this device. Nothing is sent to a backend, storage service, or AI provider, and there is none to send to. Cloudflare Web Analytics may send page-performance telemetry, but it does not read the learning storage. The deployed `_headers` permits the analytics script and same-origin beacon endpoint, and a Playwright check rejects every other off-origin request.
 
 ## Development And Verification
 
@@ -79,4 +80,5 @@ The authoritative deployment and rollback procedure is in [DEPLOYMENT.md](./DEPL
 - `https://anchor.playlab.eu.cc/app/`
 - `https://anchor.playlab.eu.cc/app/index.html` (canonical redirect to `/app/`)
 
-Do not add analytics or network integrations without changing the explicit no-external-request contract and its tests.
+Do not add network integrations beyond the explicitly configured Cloudflare Web Analytics script without changing
+the product boundary, CSP, and tests.

@@ -40,7 +40,7 @@ npm ci
 npm test
 ```
 
-The browser suite starts a local static server and verifies both language modes, the complete quiz path, citations, scripted tutor hints, mobile navigation, screenshots, and the no-external-request contract.
+The browser suite starts a local static server and verifies both language modes, the complete quiz path, citations, scripted tutor hints, mobile navigation, screenshots, and the configured analytics network boundary.
 
 ## Production Deploy
 
@@ -55,23 +55,22 @@ Do not paste Cloudflare account IDs, API tokens, or dashboard-specific URLs into
 
 ## Web Analytics Gate
 
-This site is intentionally provider-free: the browser demo and product site must not load analytics,
-telemetry, or any other off-origin script. Cloudflare Web Analytics can inject a beacon at the edge even
-when the repository contains no analytics code, so deployment requires the site's Web Analytics setting to
-be **Disable** (or `auto_install=false`) before production acceptance. The account/API token used for Pages
-deployments may not have permission to change that setting; use a token with Web Analytics edit access or
-the Cloudflare dashboard's Web Analytics > Manage site control.
+Cloudflare Web Analytics is enabled for this site to measure page-performance data. It does not receive
+learning files or read the demo's `localStorage`; the demo still has no backend, live AI request, or upload
+path. The site's Web Analytics setting must remain **Enable** (`auto_install=true`) so the product copy and
+production CSP describe the same behavior.
 
-After changing the setting, verify that a fresh browser context makes no request to
-`static.cloudflareinsights.com`, and run the full production suite:
+The CSP allows only the Cloudflare beacon script from `static.cloudflareinsights.com` and the same-origin
+`/cdn-cgi/rum` ingestion endpoint. Playwright allows that one configured script origin and rejects every other
+off-origin request. After changing the setting, verify the live page in a fresh browser context and run:
 
 ```powershell
 $env:ANCHOR_BASE_URL = 'https://anchor.playlab.eu.cc'
 npm run test:e2e
 ```
 
-The off-origin assertions must remain enabled. Do not add an allowlist for the Cloudflare beacon unless the
-product boundary and privacy documentation are intentionally changed to permit analytics.
+The off-origin assertions must remain enabled. Do not add another analytics or network origin without updating
+the product boundary, privacy documentation, CSP, and tests together.
 
 ## Smoke Check
 
@@ -102,7 +101,7 @@ Then verify in a browser:
 - Chinese/English selection persists between both surfaces.
 - Flutter, Git, and JavaScript datasets can be selected.
 - A submitted answer shows feedback, explanation, locator, source excerpt, and scripted tutor hints.
-- The demo makes no provider, analytics, upload, or backend request.
+- The demo makes no model, upload, or backend request. Cloudflare Web Analytics may load its configured beacon.
 - Desktop, tablet, and mobile views have no horizontal overflow or overlapping controls.
 
 ## Rollback

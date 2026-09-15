@@ -2092,7 +2092,8 @@ test('the published header table keeps one security baseline and adds only cachi
     'X-Frame-Options',
   ]);
   assert.match(blocks[0].headers.get('Content-Security-Policy'), /(^|; )default-src 'self'(;|$)/);
-  assert.match(blocks[0].headers.get('Content-Security-Policy'), /(^|; )connect-src 'none'(;|$)/);
+  assert.match(blocks[0].headers.get('Content-Security-Policy'), /(^|; )connect-src 'self'(;|$)/);
+  assert.match(blocks[0].headers.get('Content-Security-Policy'), /(^|; )script-src 'self' https:\/\/static\.cloudflareinsights\.com(;|$)/);
   assert.equal(blocks[0].headers.get('Permissions-Policy'), 'camera=(), geolocation=(), microphone=()');
   assert.equal(blocks[0].headers.get('Referrer-Policy'), 'strict-origin-when-cross-origin');
   assert.equal(blocks[0].headers.get('X-Content-Type-Options'), 'nosniff');
