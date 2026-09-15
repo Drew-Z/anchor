@@ -53,6 +53,26 @@ npx wrangler pages deploy landing --project-name anchor-learning --branch main
 
 Do not paste Cloudflare account IDs, API tokens, or dashboard-specific URLs into repository documentation.
 
+## Web Analytics Gate
+
+This site is intentionally provider-free: the browser demo and product site must not load analytics,
+telemetry, or any other off-origin script. Cloudflare Web Analytics can inject a beacon at the edge even
+when the repository contains no analytics code, so deployment requires the site's Web Analytics setting to
+be **Disable** (or `auto_install=false`) before production acceptance. The account/API token used for Pages
+deployments may not have permission to change that setting; use a token with Web Analytics edit access or
+the Cloudflare dashboard's Web Analytics > Manage site control.
+
+After changing the setting, verify that a fresh browser context makes no request to
+`static.cloudflareinsights.com`, and run the full production suite:
+
+```powershell
+$env:ANCHOR_BASE_URL = 'https://anchor.playlab.eu.cc'
+npm run test:e2e
+```
+
+The off-origin assertions must remain enabled. Do not add an allowlist for the Cloudflare beacon unless the
+product boundary and privacy documentation are intentionally changed to permit analytics.
+
 ## Smoke Check
 
 ```bash

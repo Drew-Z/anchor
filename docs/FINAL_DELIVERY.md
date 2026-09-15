@@ -47,6 +47,7 @@ manifest `versionCode=4005`，Anchor Learning release 证书 v2 签名，已完�
 - 按 `docs/PRODUCTIZATION_RELEASE_PLAN.md` 准备正式签名、分发、法律和人工验收材料。
 - 分支 `codex/anchor-web-demo` 已推送，PR #1 已于 2026-09-15 合并到 `main`，合并提交为 `94a306a`。
 - `web/landing` 已部署到 Cloudflare Pages 生产环境 `https://anchor.playlab.eu.cc/`，官网、`/app/` 与重定向 smoke check 均通过。
+- 本地 Web 套件已通过 `75` 个 Node 测试与 `93` 个 Playwright 测试；生产浏览器套件仍等待 Cloudflare Web Analytics `auto_install=false`，以满足无分析、无外部请求契约。
 - APK 已作为 `v1.0.0` Private Alpha GitHub Release 公开发布；尚未邀请真实用户。
 - 当前发布支持范围仍限于通过验收的 Android Arm64 Private Alpha；Web 仅为独立静态 Demo。
 - 在具备真实跨平台兼容证据后，再扩大 iOS、Windows、macOS 或 Linux 的支持声明。
