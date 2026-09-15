@@ -21,7 +21,8 @@ void main() {
     expect(report.blockers, isEmpty);
   });
 
-  test('ignores optional cohort study decisions for release readiness', () async {
+  test('ignores optional cohort study decisions for release readiness',
+      () async {
     final fixture = await createPrivateAlphaReadinessFixture(
       evaluatedAt,
       decision: 'noGo',

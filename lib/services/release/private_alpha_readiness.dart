@@ -7,6 +7,7 @@ class PrivateAlphaReadinessEvidence {
   final bool controlledCredentialAvailable;
   final bool dataProcessingOwnerAssigned;
   final bool releaseDayAcceptancePassed;
+
   /// Legacy metadata retained so older evidence bundles remain readable.
   /// This value is intentionally excluded from technical readiness decisions.
   final bool cohortCompleted;

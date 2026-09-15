@@ -41,8 +41,7 @@ void main() {
     expect(verification.blockers, isEmpty);
   });
 
-  test('verifies CRLF and LF checkouts against the same pinned hash',
-      () async {
+  test('verifies CRLF and LF checkouts against the same pinned hash', () async {
     final root =
         await Directory.systemTemp.createTemp('anchor-learning-operator-');
     addTearDown(() => root.delete(recursive: true));
