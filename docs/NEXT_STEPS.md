@@ -17,7 +17,7 @@
 3. 分支 `codex/anchor-web-demo`、PR #1 的验证数量和 CI 记录、`web/landing` 的 Cloudflare Pages 部署、官网 `/app/` smoke check 及 PR #1 合并到 `main` 均已完成。
 4. [x] 临近发布窗口，用同一 `1.0.0+2005` 签名候选重新完成真机与模型五项验收，并更新 readiness 证据。
 5. 正式 cohort 与 D0/D7/D14 观察保留为可选研究工作，不再作为 release gate；不得用合成记录替代真实研究。
-6. 技术 evaluator 已返回 `GO`；Private Alpha 分发仍需单独的发布授权，且当前不创建 GitHub release 或外部下载发布。
+6. 技术 evaluator 已返回 `GO`；`v1.0.0` Private Alpha GitHub Release 已公开发布，真实用户邀请和后续运营仍需单独授权。
 
 后文的“历史待办事项”不再是当前执行队列。
 

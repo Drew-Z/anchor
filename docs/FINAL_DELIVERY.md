@@ -17,7 +17,7 @@
 ## 交付边界
 
 - Web Demo 是产品流程样例，不是完整 Flutter Web 版本。
-- Demo 不支持上传用户文档，不调用真实 AI，不提供登录、云同步或分析服务。
+- Demo 不支持上传用户文档，不调用真实 AI，不提供登录或云同步；Cloudflare Web Analytics 仅测量页面性能。
 - Flutter 应用已在正式产品化候选中使用最终 applicationId、数据库名和 macOS bundle ID；Secure Storage 仅使用当前 profile 命名空间。
 - `.env.example` 仅说明配置边界；模型凭据必须在应用“设置 → AI 配置”中保存。
 - 官网不再展示缺少可复现实验依据的幻觉率、代码量或文档字数。

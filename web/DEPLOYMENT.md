@@ -28,7 +28,7 @@ The second class is strict on purpose. None of those files is content-hashed, an
 
 The rules name paths explicitly instead of relying on a suffix wildcard: `/`, `/index.html`, `/404.html`, `/app/`, `/app/index.html`, and the prefix form already proven by `/assets/*` for `/scripts/*`, `/styles/*`, `/app/scripts/*`, and `/app/styles/*`. Each block states its whole `Cache-Control` value, so no path depends on inheriting one from the `/*` baseline, and each value ends in `no-transform`, which keeps the baseline's own `Cache-Control` a subset of it.
 
-The policy is static and provider-free: no service worker, no runtime cache, no cache-busting code. Adding a document, script, or stylesheet to the deployment requires a matching rule. `npm run test:unit` reads the published `_headers` from disk, asserts the required paths and directives, and fails when a shipped file has no rule.
+The policy is static and has no application runtime integration: no service worker, no runtime cache, no cache-busting code. Cloudflare Web Analytics is the only explicitly configured external script. Adding a document, script, or stylesheet to the deployment requires a matching rule. `npm run test:unit` reads the published `_headers` from disk, asserts the required paths and directives, and fails when a shipped file has no rule.
 
 `npm run serve` does not read `_headers` either, so no local request can show these values. The published file is the contract; the response headers are checked against the deployment by the smoke check below.
 
