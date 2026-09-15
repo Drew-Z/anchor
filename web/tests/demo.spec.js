@@ -3942,10 +3942,14 @@ test('text carried by the shared tokens clears WCAG AA on every surface it lands
 test('every corner on both surfaces comes from the shared radius scale', async ({ page }) => {
   // Read as source rather than as geometry: a raw pixel value is the drift worth catching,
   // and it is invisible once the browser has resolved it.
+  await page.goto('/');
   for (const path of ['/styles/main.css', '/app/styles/app.css']) {
-    const response = await page.request.get(path);
-    expect(response.ok(), path).toBe(true);
-    const declarations = (await response.text()).match(/border-radius:[^;]+/g) ?? [];
+    const response = await page.evaluate(async (url) => {
+      const result = await fetch(url, { cache: 'no-store' });
+      return { ok: result.ok, status: result.status, text: await result.text() };
+    }, path);
+    expect(response.ok, `${path} returned ${response.status}`).toBe(true);
+    const declarations = response.text.match(/border-radius:[^;]+/g) ?? [];
     expect(declarations.length, `${path} declares corners`).toBeGreaterThan(0);
 
     const offScale = declarations.filter((declaration) => {
@@ -3961,7 +3965,6 @@ test('every corner on both surfaces comes from the shared radius scale', async (
   }
 
   // And the scale itself stays two steps wide on both surfaces.
-  await page.goto('/');
   expect(await resolvedTokens(page, ['--radius-sm', '--radius'])).toEqual({ '--radius-sm': '4px', '--radius': '8px' });
   await page.goto('/app/');
   expect(await resolvedTokens(page, ['--radius-sm', '--radius'])).toEqual({ '--radius-sm': '4px', '--radius': '8px' });
