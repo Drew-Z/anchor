@@ -312,11 +312,9 @@ class OpenAIService implements AiCompletionClient {
       field: 'model',
     );
     if (stored != null) return stored;
-    final provider = AIProviders.getById(providerId);
-    if (provider != null && provider.models.isNotEmpty) {
-      return provider.models.first;
-    }
-    return providerId == 'custom' ? 'gpt-5.6-terra' : '';
+    // A fresh install must never silently select a model. Users configure
+    // the exact model in Settings -> AI configuration.
+    return '';
   }
 
   Future<void> setModel(String model) async {
@@ -341,8 +339,9 @@ class OpenAIService implements AiCompletionClient {
       field: 'base_url',
     );
     if (stored != null) return stored;
-    final provider = AIProviders.getById(providerId);
-    return provider?.baseUrl ?? 'https://api.openai.com/v1';
+    // Keep endpoints out of a release build until the user explicitly saves
+    // a provider profile.
+    return '';
   }
 
   Future<void> setBaseUrl(String url) async {

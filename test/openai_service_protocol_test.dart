@@ -97,6 +97,26 @@ void main() {
     });
   });
 
+  test('does not auto-configure a model or endpoint on a fresh profile',
+      () async {
+    SharedPreferences.setMockInitialValues({});
+    final service = OpenAIService(credentialStore: _MemoryCredentialStore());
+
+    expect(
+      await service.getBaseUrlForProvider(AIProviders.grokPrimaryId),
+      isEmpty,
+    );
+    expect(
+      await service.getModelForProvider(AIProviders.grokPrimaryId),
+      isEmpty,
+    );
+    expect(
+      await service.getBaseUrlForProvider('openai'),
+      isEmpty,
+    );
+    expect(await service.getModelForProvider('openai'), isEmpty);
+  });
+
   test('stores and clears credentials without writing SharedPreferences',
       () async {
     SharedPreferences.setMockInitialValues({
