@@ -5,6 +5,7 @@ import '../../../data/models/grounded_learning_context.dart';
 import '../../../data/models/source_chunk.dart';
 import '../../openai_service.dart';
 import '../ai_task_result.dart';
+import '../ai_provider_diagnostics.dart';
 import '../grounded_claim_gate.dart';
 
 class AnswerEvaluationResult {
@@ -235,6 +236,14 @@ JSON schema：
       );
 
       return AiTaskResult.success(result, rawResponse: response);
+    } on AiProviderException catch (error) {
+      final message = error.kind == AiProviderFailureKind.timeout
+          ? 'AI 评估响应超时，请保留回答后重试。'
+          : error.message;
+      return AiTaskResult.failure(
+        type: AiTaskErrorType.request,
+        message: message,
+      );
     } catch (e) {
       return AiTaskResult.failure(
         type: AiTaskErrorType.request,

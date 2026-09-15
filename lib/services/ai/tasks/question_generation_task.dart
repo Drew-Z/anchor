@@ -254,7 +254,7 @@ JSON schema：
   /// - [sourceChunks]: 原文片段列表(不能为空)
   /// - [questionCount]: 期望生成的题目数量(默认 8)
   ///
-  /// **返回**: AiTaskResult<QuestionGenerationResult>
+  /// **返回**: `AiTaskResult<QuestionGenerationResult>`
   /// - 成功: 包含生成的题目列表
   /// - 失败: 包含错误类型和详细信息
   ///

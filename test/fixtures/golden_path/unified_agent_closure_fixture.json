@@ -10,9 +10,9 @@
   "sources": [
     {
       "id": "unified-agent-project-source",
-      "title": "Duoduo learning agent runtime source",
+      "title": "Anchor Learning learning agent runtime source",
       "trust_level": "source_code",
-      "uri": "https://github.com/xuanli199/duoduo",
+      "uri": "https://github.com/xuanli199/anchor-learning",
       "publisher": "xuanli199",
       "revision": "leaf-20.6-fixture",
       "license_expression": "repository license",

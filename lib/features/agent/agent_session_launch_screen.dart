@@ -14,6 +14,10 @@ import '../knowledge_base/knowledge_library_error_state.dart';
 import 'agent_session_detail_screen.dart';
 import 'agent_session_history_screen.dart';
 
+class _AgentSessionRouteExited implements Exception {
+  const _AgentSessionRouteExited();
+}
+
 class AgentSessionLaunchScreen extends ConsumerStatefulWidget {
   final LearningAgentPlan plan;
   final LearningAgentRuntimeSession? initialRuntimeSession;
@@ -57,6 +61,8 @@ class _AgentSessionLaunchScreenState
   final TextEditingController _nextQuestionController = TextEditingController();
 
   LearningAgentPlan get plan => widget.plan;
+  bool get _isBusy =>
+      _isStarting || _isSavingCompletion || _isRetryingCheckpoint;
   bool get _hasCheckpointConflict =>
       _checkpointSaveError is LearningAgentCheckpointConflictException;
   bool get _hasCompletionCheckpointConflict =>
@@ -245,7 +251,7 @@ class _AgentSessionLaunchScreenState
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: plan.canStartSession &&
-                        !_isStarting &&
+                        !_isBusy &&
                         _checkpointSaveError == null
                     ? () => _startSession(context)
                     : null,
@@ -378,7 +384,7 @@ class _AgentSessionLaunchScreenState
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: _isSavingCompletion || _checkpointSaveError != null
+                  onPressed: _isBusy || _checkpointSaveError != null
                       ? null
                       : () => _finishAndReturn(),
                   icon: _isSavingCompletion
@@ -413,6 +419,7 @@ class _AgentSessionLaunchScreenState
   }
 
   Future<void> _startSession(BuildContext context) async {
+    if (!mounted || !context.mounted || _isBusy) return;
     final step = plan.sessionSummary.nextStep;
     if (step == null) return;
 
@@ -459,6 +466,7 @@ class _AgentSessionLaunchScreenState
           plan: plan,
           checkpointRevision: checkpointRevision,
         );
+        if (!mounted) return;
         checkpointRevision = planCheckpoint.revision;
         executionState = planCheckpoint.state;
         executionTraceEvents = planCheckpoint.traceEvents;
@@ -480,7 +488,7 @@ class _AgentSessionLaunchScreenState
         return;
       }
 
-      if (!mounted) return;
+      if (!mounted || !context.mounted) return;
       final executor = ref.read(learningAgentExecutorProvider);
       final result = await executor.execute(
         LearningAgentExecutionContext(
@@ -491,16 +499,21 @@ class _AgentSessionLaunchScreenState
           initialState: executionState,
           initialTraceEvents: executionTraceEvents,
           persistToolStartCheckpoint: (state, traceEvents) async {
+            if (!mounted) {
+              throw const _AgentSessionRouteExited();
+            }
             final checkpoint = await runtime.persistCheckpoint(
               state: state,
               traceEvents: traceEvents,
               plan: plan,
               checkpointRevision: checkpointRevision,
             );
+            if (!mounted) {
+              throw const _AgentSessionRouteExited();
+            }
             checkpointRevision = checkpoint.revision;
             executionState = checkpoint.state;
             executionTraceEvents = checkpoint.traceEvents;
-            if (!mounted) return;
             setState(() {
               _activeAgentState = checkpoint.state;
               _agentTraceEvents = checkpoint.traceEvents;
@@ -514,6 +527,8 @@ class _AgentSessionLaunchScreenState
           },
         ),
       );
+
+      if (!mounted) return;
 
       final resultState = result.state ?? executionState;
       final resultTraceEvents = result.traceEvents.isEmpty
@@ -636,7 +651,7 @@ class _AgentSessionLaunchScreenState
   }
 
   Future<void> _finishAndReturn() async {
-    if (_isSavingCompletion) return;
+    if (!mounted || _isBusy) return;
     setState(() {
       _isSavingCompletion = true;
       _completionSaveError = null;
@@ -660,6 +675,7 @@ class _AgentSessionLaunchScreenState
   }
 
   Future<void> _saveAgentSessionRecord() async {
+    if (!mounted) return;
     final now = DateTime.now();
     final summary = plan.sessionSummary;
     final activeState = _activeAgentState;
@@ -684,6 +700,7 @@ class _AgentSessionLaunchScreenState
       savedAt: now,
       checkpointRevision: _activeCheckpointRevision,
     );
+    if (!mounted) return;
     _activeAgentState = checkpoint.state;
     _agentTraceEvents = checkpoint.traceEvents;
     _activeCheckpointRevision = checkpoint.revision;
@@ -769,7 +786,7 @@ class _AgentSessionLaunchScreenState
   }
 
   Future<void> _retryActiveCheckpointSave() async {
-    if (_isRetryingCheckpoint) return;
+    if (!mounted || _isBusy) return;
     final state = _activeAgentState;
     if (state == null) {
       _showMessage('当前没有可保存的 Agent runtime state。');
@@ -817,6 +834,7 @@ class _AgentSessionLaunchScreenState
   }
 
   void _returnToLatestCheckpoint() {
+    if (!mounted) return;
     ref.invalidate(learningAgentActiveCheckpointListProvider);
     Navigator.of(context).pop();
   }
@@ -2047,49 +2065,58 @@ class _RuntimeCompactSection extends StatelessWidget {
         splashColor: Colors.transparent,
         highlightColor: Colors.transparent,
       ),
-      child: ExpansionTile(
-        initiallyExpanded: initiallyExpanded,
-        maintainState: true,
-        tilePadding: EdgeInsets.zero,
-        childrenPadding: const EdgeInsets.only(bottom: 2),
-        iconColor: AppColors.purple,
-        collapsedIconColor: AppColors.textLight,
-        leading: Icon(icon, size: 17, color: AppColors.purpleDark),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            _RuntimeSectionMetaPill(label: meta),
-          ],
-        ),
-        subtitle: summaryText == null || summaryText.isEmpty
-            ? null
-            : Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text(
-                  summaryText,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    height: 1.25,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textLight,
+      child: Material(
+        color: Colors.transparent,
+        child: Material(
+          type: MaterialType.transparency,
+          child: Material(
+            color: Colors.transparent,
+            child: ExpansionTile(
+              initiallyExpanded: initiallyExpanded,
+              maintainState: true,
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: const EdgeInsets.only(bottom: 2),
+              iconColor: AppColors.purple,
+              collapsedIconColor: AppColors.textLight,
+              leading: Icon(icon, size: 17, color: AppColors.purpleDark),
+              title: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  _RuntimeSectionMetaPill(label: meta),
+                ],
               ),
-        children: children,
+              subtitle: summaryText == null || summaryText.isEmpty
+                  ? null
+                  : Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        summaryText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          height: 1.25,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textLight,
+                        ),
+                      ),
+                    ),
+              children: children,
+            ),
+          ),
+        ),
       ),
     );
   }

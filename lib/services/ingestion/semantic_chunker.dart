@@ -45,6 +45,8 @@ import '../../data/models/source_chunk.dart';
 ///
 /// **参考**: aicoding-cookbook/docs-to-book 的 semantic chunking 策略
 class SemanticChunker {
+  const SemanticChunker();
+
   /// 目标 chunk 大小(字符数)
   ///
   /// 经验值: 1500字符约对应 GPT-3.5 的 400 tokens,在上下文窗口中
@@ -152,8 +154,8 @@ class SemanticChunker {
   /// 切分纯代码文件(无 Markdown 标题)
   ///
   /// **切分策略**:
-  /// - 按固定行数(约100行)切分,但尽量保持函数/类边界完整
-  /// - 简单策略: 向前查找空行作为边界
+  /// - 默认按最多100行切分,也可通过 [maxLinesPerChunk] 调整上限
+  /// - 严格遵守行数上限,避免无空行代码退化为单个超大 chunk
   /// - 生成精确的行号定位: `lib/main.dart:15-42`
   ///
   /// **为什么按行数而非字符数**:
@@ -173,21 +175,26 @@ class SemanticChunker {
     required String code,
     required String? filePath,
     required DateTime createdAt,
+    int maxLinesPerChunk = 100,
   }) {
+    if (maxLinesPerChunk <= 0) {
+      throw ArgumentError.value(
+        maxLinesPerChunk,
+        'maxLinesPerChunk',
+        'Must be greater than zero.',
+      );
+    }
     if (code.trim().isEmpty) return [];
 
-    final lines = code.split('\n');
+    final lines = const LineSplitter().convert(code);
     final chunks = <SourceChunk>[];
 
-    // 代码按固定行数切分,但保持函数/类边界完整
+    // 代码按固定行数切分,确保长文件在无空行时也不会退化为单个 chunk
     int startLine = 0;
     while (startLine < lines.length) {
-      int endLine = (startLine + 100).clamp(0, lines.length);
-
-      // 向前找到完整的函数/类结束(简单策略:找到下一个空行)
-      while (endLine < lines.length && lines[endLine].trim().isNotEmpty) {
-        endLine++;
-      }
+      final requestedEndLine = startLine + maxLinesPerChunk;
+      final endLine =
+          requestedEndLine < lines.length ? requestedEndLine : lines.length;
 
       final chunkLines = lines.sublist(startLine, endLine);
       final content = chunkLines.join('\n').trim();
@@ -197,7 +204,8 @@ class SemanticChunker {
           sourceId: sourceId,
           chunkIndex: chunks.length,
           content: content,
-          locator: filePath != null ? '$filePath:${startLine + 1}-$endLine' : null,
+          locator:
+              filePath != null ? '$filePath:${startLine + 1}-$endLine' : null,
           startLine: startLine + 1,
           endLine: endLine,
           createdAt: createdAt,
@@ -423,9 +431,9 @@ class SemanticChunker {
 
 /// 文档章节结构
 class _Section {
-  final int level;       // 标题层级(1-6)
-  final String title;    // 标题文本
-  final int startLine;   // 起始行号
+  final int level; // 标题层级(1-6)
+  final String title; // 标题文本
+  final int startLine; // 起始行号
 
   _Section({
     required this.level,

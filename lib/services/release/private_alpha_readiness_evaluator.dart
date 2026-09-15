@@ -1,11 +1,9 @@
-import 'private_alpha_cohort_evidence.dart';
 import 'private_alpha_controlled_credential_evidence.dart';
 import 'private_alpha_model_acceptance_evidence.dart';
 import 'private_alpha_operator_pack_evidence.dart';
 import 'private_alpha_physical_device_evidence.dart';
 import 'private_alpha_privacy_scan.dart';
 import 'private_alpha_readiness.dart';
-import 'private_alpha_release_consistency.dart';
 import 'private_alpha_release_evidence.dart';
 
 class PrivateAlphaReadinessEvaluator {
@@ -22,6 +20,7 @@ class PrivateAlphaReadinessEvaluator {
         await const PrivateAlphaReleaseEvidenceVerifier().verify(
       evidence: releaseEvidence,
       repositoryRoot: repositoryRoot,
+      evaluatedAt: evaluatedAt,
     );
     final privacyEvidence = PrivateAlphaPrivacyScanEvidence.fromJson(json);
     final privacyScan = await const PrivateAlphaPrivacyScanner().scan(
@@ -88,39 +87,6 @@ class PrivateAlphaReadinessEvaluator {
       );
     }
 
-    PrivateAlphaCohortEvidence? cohortEvidence;
-    final cohortBlockers = <String>[];
-    if (evidence.cohortCompleted) {
-      cohortEvidence = PrivateAlphaCohortEvidence.fromJson(json);
-      cohortBlockers.addAll(
-        const PrivateAlphaCohortEvidenceVerifier()
-            .verify(
-              evidence: cohortEvidence,
-              expectedApkSha256: releaseEvidence.androidBuild.sha256,
-              acceptanceEvidence: acceptanceEvidence,
-              evaluatedAt: evaluatedAt,
-            )
-            .blockers,
-      );
-    }
-
-    final consistencyBlockers = <String>[];
-    if (acceptanceEvidence != null &&
-        credentialEvidence != null &&
-        operatorEvidence != null &&
-        cohortEvidence != null) {
-      consistencyBlockers.addAll(
-        const PrivateAlphaReleaseConsistencyVerifier()
-            .verify(
-              acceptanceEvidence: acceptanceEvidence,
-              credentialEvidence: credentialEvidence,
-              operatorEvidence: operatorEvidence,
-              cohortEvidence: cohortEvidence,
-            )
-            .blockers,
-      );
-    }
-
     return const PrivateAlphaReadinessService().evaluate(
       evidence,
       additionalBlockers: [
@@ -130,8 +96,6 @@ class PrivateAlphaReadinessEvaluator {
         ...controlledCredentialBlockers,
         ...operatorPackBlockers,
         ...physicalDeviceBlockers,
-        ...cohortBlockers,
-        ...consistencyBlockers,
       ],
     );
   }

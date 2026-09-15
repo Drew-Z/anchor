@@ -1,400 +1,90 @@
-# Anchor Learning - Web Deployment Guide
+# Anchor Web Deployment
 
-This guide covers deploying the Anchor Learning landing page to various hosting platforms.
+The production website is a static Cloudflare Pages project.
 
-## Quick Deploy Options
+## Published Layout
 
-### Option 1: GitHub Pages (Recommended for open source)
+- Pages output directory: `web/landing`
+- Product site: `https://anchor.playlab.eu.cc/`
+- Interactive demo: `https://anchor.playlab.eu.cc/app/` (canonical)
+- Direct demo document: `https://anchor.playlab.eu.cc/app/index.html` (redirects to `/app/`)
 
-**Pros**: Free, automatic SSL, GitHub integration
-**Cons**: Public repos only (for free tier)
+`web/app` is not a publishable source. The demo must remain under `web/landing/app` so it ships in the same immutable static deployment as the product site.
 
-1. **Enable GitHub Pages**
-   ```bash
-   # Push your code to GitHub
-   git add web/
-   git commit -m "Add landing page"
-   git push origin main
-   ```
+## Canonical Demo Entry
 
-2. **Configure in GitHub**
-   - Go to repo Settings → Pages
-   - Source: Deploy from branch
-   - Branch: `main`, Folder: `/web`
-   - Save
+`/app/` is the one canonical demo URL. `web/landing/_redirects` sends both `/app` and `/app/index.html` there with a permanent redirect, so a bookmark or search result naming the document lands on the canonical path instead of serving a second copy of the same page.
 
-3. **Access your site**
-   - URL: `https://drew-z.github.io/anchor/landing/`
-   - Custom domain: Add `CNAME` file in `/web` folder
+`npm run serve` is a plain static file server and does not read `_redirects`, so local requests cannot demonstrate this behaviour. The rules are asserted against the published file by `npm run test:unit`, and against the deployment by the smoke check below.
 
-4. **Custom Domain (optional)**
-   ```bash
-   echo "anchor.yourdomain.com" > web/CNAME
-   ```
-   
-   Then add DNS record:
-   ```
-   Type: CNAME
-   Name: anchor
-   Value: drew-z.github.io
-   ```
+## Cache Policy
 
-### Option 2: Vercel (Best for fast deployment)
+`web/landing/_headers` sets the policy. There are two classes, and the conservative one is the default:
 
-**Pros**: Automatic deployments, preview URLs, edge network
-**Cons**: None for static sites
+- `/assets/*` gets `public, max-age=86400, stale-while-revalidate=604800, no-transform`. Images and icons change by publishing a new file rather than by editing a published one, so a cached copy cannot contradict the page that loads it.
+- Every published document, script, and stylesheet gets `public, max-age=0, must-revalidate, no-transform`. The response is still cacheable; a cache may reuse it only after the origin confirms it is current, which costs one conditional request and returns `304` when nothing changed.
 
-1. **Install Vercel CLI**
-   ```bash
-   npm install -g vercel
-   ```
+The second class is strict on purpose. None of those files is content-hashed, and the `?v=` stamps that exist are partial: `app.js` carries one but the `data.js` it imports does not, and `i18n.js` is fetched both with a stamp and without. Without revalidation a browser could hold a stale module next to a fresh document and run a pairing that was never published.
 
-2. **Deploy**
-   ```bash
-   cd web/landing
-   vercel
-   ```
+The rules name paths explicitly instead of relying on a suffix wildcard: `/`, `/index.html`, `/404.html`, `/app/`, `/app/index.html`, and the prefix form already proven by `/assets/*` for `/scripts/*`, `/styles/*`, `/app/scripts/*`, and `/app/styles/*`. Each block states its whole `Cache-Control` value, so no path depends on inheriting one from the `/*` baseline, and each value ends in `no-transform`, which keeps the baseline's own `Cache-Control` a subset of it.
 
-3. **Configuration** (optional)
-   Create `vercel.json` in `/web`:
-   ```json
-   {
-     "version": 2,
-     "public": true,
-     "cleanUrls": true,
-     "trailingSlash": false
-   }
-   ```
+The policy is static and provider-free: no service worker, no runtime cache, no cache-busting code. Adding a document, script, or stylesheet to the deployment requires a matching rule. `npm run test:unit` reads the published `_headers` from disk, asserts the required paths and directives, and fails when a shipped file has no rule.
 
-4. **Production deploy**
-   ```bash
-   vercel --prod
-   ```
+`npm run serve` does not read `_headers` either, so no local request can show these values. The published file is the contract; the response headers are checked against the deployment by the smoke check below.
 
-### Option 3: Netlify
-
-**Pros**: Drag-and-drop deploy, form handling, edge functions
-**Cons**: Build minutes limited on free tier
-
-1. **Via Netlify Drop**
-   - Visit https://app.netlify.com/drop
-   - Drag `web/landing` folder
-   - Done!
-
-2. **Via Git**
-   - Connect GitHub repo
-   - Build settings:
-     - Build command: (leave empty)
-     - Publish directory: `web/landing`
-   - Deploy
-
-3. **Configuration** (optional)
-   Create `netlify.toml` in `/web`:
-   ```toml
-   [build]
-     publish = "landing"
-
-   [[redirects]]
-     from = "/demo"
-     to = "/app/index.html"
-     status = 200
-   ```
-
-### Option 4: Cloudflare Pages
-
-**Pros**: Free unlimited bandwidth, fast CDN
-**Cons**: Slightly more complex setup
-
-1. **Via Dashboard**
-   - Connect GitHub repo
-   - Framework preset: None
-   - Build directory: `web/landing`
-   - Deploy
-
-2. **Configuration**
-   Create `_headers` in `/web/landing`:
-   ```
-   /*
-     X-Frame-Options: DENY
-     X-Content-Type-Options: nosniff
-     Referrer-Policy: strict-origin-when-cross-origin
-   ```
-
-### Option 5: Self-hosted (VPS/Server)
-
-**Pros**: Full control, no limits
-**Cons**: Requires server management
-
-1. **Nginx Configuration**
-   ```nginx
-   server {
-       listen 80;
-       server_name anchor.yourdomain.com;
-
-       root /var/www/anchor/web/landing;
-       index index.html;
-
-       location / {
-           try_files $uri $uri/ =404;
-       }
-
-       # Cache static assets
-       location ~* \.(css|js|jpg|png|svg|ico)$ {
-           expires 1y;
-           add_header Cache-Control "public, immutable";
-       }
-
-       # Security headers
-       add_header X-Frame-Options "DENY" always;
-       add_header X-Content-Type-Options "nosniff" always;
-   }
-   ```
-
-2. **Deploy**
-   ```bash
-   # Copy files to server
-   rsync -avz web/ user@server:/var/www/anchor/web/
-
-   # Restart Nginx
-   sudo systemctl restart nginx
-   ```
-
-3. **SSL with Let's Encrypt**
-   ```bash
-   sudo certbot --nginx -d anchor.yourdomain.com
-   ```
-
-## Performance Optimization
-
-### 1. Compress Assets
+## Local Validation
 
 ```bash
-# Install dependencies
-npm install -g html-minifier clean-css-cli uglify-js
-
-# Minify HTML
-html-minifier --collapse-whitespace --remove-comments \
-  --minify-css --minify-js \
-  web/landing/index.html > web/landing/index.min.html
-
-# Minify CSS
-cleancss -o web/landing/styles/main.min.css \
-  web/landing/styles/main.css
-
-# Minify JS
-uglifyjs web/landing/scripts/main.js \
-  -o web/landing/scripts/main.min.js -c -m
+cd web
+npm ci
+npm test
 ```
 
-### 2. Enable Compression (Server-side)
+The browser suite starts a local static server and verifies both language modes, the complete quiz path, citations, scripted tutor hints, mobile navigation, screenshots, and the no-external-request contract.
 
-**Nginx**:
-```nginx
-gzip on;
-gzip_types text/css application/javascript application/json image/svg+xml;
-gzip_min_length 1000;
-```
+## Production Deploy
 
-**Apache** (`.htaccess`):
-```apache
-<IfModule mod_deflate.c>
-  AddOutputFilterByType DEFLATE text/html text/css application/javascript
-</IfModule>
-```
-
-### 3. Image Optimization
+Run only after the local tests pass and the current Git diff has been reviewed:
 
 ```bash
-# Install tools
-npm install -g sharp-cli svgo
-
-# Optimize PNG/JPG
-sharp -i screenshot.png -o screenshot-optimized.png
-
-# Optimize SVG
-svgo web/landing/assets/*.svg
+cd web
+npx wrangler pages deploy landing --project-name anchor-learning --branch main
 ```
 
-### 4. Add Cache Headers
+Do not paste Cloudflare account IDs, API tokens, or dashboard-specific URLs into repository documentation.
 
-Create `.htaccess` (Apache):
-```apache
-<IfModule mod_expires.c>
-  ExpiresActive On
-  ExpiresByType text/css "access plus 1 year"
-  ExpiresByType application/javascript "access plus 1 year"
-  ExpiresByType image/svg+xml "access plus 1 year"
-  ExpiresByType text/html "access plus 1 hour"
-</IfModule>
-```
+## Smoke Check
 
-## Analytics Setup
-
-### Google Analytics 4
-
-1. Create property at https://analytics.google.com
-2. Get Measurement ID (e.g., `G-XXXXXXXXXX`)
-3. Add to `web/landing/index.html` before `</head>`:
-
-```html
-<!-- Google Analytics -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'G-XXXXXXXXXX');
-</script>
-```
-
-### Plausible (Privacy-friendly alternative)
-
-```html
-<script defer data-domain="anchor.yourdomain.com" 
-  src="https://plausible.io/js/script.js"></script>
-```
-
-## SEO Enhancement
-
-### 1. Add Sitemap
-
-Create `web/landing/sitemap.xml`:
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://anchor.yourdomain.com/</loc>
-    <lastmod>2024-01-15</lastmod>
-    <priority>1.0</priority>
-  </url>
-  <url>
-    <loc>https://anchor.yourdomain.com/app/</loc>
-    <lastmod>2024-01-15</lastmod>
-    <priority>0.8</priority>
-  </url>
-</urlset>
-```
-
-### 2. Add robots.txt
-
-Create `web/landing/robots.txt`:
-```
-User-agent: *
-Allow: /
-Sitemap: https://anchor.yourdomain.com/sitemap.xml
-```
-
-### 3. Submit to Search Engines
-
-- Google: https://search.google.com/search-console
-- Bing: https://www.bing.com/webmasters
-
-## Monitoring
-
-### 1. Uptime Monitoring
-
-- **UptimeRobot**: https://uptimerobot.com (free, 50 monitors)
-- **Pingdom**: https://www.pingdom.com
-
-### 2. Performance Monitoring
-
-Run Lighthouse audit:
 ```bash
-npm install -g lighthouse
-lighthouse https://anchor.yourdomain.com --view
+curl -I https://anchor.playlab.eu.cc/
+curl -I https://anchor.playlab.eu.cc/app/
+curl -I https://anchor.playlab.eu.cc/app/index.html
+curl -sI https://anchor.playlab.eu.cc/app/index.html | grep -i '^location:'
+
+for path in / /app/ /app/scripts/app.js /app/scripts/data.js /app/styles/app.css /scripts/main.js /scripts/i18n.js /styles/main.css /assets/anchor-icon.svg; do
+  printf '%s ' "$path"
+  curl -sI "https://anchor.playlab.eu.cc$path" | grep -i '^cache-control:'
+done
 ```
 
-Target scores:
-- Performance: 90+
-- Accessibility: 95+
-- Best Practices: 95+
-- SEO: 95+
+Required results:
 
-### 3. Error Tracking
+- `/` returns `200`.
+- `/app/` returns `200`.
+- `/app/index.html` returns a permanent redirect, `301` or `308`, and `Location: /app/`. A `200` means the redirect did not reach the deployment; a `302` or `307` means it shipped as temporary and does not make `/app/` canonical.
+- Every path in the loop reports a `Cache-Control`. `/assets/anchor-icon.svg` reports `max-age=86400` with `stale-while-revalidate=604800`; every other path reports `max-age=0` with `must-revalidate`. All of them report `no-transform`.
+- A missing `Cache-Control`, a missing `must-revalidate`, or any `max-age` above zero outside `/assets/` means the `_headers` rule for that path did not reach the deployment. Nothing in this repository has observed these responses; run the loop after deploying and record what it returns.
 
-Add Sentry (optional):
-```html
-<script src="https://browser.sentry-cdn.com/7.x.x/bundle.min.js"></script>
-<script>
-  Sentry.init({ dsn: 'YOUR_DSN' });
-</script>
-```
+Then verify in a browser:
 
-## Continuous Deployment
+- `/` and `/app/` are distinct pages.
+- Opening `/app/index.html` leaves the address bar on `/app/`.
+- Chinese/English selection persists between both surfaces.
+- Flutter, Git, and JavaScript datasets can be selected.
+- A submitted answer shows feedback, explanation, locator, source excerpt, and scripted tutor hints.
+- The demo makes no provider, analytics, upload, or backend request.
+- Desktop, tablet, and mobile views have no horizontal overflow or overlapping controls.
 
-### GitHub Actions
+## Rollback
 
-Create `.github/workflows/deploy.yml`:
-```yaml
-name: Deploy Landing Page
-
-on:
-  push:
-    branches: [main]
-    paths:
-      - 'web/**'
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./web/landing
-```
-
-## Troubleshooting
-
-### Issue: 404 on GitHub Pages
-
-**Solution**: Ensure path is correct
-- URL should be: `https://username.github.io/repo-name/landing/`
-- Or set `landing/` as root in Pages settings
-
-### Issue: CSS/JS not loading
-
-**Solution**: Check paths are relative
-```html
-<!-- Wrong -->
-<link rel="stylesheet" href="/styles/main.css">
-
-<!-- Correct -->
-<link rel="stylesheet" href="styles/main.css">
-```
-
-### Issue: Slow loading
-
-**Solution**: 
-1. Run Lighthouse audit
-2. Optimize images
-3. Enable compression
-4. Use CDN
-
-## Security Checklist
-
-- [x] HTTPS enabled
-- [x] Security headers configured
-- [x] No sensitive data in code
-- [x] Dependencies up to date
-- [x] CORS properly configured
-- [x] CSP header (optional)
-
-## Next Steps
-
-1. Deploy to chosen platform
-2. Set up custom domain
-3. Configure analytics
-4. Submit sitemap to search engines
-5. Set up monitoring
-6. Share on social media!
-
-## Support
-
-For deployment issues:
-- Check platform docs
-- Open issue: https://github.com/Drew-Z/anchor/issues
-- Discussions: https://github.com/Drew-Z/anchor/discussions
+Use Cloudflare Pages deployment history to restore the previous production deployment, then revert the isolated repository commit. No database or persistent application identifier changes are part of this website release.

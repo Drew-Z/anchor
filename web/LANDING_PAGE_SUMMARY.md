@@ -1,215 +1,34 @@
-# Anchor Learning - Landing Page Creation Summary
+# Anchor Web Delivery Summary
 
-## ✅ What Was Built
+## Delivered Surfaces
 
-A complete, production-ready landing page for Anchor Learning at `web/landing/`:
+- `web/landing/index.html`: bilingual product site with persistent locale, responsive navigation, accurate metadata, and CTAs to `/app/`.
+- `web/landing/app/index.html`: static learning workspace with a toolbar, dataset sidebar, responsive mobile drawer, answer feedback, explanations, source evidence, scripted tutor hints, completion, recovery, and reset.
+- `web/landing/assets/social-preview.png`: production social preview generated from the real demo surface.
 
-### 📁 File Structure
-```
-web/
-├── landing/
-│   ├── index.html           (575 lines) - Main landing page
-│   ├── styles/
-│   │   └── main.css         (1,225 lines) - Slate-dark theme
-│   ├── scripts/
-│   │   └── main.js          (281 lines) - Interactive features
-│   └── assets/
-│       ├── anchor-icon.svg  - Logo/favicon
-│       └── .gitkeep         - Assets placeholder
-├── app/
-│   └── index.html           - Demo placeholder (coming soon)
-├── README.md                - Web documentation
-└── DEPLOYMENT.md            - Deployment guide
-```
+Cloudflare Pages publishes `web/landing`, so the product site and demo ship together. The old `web/app` placeholder is not a deployment source.
 
-**Total**: 2,081 lines of code
+## Evidence-Bound Claims
 
----
+- Three bundled datasets contain twelve questions across single-choice, multiple-choice, and boolean formats.
+- The demo persists five `localStorage` keys on this browser and device: locale (`anchor.locale`), versioned quiz progress (`anchor.demo.progress.v1`), the library imported from local files (`anchor.demo.library.v1`), the guided Agent session (`anchor.demo.agent.v1`), and the theme preference (`anchor.demo.theme.v1`). All five are listed with their measured sizes in the Profile surface, where progress, library, and the Agent session each have their own confirmed delete control and "clear all local data" removes exactly these five keys.
+- Local file import is supported for browser-local reading and storage: a Markdown or text file is parsed in the page and kept in `anchor.demo.library.v1`. Files are not uploaded to a backend or an AI provider.
+- No backend, analytics, or live AI provider is part of the demo. Backup export writes a JSON file to the browser's own download folder.
+- Scripted tutor hints are explicitly labeled and never presented as a live model response.
+- Marketing statistics without versioned experiment evidence were removed.
 
-## 🎨 Design System
+## Verification
 
-### Color Palette (Slate-dark theme)
-- **Background**: `#0F1117` (page), `#171A23` (card), `#1E222E` (raised)
-- **Accent**: `#5B8CFF` (blue) - single decisive accent
-- **Text**: `#E4E6EB` (primary), `#A0A3AD` (secondary), `#6B6E7A` (tertiary)
-- **Success**: `#22D3EE`, **Warning**: `#FBBF24`, **Error**: `#F87171`
+`web/package.json` provides deterministic Node data/state tests plus a Playwright browser suite for the local or deployed site. Together they cover both languages, metadata, every bundled question, citations, tutor disclosure, completion review, library import and search, the guided Agent session, the Profile storage inventory, backup and restore, scoped deletion, theme, recovery/reset, keyboard and ARIA state, desktop/tablet/mobile screenshots, overflow, and the no-off-origin-request boundary. Read test counts from the runner, not from this document.
 
-### Typography
-- **Font**: System stack (-apple-system, Segoe UI, Roboto)
-- **Scale**: h1 (3rem), h2 (2.25rem), h3 (1.5rem), body (1rem)
-- **Responsive**: Mobile-optimized sizes
+## 交付摘要（中文）
 
-### Layout
-- **Max width**: 1200px containers
-- **Spacing**: 8px base unit with consistent scale
-- **Radius**: 4-12px on cards, 9999px on badges/pills
-- **Grid**: CSS Grid for galleries, Flexbox for composition
+- 三个内置数据集共十二道题，涵盖单选、多选和判断三种题型。
+- 演示在当前浏览器和设备上保存五个 `localStorage` 键：语言选择（`anchor.locale`）、带版本的答题进度（`anchor.demo.progress.v1`）、从本地文件导入的资料库（`anchor.demo.library.v1`）、引导式 Agent 会话（`anchor.demo.agent.v1`）以及主题偏好（`anchor.demo.theme.v1`）。五个键都会在「个人」页面中列出并显示实际占用大小；答题进度、资料库和 Agent 会话各有独立的删除按钮并需确认，「清除全部本地数据」也只删除这五个键。
+- 支持导入本地文件，用于在浏览器内读取和保存：Markdown 或文本文件在页面内解析，并保存到 `anchor.demo.library.v1`。文件不会上传到任何后端或 AI 服务。
+- 演示不包含后端、分析统计或实时 AI 服务。备份导出只是由浏览器将 JSON 文件写入你自己的下载目录。
+- 脚本化的辅导提示都有明确标注，不会被当作实时模型回复呈现。
+- 缺少版本化实验证据的营销数据已移除。
+- 验证由 `web/package.json` 提供：先运行 Node 的数据与状态测试，再运行 Playwright 浏览器套件。具体测试数量请以运行结果为准，不要以本文档为准。
 
----
-
-## 📑 Page Sections
-
-1. **Navigation** - Fixed header with smooth scroll links
-2. **Hero** - Value proposition with visual demo card
-3. **Features** - 6 key features (Citation Chain, Anti-Hallucination, Privacy, AI Agent, Spaced Repetition, Question Types)
-4. **How It Works** - 3-step workflow (Import → Generate → Learn)
-5. **Architecture** - 3-layer anti-hallucination system visualization
-6. **Tech Stack** - Flutter, SQLite, OpenAI, MIT License
-7. **Use Cases** - 4 personas (Developers, Engineers, Interview Prep, Researchers)
-8. **Demo CTA** - Call to action for web demo
-9. **Community** - GitHub, Discussions, Contributing, FAQ links
-10. **Final CTA** - Primary CTA with quick install command
-11. **Footer** - Links, legal, social, BIAU PORT attribution
-
----
-
-## ✨ Features Implemented
-
-### Interactive
-- ✅ Smooth scroll with nav offset
-- ✅ Mobile hamburger menu (responsive)
-- ✅ GitHub stars counter (API fetch)
-- ✅ Active nav link highlighting on scroll
-- ✅ Intersection Observer animations (fade-in)
-- ✅ Click-to-copy install command
-- ✅ Nav background change on scroll
-- ✅ Keyboard navigation (Escape to close menu)
-
-### Performance
-- ✅ Lazy loading images support
-- ✅ DNS prefetch for GitHub API
-- ✅ Minimal JavaScript (5KB)
-- ✅ No external fonts (system stack)
-- ✅ Optimized CSS (12KB)
-
-### SEO & Accessibility
-- ✅ Semantic HTML5
-- ✅ Meta tags (description, keywords)
-- ✅ Open Graph tags (social sharing)
-- ✅ Twitter Card tags
-- ✅ Focus-visible styles
-- ✅ ARIA labels on buttons
-- ✅ Keyboard accessible
-
-### Browser Support
-- ✅ Chrome/Edge 90+
-- ✅ Firefox 88+
-- ✅ Safari 14+
-- ✅ Mobile browsers (iOS 14+, Android 10+)
-
----
-
-## 🚀 Deployment Options
-
-The `DEPLOYMENT.md` guide covers:
-
-1. **GitHub Pages** (recommended for open source)
-2. **Vercel** (best for fast deployment)
-3. **Netlify** (drag-and-drop)
-4. **Cloudflare Pages** (unlimited bandwidth)
-5. **Self-hosted** (Nginx/Apache)
-
-### Quick Deploy to GitHub Pages
-```bash
-# Enable in repo Settings → Pages
-# Source: main branch, /web folder
-# URL: https://drew-z.github.io/anchor/landing/
-```
-
----
-
-## 📊 Performance Targets
-
-When deployed, aim for Lighthouse scores:
-- **Performance**: 90+
-- **Accessibility**: 95+
-- **Best Practices**: 95+
-- **SEO**: 95+
-
----
-
-## 🎯 Key Highlights
-
-### Content Strategy
-- **Clear value prop**: "Anchor your knowledge with full source traceability"
-- **Three core principles**: Traceability, Accuracy, Privacy
-- **Concrete proof**: "14.2% → 2.9% hallucination rate"
-- **Social proof**: GitHub stars counter, open source badge
-
-### Visual Design
-- **Hero card**: Live demo preview showing import → question flow
-- **3-layer architecture**: Visual diagram of anti-hallucination system
-- **Comparison bars**: Before/after hallucination rates
-- **Mini cards**: Step-by-step workflow visualization
-
-### Call-to-Actions
-- **Primary CTA**: "Try Demo" (blue accent button)
-- **Secondary CTA**: "View on GitHub" (outlined button)
-- **Quick install**: Copy-on-click command snippet
-- **Multiple entry points**: Hero, demo section, final CTA
-
----
-
-## 📝 Next Steps (Optional)
-
-### Content Enhancement
-- [ ] Create social preview image (1200x630px)
-- [ ] Add screenshot/demo video
-- [ ] Write case studies/testimonials
-- [ ] Create blog section
-
-### Technical
-- [ ] Build interactive web demo (replace placeholder)
-- [ ] Set up analytics (Google Analytics or Plausible)
-- [ ] Generate sitemap.xml
-- [ ] Add robots.txt
-- [ ] Run Lighthouse audit and optimize
-
-### Marketing
-- [ ] Submit to search engines
-- [ ] Share on Reddit (r/learnprogramming, r/programming)
-- [ ] Post on Hacker News
-- [ ] Tweet with #BuildInPublic
-- [ ] Add to Product Hunt
-
----
-
-## 🔗 Important Links
-
-- **Landing page**: `web/landing/index.html`
-- **Documentation**: `web/README.md`
-- **Deployment guide**: `web/DEPLOYMENT.md`
-- **GitHub repo**: https://github.com/Drew-Z/anchor
-- **BIAU PORT**: https://biau.playlab.eu.cc
-
----
-
-## 📦 What's Included
-
-1. **Complete HTML** - Semantic, accessible, SEO-optimized
-2. **Production CSS** - Modern, responsive, documented
-3. **Interactive JS** - Minimal, performant, accessible
-4. **SVG Logo** - Scalable anchor icon with gradient
-5. **Documentation** - README, deployment guide
-6. **Demo placeholder** - Coming soon page for web app
-
----
-
-## ✅ Ready to Deploy
-
-The landing page is production-ready and can be deployed immediately to:
-- GitHub Pages
-- Vercel
-- Netlify
-- Cloudflare Pages
-- Any static hosting
-
-No build step required - pure HTML/CSS/JS!
-
----
-
-**Total Development**: ~2,100 lines across HTML, CSS, JS, and docs
-**File Size**: ~32 KB uncompressed (expected ~10 KB with gzip)
-**Load Time**: Expected < 1s on fast connection
-
-🎉 Landing page complete and ready for the world!
+Production deployment and rollback instructions live in [DEPLOYMENT.md](./DEPLOYMENT.md).

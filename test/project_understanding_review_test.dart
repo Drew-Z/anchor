@@ -1,9 +1,9 @@
-import 'package:dlg_q/data/models/knowledge_point.dart';
-import 'package:dlg_q/data/models/question.dart';
-import 'package:dlg_q/data/models/question_type.dart';
-import 'package:dlg_q/data/models/source_chunk.dart';
-import 'package:dlg_q/features/ingestion/knowledge_review_screen.dart';
-import 'package:dlg_q/services/ingestion/source_grounded_ingestion_service.dart';
+import 'package:anchor_learning/data/models/knowledge_point.dart';
+import 'package:anchor_learning/data/models/question.dart';
+import 'package:anchor_learning/data/models/question_type.dart';
+import 'package:anchor_learning/data/models/source_chunk.dart';
+import 'package:anchor_learning/features/ingestion/knowledge_review_screen.dart';
+import 'package:anchor_learning/services/ingestion/source_grounded_ingestion_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

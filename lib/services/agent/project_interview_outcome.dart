@@ -1026,7 +1026,7 @@ class ProjectInterviewOutcomeExporter {
     final timestamp = _fileTimestamp(generatedAt);
     return ProjectInterviewOutcomeExport(
       fileName:
-          'duoduo-project-interview-outcome-$timestamp.${format.extension}',
+          'anchor-learning-project-interview-outcome-$timestamp.${format.extension}',
       content: content,
       format: format,
       includedCitationCount: evidence.length,

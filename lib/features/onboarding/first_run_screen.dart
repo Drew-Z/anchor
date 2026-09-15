@@ -485,7 +485,7 @@ class _FirstRunScreenState extends ConsumerState<FirstRunScreen> {
               () => ref.read(firstRunProgressProvider.notifier).complete(),
             ),
             icon: const Icon(Icons.check),
-            label: const Text('进入多多学'),
+            label: const Text('进入 Anchor Learning'),
           ),
         ),
       ],

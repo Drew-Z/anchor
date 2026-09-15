@@ -26,7 +26,7 @@
 10. [附录](#附录)
 
 ## 简介
-本指南面向Dlg-Q项目的Android平台部署，覆盖从开发机环境准备、Gradle与Flutter集成配置、签名证书创建与配置、构建类型（Debug/Profile/Release）差异、代码混淆与资源压缩、APK/AAB产物生成到应用商店发布的全流程。文档严格基于仓库中的实际配置文件进行说明，帮助团队在不改变现有工程约定的前提下完成稳定可靠的发布。
+本指南面向Anchor Learning项目的Android平台部署，覆盖从开发机环境准备、Gradle与Flutter集成配置、签名证书创建与配置、构建类型（Debug/Profile/Release）差异、代码混淆与资源压缩、APK/AAB产物生成到应用商店发布的全流程。文档严格基于仓库中的实际配置文件进行说明，帮助团队在不改变现有工程约定的前提下完成稳定可靠的发布。
 
 ## 项目结构
 Android子工程采用标准Flutter工程布局，核心目录与文件如下：
@@ -76,7 +76,7 @@ I["Flutter配置<br/>pubspec.yaml"] --> B
 - 构建系统与仓库源
   - 根级构建脚本统一配置Google与Maven Central仓库，并将构建输出目录调整至项目根目录下的统一位置；同时为子项目设置独立构建目录并确保对应用模块的评估依赖。
 - 应用模块配置
-  - 命名空间、compileSdk、ndkVersion由Flutter插件注入；Java/Kotlin编译目标均为17；默认配置包含应用ID、最小/目标SDK、版本号与版本名；构建类型中release默认使用debug签名配置以便直接运行release变种。
+  - 命名空间、compileSdk、ndkVersion由Flutter插件注入；Java/Kotlin编译目标均为17；默认配置包含应用ID、最小/目标SDK、版本号与版本名；release 使用受控环境变量注入的 Anchor Learning 正式签名，debug/profile 使用调试签名。
 - Gradle属性
   - 启用AndroidX，设置较大的JVM堆与元空间，保留代码缓存大小，开启OOM堆转储；关闭新DSL与内置Kotlin策略以兼容模板。
 - 本地路径与插件管理
@@ -109,7 +109,7 @@ F["pubspec.yaml<br/>应用名称/资源/依赖"] --> T["flutter插件注入<br/>
 end
 subgraph "应用层"
 M["AndroidManifest.xml<br/>权限/Activity/主题"] --> A
-A --> B["构建类型<br/>release使用debug签名"]
+A --> B["构建类型<br/>release使用正式签名"]
 end
 P --> A
 L --> S
@@ -129,7 +129,7 @@ F --> A
 
 ### 构建类型与签名配置
 - Debug/Profile/Release
-  - 当前release构建类型显式指定使用debug签名配置，便于直接运行release变种；生产发布前需替换为正式签名配置。
+  - 当前 release 构建类型显式指定使用 Anchor Learning 正式签名；签名材料通过 `ANCHOR_SIGNING_*` 环境变量注入，生产密码和 keystore 不进入仓库。
 - 签名证书创建与配置
   - 使用Android Gradle插件的标准签名配置机制，在release构建类型中添加或替换签名块，并在CI/CD中安全存储密钥库与密码。
 - 混淆与资源压缩
@@ -234,7 +234,7 @@ F["pubspec.yaml"] --> C
 - 无法加载Flutter插件
   - 确认settings脚本已包含Flutter工具链构建脚本，并且仓库源包含google与mavenCentral。
 - release无法签名
-  - 当前release使用debug签名配置；请在release构建类型中替换为正式签名配置，并在CI/CD中安全注入密钥库与密码。
+  - release 构建缺少签名变量时会失败；请在本地受控脚本或 CI/CD secrets 中注入 PKCS#12 keystore 与密码。
 - 清理构建失败
   - 根构建脚本提供了统一的clean任务，删除根构建目录；若失败，请确认无进程占用构建目录。
 
@@ -269,7 +269,7 @@ F["pubspec.yaml"] --> C
 - 清单差异
   - 调试与Profile清单仅包含网络权限；主清单包含应用标签、图标、Activity与Intent Filters。
 - 构建类型差异
-  - 当前release使用debug签名配置；发布版本应使用正式签名配置。
+  - 发布版本使用 Anchor Learning 正式签名；构建后必须核对 APK/AAB 证书指纹与 release 记录。
 - 功能与日志
   - 调试版本通常包含更多诊断与日志输出；发布版本应关闭冗余日志并启用混淆。
 

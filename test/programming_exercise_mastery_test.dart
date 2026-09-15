@@ -1,13 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:dlg_q/data/database/database_helper.dart';
-import 'package:dlg_q/data/models/grounded_claim.dart';
-import 'package:dlg_q/data/models/knowledge_point.dart';
-import 'package:dlg_q/data/models/programming_exercise.dart';
-import 'package:dlg_q/data/models/programming_exercise_attempt.dart';
-import 'package:dlg_q/data/models/question.dart';
-import 'package:dlg_q/data/repositories/knowledge_point_repository.dart';
-import 'package:dlg_q/services/scheduling/mastery_service.dart';
+import 'package:anchor_learning/data/database/database_helper.dart';
+import 'package:anchor_learning/data/models/grounded_claim.dart';
+import 'package:anchor_learning/data/models/knowledge_point.dart';
+import 'package:anchor_learning/data/models/programming_exercise.dart';
+import 'package:anchor_learning/data/models/programming_exercise_attempt.dart';
+import 'package:anchor_learning/data/models/question.dart';
+import 'package:anchor_learning/data/repositories/knowledge_point_repository.dart';
+import 'package:anchor_learning/services/scheduling/mastery_service.dart';
 
 void main() {
   test('updates mastery only for verified exercises and grounded evaluations',

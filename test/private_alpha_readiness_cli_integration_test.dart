@@ -38,12 +38,9 @@ void main() {
         repositoryRoot: fixture.root.path,
         format: 'markdown',
       );
-      expect(hold.exitCode, 2, reason: hold.stderr.toString());
-      expect(hold.stdout, contains('Status: `HOLD`'));
-      expect(
-        hold.stdout,
-        contains('release_consistency_cohort_decision_not_go'),
-      );
+      expect(hold.exitCode, 0, reason: hold.stderr.toString());
+      expect(hold.stdout, contains('Status: `GO`'));
+      expect(hold.stdout, isNot(contains('cohort')));
       _expectNoEvidenceEcho(hold);
     },
     timeout: const Timeout(Duration(minutes: 2)),

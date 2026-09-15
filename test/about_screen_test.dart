@@ -1,5 +1,5 @@
-import 'package:dlg_q/core/constants/app_metadata.dart';
-import 'package:dlg_q/features/settings/about_screen.dart';
+import 'package:anchor_learning/core/constants/app_metadata.dart';
+import 'package:anchor_learning/features/settings/about_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -34,6 +34,11 @@ void main() {
       scrollable: find.byType(Scrollable),
     );
     expect(find.text('已知限制'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('模型需要自行配置与验收'),
+      300,
+      scrollable: find.byType(Scrollable),
+    );
     expect(find.text('模型需要自行配置与验收'), findsOneWidget);
 
     await tester.scrollUntilVisible(

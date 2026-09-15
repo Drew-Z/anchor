@@ -1,4 +1,4 @@
-# Duoduo Private Alpha Report
+# Anchor Learning Private Alpha Report
 
 ## Decision
 

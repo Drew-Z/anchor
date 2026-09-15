@@ -1,18 +1,18 @@
-import 'package:dlg_q/data/models/knowledge_point.dart';
-import 'package:dlg_q/data/models/programming_exercise.dart';
-import 'package:dlg_q/data/models/question.dart';
-import 'package:dlg_q/data/models/question_type.dart';
-import 'package:dlg_q/services/agent/agent_session_memory_index.dart';
-import 'package:dlg_q/services/agent/learning_agent_checkpoint.dart';
-import 'package:dlg_q/services/agent/learning_agent_checkpoint_store.dart';
-import 'package:dlg_q/services/agent/learning_agent_memory_record.dart';
-import 'package:dlg_q/services/agent/learning_agent_memory_store.dart';
-import 'package:dlg_q/services/agent/learning_agent_next_action.dart';
-import 'package:dlg_q/services/agent/learning_agent_plan_codec.dart';
-import 'package:dlg_q/services/agent/learning_agent_planner_service.dart';
-import 'package:dlg_q/services/agent/learning_agent_practice_target.dart';
-import 'package:dlg_q/services/agent/learning_agent_runtime.dart';
-import 'package:dlg_q/services/agent/learning_agent_tool_registry.dart';
+import 'package:anchor_learning/data/models/knowledge_point.dart';
+import 'package:anchor_learning/data/models/programming_exercise.dart';
+import 'package:anchor_learning/data/models/question.dart';
+import 'package:anchor_learning/data/models/question_type.dart';
+import 'package:anchor_learning/services/agent/agent_session_memory_index.dart';
+import 'package:anchor_learning/services/agent/learning_agent_checkpoint.dart';
+import 'package:anchor_learning/services/agent/learning_agent_checkpoint_store.dart';
+import 'package:anchor_learning/services/agent/learning_agent_memory_record.dart';
+import 'package:anchor_learning/services/agent/learning_agent_memory_store.dart';
+import 'package:anchor_learning/services/agent/learning_agent_next_action.dart';
+import 'package:anchor_learning/services/agent/learning_agent_plan_codec.dart';
+import 'package:anchor_learning/services/agent/learning_agent_planner_service.dart';
+import 'package:anchor_learning/services/agent/learning_agent_practice_target.dart';
+import 'package:anchor_learning/services/agent/learning_agent_runtime.dart';
+import 'package:anchor_learning/services/agent/learning_agent_tool_registry.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

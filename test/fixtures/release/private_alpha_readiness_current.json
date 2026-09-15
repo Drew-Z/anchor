@@ -6,8 +6,8 @@
     ]
   },
   "automated_gate": {
-    "completed_at": "2026-07-17T09:00:00Z",
-    "tests_passed": 307,
+    "completed_at": "2026-08-25T06:44:20Z",
+    "tests_passed": 380,
     "analyzer_errors": 0,
     "analyzer_warnings": 0,
     "format_passed": true,
@@ -15,8 +15,8 @@
   },
   "android_build": {
     "apk_path": "build/app/outputs/flutter-apk/app-arm64-v8a-debug.apk",
-    "bytes": 91945199,
-    "sha256": "424087275110a499d37613b09f354c53325b0b8128195f573f8a522402eb1608",
+    "bytes": 92506956,
+    "sha256": "211de8e38872fa30c718cb8acb0488e5c31133af02acd9507574a0119075a695",
     "arm64_only": true,
     "v2_signed": true
   },

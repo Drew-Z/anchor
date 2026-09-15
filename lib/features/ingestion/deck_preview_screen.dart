@@ -6,7 +6,7 @@ import '../../core/providers/providers.dart';
 import '../../data/models/question.dart';
 import '../../data/models/question_type.dart';
 import '../../services/content_analyzer.dart';
-import '../../shared/widgets/duo_button.dart';
+import '../../shared/widgets/anchor_button.dart';
 
 /// 题目预览页 — AI 生成后让用户预览，确认后保存
 class DeckPreviewScreen extends ConsumerStatefulWidget {
@@ -126,7 +126,7 @@ class _DeckPreviewScreenState extends ConsumerState<DeckPreviewScreen> {
                   Border(top: BorderSide(color: AppColors.border, width: 2)),
             ),
             child: SafeArea(
-              child: DuoButton(
+              child: AnchorButton(
                 label: _isSaving ? '保存中...' : '保存题包',
                 color: AppColors.green,
                 width: double.infinity,

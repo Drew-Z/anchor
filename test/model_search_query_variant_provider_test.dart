@@ -1,7 +1,7 @@
-import 'package:dlg_q/services/agent/hybrid_knowledge_search_service.dart';
-import 'package:dlg_q/services/agent/model_search_query_variant_provider.dart';
-import 'package:dlg_q/services/ai/ai_api_protocol.dart';
-import 'package:dlg_q/services/ai/ai_completion_result.dart';
+import 'package:anchor_learning/services/agent/hybrid_knowledge_search_service.dart';
+import 'package:anchor_learning/services/agent/model_search_query_variant_provider.dart';
+import 'package:anchor_learning/services/ai/ai_api_protocol.dart';
+import 'package:anchor_learning/services/ai/ai_completion_result.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

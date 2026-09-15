@@ -1,7 +1,7 @@
 import 'dart:convert';
 
-import 'package:dlg_q/services/privacy/alpha_feedback_service.dart';
-import 'package:dlg_q/services/privacy/support_bundle_service.dart';
+import 'package:anchor_learning/services/privacy/alpha_feedback_service.dart';
+import 'package:anchor_learning/services/privacy/support_bundle_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

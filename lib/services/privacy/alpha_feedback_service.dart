@@ -146,7 +146,7 @@ class AlphaFeedbackService {
     }
 
     return LocalTextExport(
-      fileName: 'duoduo-feedback-${_fileTimestamp(generatedAt)}.json',
+      fileName: 'anchor-learning-feedback-${_fileTimestamp(generatedAt)}.json',
       content: _redactor.redact(
         const JsonEncoder.withIndent('  ').convert(payload),
       ),
@@ -155,7 +155,7 @@ class AlphaFeedbackService {
   }
 
   static Future<bool> _saveWithFilePicker(LocalTextExport artifact) async {
-    final path = await FilePicker.platform.saveFile(
+    final path = await FilePicker.saveFile(
       dialogTitle: '导出 Private Alpha 反馈',
       fileName: artifact.fileName,
       type: FileType.custom,

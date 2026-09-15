@@ -7,7 +7,7 @@ import '../../data/models/source.dart';
 import '../../data/models/source_chunk.dart';
 import '../../services/ingestion/question_bulk_verification_service.dart';
 import '../../services/ingestion/source_grounded_ingestion_service.dart';
-import '../../shared/widgets/duo_button.dart';
+import '../../shared/widgets/anchor_button.dart';
 import 'project_code_walkthrough_screen.dart';
 
 typedef KnowledgeReviewSaveCallback = Future<void> Function(
@@ -547,7 +547,7 @@ class _KnowledgeReviewScreenState extends State<KnowledgeReviewScreen> {
                   Border(top: BorderSide(color: AppColors.border, width: 2)),
             ),
             child: SafeArea(
-              child: DuoButton(
+              child: AnchorButton(
                 label: _isSaving ? '保存中...' : '保存已核验内容',
                 color: AppColors.green,
                 width: double.infinity,

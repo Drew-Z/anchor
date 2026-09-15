@@ -4,35 +4,35 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as path;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-import 'package:dlg_q/data/database/database_helper.dart';
-import 'package:dlg_q/data/models/deck.dart';
-import 'package:dlg_q/data/models/grounded_claim.dart';
-import 'package:dlg_q/data/models/interview_turn.dart';
-import 'package:dlg_q/data/models/knowledge_point.dart';
-import 'package:dlg_q/data/models/knowledge_point_prerequisite.dart';
-import 'package:dlg_q/data/models/learning_session.dart';
-import 'package:dlg_q/data/models/programming_exercise.dart';
-import 'package:dlg_q/data/models/programming_exercise_attempt.dart';
-import 'package:dlg_q/data/models/programming_review_action.dart';
-import 'package:dlg_q/data/models/product_event.dart';
-import 'package:dlg_q/data/models/question.dart';
-import 'package:dlg_q/data/models/question_type.dart';
-import 'package:dlg_q/data/models/source.dart';
-import 'package:dlg_q/data/models/source_chunk.dart';
-import 'package:dlg_q/data/models/tutor_turn.dart';
-import 'package:dlg_q/services/agent/learning_agent_checkpoint.dart';
-import 'package:dlg_q/services/agent/learning_agent_checkpoint_store.dart';
-import 'package:dlg_q/services/agent/learning_agent_planner_service.dart';
-import 'package:dlg_q/services/agent/learning_agent_runtime.dart';
-import 'package:dlg_q/services/agent/learning_agent_state.dart';
-import 'package:dlg_q/services/agent/learning_agent_tool_registry.dart';
-import 'package:dlg_q/services/agent/learning_agent_trace.dart';
-import 'package:dlg_q/services/agent/learning_agent_user_decision.dart';
+import 'package:anchor_learning/data/database/database_helper.dart';
+import 'package:anchor_learning/data/models/deck.dart';
+import 'package:anchor_learning/data/models/grounded_claim.dart';
+import 'package:anchor_learning/data/models/interview_turn.dart';
+import 'package:anchor_learning/data/models/knowledge_point.dart';
+import 'package:anchor_learning/data/models/knowledge_point_prerequisite.dart';
+import 'package:anchor_learning/data/models/learning_session.dart';
+import 'package:anchor_learning/data/models/programming_exercise.dart';
+import 'package:anchor_learning/data/models/programming_exercise_attempt.dart';
+import 'package:anchor_learning/data/models/programming_review_action.dart';
+import 'package:anchor_learning/data/models/product_event.dart';
+import 'package:anchor_learning/data/models/question.dart';
+import 'package:anchor_learning/data/models/question_type.dart';
+import 'package:anchor_learning/data/models/source.dart';
+import 'package:anchor_learning/data/models/source_chunk.dart';
+import 'package:anchor_learning/data/models/tutor_turn.dart';
+import 'package:anchor_learning/services/agent/learning_agent_checkpoint.dart';
+import 'package:anchor_learning/services/agent/learning_agent_checkpoint_store.dart';
+import 'package:anchor_learning/services/agent/learning_agent_planner_service.dart';
+import 'package:anchor_learning/services/agent/learning_agent_runtime.dart';
+import 'package:anchor_learning/services/agent/learning_agent_state.dart';
+import 'package:anchor_learning/services/agent/learning_agent_tool_registry.dart';
+import 'package:anchor_learning/services/agent/learning_agent_trace.dart';
+import 'package:anchor_learning/services/agent/learning_agent_user_decision.dart';
 
 void main() {
   sqfliteFfiInit();
 
-  group('DatabaseHelper schema v23', () {
+  group('DatabaseHelper schema v24', () {
     test('creates the current schema with Agent and source provenance columns',
         () async {
       final helper = DatabaseHelper.forTesting(
@@ -41,7 +41,7 @@ void main() {
       addTearDown(helper.close);
 
       final database = await helper.database;
-      expect(await database.getVersion(), 23);
+      expect(await database.getVersion(), 24);
 
       final stateColumns = await database.rawQuery(
         'PRAGMA table_info(learning_agent_states)',
@@ -220,17 +220,70 @@ void main() {
         ]),
       );
       expect((await helper.getUserStats()).hearts, 5);
+      expect(
+        (await database.rawQuery('PRAGMA table_info(quiz_save_operations)'))
+            .map((column) => column['name']),
+        containsAll(
+            ['operation_id', 'operation_kind', 'input_hash', 'result_json']),
+      );
+      expect(await database.query('gamification_state'), isEmpty);
+    });
+
+    test(
+        'upgrades v23 with empty quiz receipts and keeps existing learning data',
+        () async {
+      final directory =
+          await Directory.systemTemp.createTemp('anchor_v23_upgrade_');
+      addTearDown(() => directory.delete(recursive: true));
+      final databasePath = path.join(directory.path, 'legacy.db');
+      final seed = DatabaseHelper.forTesting(
+        databaseFactory: databaseFactoryFfi,
+        databasePath: databasePath,
+      );
+      final now = DateTime(2026, 9, 9);
+      await seed.insertDeck(Deck(
+        id: 'kept-deck',
+        title: 'Kept deck',
+        createdAt: now,
+        updatedAt: now,
+      ));
+      await seed.updateUserStats(
+          (await seed.getUserStats()).copyWith(xp: 321, hearts: 2));
+      final old = await seed.database;
+      await old.execute('DROP TABLE quiz_save_operations');
+      await old.execute('DROP TABLE gamification_state');
+      await old.setVersion(23);
+      await seed.close();
+      final upgraded = DatabaseHelper.forTesting(
+        databaseFactory: databaseFactoryFfi,
+        databasePath: databasePath,
+      );
+      addTearDown(upgraded.close);
+      final database = await upgraded.database;
+      expect(await database.getVersion(), 24);
+      expect((await upgraded.getAllDecks()).single.id, 'kept-deck');
+      expect((await upgraded.getUserStats()).xp, 321);
+      expect((await upgraded.getUserStats()).hearts, 2);
+      expect(await database.query('quiz_save_operations'), isEmpty);
+      expect(await database.query('gamification_state'), isEmpty);
+      expect(
+          (await database.rawQuery('PRAGMA integrity_check'))
+              .single
+              .values
+              .single,
+          'ok');
     });
 
     test('upgrades v22 with an empty immutable product event store', () async {
-      final temporaryDirectory =
-          await Directory.systemTemp.createTemp('duoduo_v22_migration_');
+      final temporaryDirectory = await Directory.systemTemp
+          .createTemp('anchor-learning_v22_migration_');
       addTearDown(() async {
         if (await temporaryDirectory.exists()) {
           await temporaryDirectory.delete(recursive: true);
         }
       });
-      final databasePath = path.join(temporaryDirectory.path, 'duoduo.db');
+      final databasePath =
+          path.join(temporaryDirectory.path, 'anchor-learning.db');
       final now = DateTime(2026, 7, 16, 10);
       final seedHelper = DatabaseHelper.forTesting(
         databaseFactory: databaseFactoryFfi,
@@ -260,7 +313,7 @@ void main() {
       );
       addTearDown(upgradedHelper.close);
       final upgradedDatabase = await upgradedHelper.database;
-      expect(await upgradedDatabase.getVersion(), 23);
+      expect(await upgradedDatabase.getVersion(), 24);
       expect((await upgradedHelper.getAllSources()).single.id, 'v22-source');
 
       final inserted = await upgradedHelper.insertProductEvent(
@@ -283,14 +336,15 @@ void main() {
 
     test('upgrades v11 without losing learning data or active operation state',
         () async {
-      final temporaryDirectory =
-          await Directory.systemTemp.createTemp('duoduo_v11_migration_');
+      final temporaryDirectory = await Directory.systemTemp
+          .createTemp('anchor-learning_v11_migration_');
       addTearDown(() async {
         if (await temporaryDirectory.exists()) {
           await temporaryDirectory.delete(recursive: true);
         }
       });
-      final databasePath = path.join(temporaryDirectory.path, 'duoduo.db');
+      final databasePath =
+          path.join(temporaryDirectory.path, 'anchor-learning.db');
       final seededAt = DateTime(2026, 7, 14, 9);
 
       final seedHelper = DatabaseHelper.forTesting(
@@ -377,7 +431,7 @@ void main() {
       addTearDown(upgradedHelper.close);
       final upgradedDatabase = await upgradedHelper.database;
 
-      expect(await upgradedDatabase.getVersion(), 23);
+      expect(await upgradedDatabase.getVersion(), 24);
       expect((await upgradedHelper.getAllDecks()).single.id, 'deck-v11');
       expect(
         (await upgradedHelper.getAllQuestions()).single.id,
@@ -419,9 +473,9 @@ void main() {
       await helper.insertSource(
         Source(
           id: sourceId,
-          title: 'Duoduo source',
+          title: 'Anchor Learning source',
           type: SourceType.project,
-          uri: 'D:/workspace/duoduo',
+          uri: 'D:/workspace/anchor-learning',
           revision: 'git:abc;snapshot:def',
           trustLevel: SourceTrustLevel.sourceCode,
           createdAt: now,
@@ -452,14 +506,15 @@ void main() {
     });
 
     test('upgrades v13 knowledge points with a concept kind', () async {
-      final temporaryDirectory =
-          await Directory.systemTemp.createTemp('duoduo_v13_migration_');
+      final temporaryDirectory = await Directory.systemTemp
+          .createTemp('anchor-learning_v13_migration_');
       addTearDown(() async {
         if (await temporaryDirectory.exists()) {
           await temporaryDirectory.delete(recursive: true);
         }
       });
-      final databasePath = path.join(temporaryDirectory.path, 'duoduo.db');
+      final databasePath =
+          path.join(temporaryDirectory.path, 'anchor-learning.db');
       final now = DateTime(2026, 7, 14, 20);
       final seedHelper = DatabaseHelper.forTesting(
         databaseFactory: databaseFactoryFfi,
@@ -489,21 +544,22 @@ void main() {
         databasePath: databasePath,
       );
       addTearDown(upgradedHelper.close);
-      expect(await (await upgradedHelper.database).getVersion(), 23);
+      expect(await (await upgradedHelper.database).getVersion(), 24);
       final point = await upgradedHelper.getKnowledgePoint('legacy-point');
       expect(point?.kind, KnowledgePointKind.concept);
     });
 
     test('upgrades v14 interview turns with auditable project provenance',
         () async {
-      final temporaryDirectory =
-          await Directory.systemTemp.createTemp('duoduo_v14_migration_');
+      final temporaryDirectory = await Directory.systemTemp
+          .createTemp('anchor-learning_v14_migration_');
       addTearDown(() async {
         if (await temporaryDirectory.exists()) {
           await temporaryDirectory.delete(recursive: true);
         }
       });
-      final databasePath = path.join(temporaryDirectory.path, 'duoduo.db');
+      final databasePath =
+          path.join(temporaryDirectory.path, 'anchor-learning.db');
       final now = DateTime(2026, 7, 15, 9);
       final seedHelper = DatabaseHelper.forTesting(
         databaseFactory: databaseFactoryFfi,
@@ -548,7 +604,7 @@ void main() {
         databasePath: databasePath,
       );
       addTearDown(upgradedHelper.close);
-      expect(await (await upgradedHelper.database).getVersion(), 23);
+      expect(await (await upgradedHelper.database).getVersion(), 24);
       final turn =
           (await upgradedHelper.getInterviewTurns('session-v14')).single;
       expect(turn.id, 'turn-v14');
@@ -558,14 +614,15 @@ void main() {
     });
 
     test('upgrades v15 turns with empty review actions', () async {
-      final temporaryDirectory =
-          await Directory.systemTemp.createTemp('duoduo_v15_migration_');
+      final temporaryDirectory = await Directory.systemTemp
+          .createTemp('anchor-learning_v15_migration_');
       addTearDown(() async {
         if (await temporaryDirectory.exists()) {
           await temporaryDirectory.delete(recursive: true);
         }
       });
-      final databasePath = path.join(temporaryDirectory.path, 'duoduo.db');
+      final databasePath =
+          path.join(temporaryDirectory.path, 'anchor-learning.db');
       final now = DateTime(2026, 7, 15, 10);
       final seedHelper = DatabaseHelper.forTesting(
         databaseFactory: databaseFactoryFfi,
@@ -618,7 +675,7 @@ void main() {
         databasePath: databasePath,
       );
       addTearDown(upgradedHelper.close);
-      expect(await (await upgradedHelper.database).getVersion(), 23);
+      expect(await (await upgradedHelper.database).getVersion(), 24);
       final turn =
           (await upgradedHelper.getInterviewTurns('session-v15')).single;
       expect(turn.knowledgePointId, 'point-boundary');
@@ -630,14 +687,15 @@ void main() {
     });
 
     test('upgrades v16 sources with empty programming provenance', () async {
-      final temporaryDirectory =
-          await Directory.systemTemp.createTemp('duoduo_v16_migration_');
+      final temporaryDirectory = await Directory.systemTemp
+          .createTemp('anchor-learning_v16_migration_');
       addTearDown(() async {
         if (await temporaryDirectory.exists()) {
           await temporaryDirectory.delete(recursive: true);
         }
       });
-      final databasePath = path.join(temporaryDirectory.path, 'duoduo.db');
+      final databasePath =
+          path.join(temporaryDirectory.path, 'anchor-learning.db');
       final now = DateTime(2026, 7, 15, 12);
       final seedHelper = DatabaseHelper.forTesting(
         databaseFactory: databaseFactoryFfi,
@@ -675,7 +733,7 @@ void main() {
         databasePath: databasePath,
       );
       addTearDown(upgradedHelper.close);
-      expect(await (await upgradedHelper.database).getVersion(), 23);
+      expect(await (await upgradedHelper.database).getVersion(), 24);
       final source = await upgradedHelper.getSource('source-v16');
       expect(source?.title, 'Legacy official docs');
       expect(source?.uri, 'https://example.com/docs');
@@ -687,14 +745,15 @@ void main() {
     });
 
     test('upgrades v17 with an empty prerequisite graph', () async {
-      final temporaryDirectory =
-          await Directory.systemTemp.createTemp('duoduo_v17_migration_');
+      final temporaryDirectory = await Directory.systemTemp
+          .createTemp('anchor-learning_v17_migration_');
       addTearDown(() async {
         if (await temporaryDirectory.exists()) {
           await temporaryDirectory.delete(recursive: true);
         }
       });
-      final databasePath = path.join(temporaryDirectory.path, 'duoduo.db');
+      final databasePath =
+          path.join(temporaryDirectory.path, 'anchor-learning.db');
       final now = DateTime(2026, 7, 15, 14);
       final seedHelper = DatabaseHelper.forTesting(
         databaseFactory: databaseFactoryFfi,
@@ -731,7 +790,7 @@ void main() {
         databasePath: databasePath,
       );
       addTearDown(upgradedHelper.close);
-      expect(await (await upgradedHelper.database).getVersion(), 23);
+      expect(await (await upgradedHelper.database).getVersion(), 24);
       expect(await upgradedHelper.getKnowledgePointPrerequisites(), isEmpty);
 
       await upgradedHelper.replaceKnowledgePointPrerequisites(
@@ -754,14 +813,15 @@ void main() {
     });
 
     test('upgrades v18 with an empty tutor loop and persists a turn', () async {
-      final temporaryDirectory =
-          await Directory.systemTemp.createTemp('duoduo_v18_migration_');
+      final temporaryDirectory = await Directory.systemTemp
+          .createTemp('anchor-learning_v18_migration_');
       addTearDown(() async {
         if (await temporaryDirectory.exists()) {
           await temporaryDirectory.delete(recursive: true);
         }
       });
-      final databasePath = path.join(temporaryDirectory.path, 'duoduo.db');
+      final databasePath =
+          path.join(temporaryDirectory.path, 'anchor-learning.db');
       final now = DateTime(2026, 7, 15, 16);
       final seedHelper = DatabaseHelper.forTesting(
         databaseFactory: databaseFactoryFfi,
@@ -797,7 +857,7 @@ void main() {
         databasePath: databasePath,
       );
       addTearDown(upgradedHelper.close);
-      expect(await (await upgradedHelper.database).getVersion(), 23);
+      expect(await (await upgradedHelper.database).getVersion(), 24);
       expect(await upgradedHelper.getTutorTurns('tutor-session-v18'), isEmpty);
 
       await upgradedHelper.insertTutorTurn(
@@ -827,14 +887,15 @@ void main() {
     });
 
     test('upgrades v19 and persists grounded exercises and attempts', () async {
-      final temporaryDirectory =
-          await Directory.systemTemp.createTemp('duoduo_v19_migration_');
+      final temporaryDirectory = await Directory.systemTemp
+          .createTemp('anchor-learning_v19_migration_');
       addTearDown(() async {
         if (await temporaryDirectory.exists()) {
           await temporaryDirectory.delete(recursive: true);
         }
       });
-      final databasePath = path.join(temporaryDirectory.path, 'duoduo.db');
+      final databasePath =
+          path.join(temporaryDirectory.path, 'anchor-learning.db');
       final now = DateTime(2026, 7, 15, 18);
       final seedHelper = DatabaseHelper.forTesting(
         databaseFactory: databaseFactoryFfi,
@@ -864,7 +925,7 @@ void main() {
         databasePath: databasePath,
       );
       addTearDown(upgradedHelper.close);
-      expect(await (await upgradedHelper.database).getVersion(), 23);
+      expect(await (await upgradedHelper.database).getVersion(), 24);
       expect(
         await upgradedHelper.getProgrammingExercisesForKnowledgePoint(
           'exercise-point',
@@ -933,14 +994,15 @@ void main() {
 
     test('upgrades v20 and persists unique open programming review actions',
         () async {
-      final temporaryDirectory =
-          await Directory.systemTemp.createTemp('duoduo_v20_migration_');
+      final temporaryDirectory = await Directory.systemTemp
+          .createTemp('anchor-learning_v20_migration_');
       addTearDown(() async {
         if (await temporaryDirectory.exists()) {
           await temporaryDirectory.delete(recursive: true);
         }
       });
-      final databasePath = path.join(temporaryDirectory.path, 'duoduo.db');
+      final databasePath =
+          path.join(temporaryDirectory.path, 'anchor-learning.db');
       final now = DateTime(2026, 7, 15, 19);
       final seedHelper = DatabaseHelper.forTesting(
         databaseFactory: databaseFactoryFfi,
@@ -969,7 +1031,7 @@ void main() {
       );
       addTearDown(upgradedHelper.close);
       final upgradedDatabase = await upgradedHelper.database;
-      expect(await upgradedDatabase.getVersion(), 23);
+      expect(await upgradedDatabase.getVersion(), 24);
       expect(await upgradedHelper.getOpenProgrammingReviewActions(), isEmpty);
 
       final original = ProgrammingReviewAction(
@@ -1028,14 +1090,15 @@ void main() {
 
     test('upgrades v21 grounding history as legacy and round-trips new claims',
         () async {
-      final temporaryDirectory =
-          await Directory.systemTemp.createTemp('duoduo_v21_migration_');
+      final temporaryDirectory = await Directory.systemTemp
+          .createTemp('anchor-learning_v21_migration_');
       addTearDown(() async {
         if (await temporaryDirectory.exists()) {
           await temporaryDirectory.delete(recursive: true);
         }
       });
-      final databasePath = path.join(temporaryDirectory.path, 'duoduo.db');
+      final databasePath =
+          path.join(temporaryDirectory.path, 'anchor-learning.db');
       final now = DateTime(2026, 7, 15, 20);
       const claim = GroundedClaim(
         section: 'feedback',
@@ -1147,7 +1210,7 @@ void main() {
         databasePath: databasePath,
       );
       addTearDown(upgradedHelper.close);
-      expect(await (await upgradedHelper.database).getVersion(), 23);
+      expect(await (await upgradedHelper.database).getVersion(), 24);
       final legacyInterview =
           (await upgradedHelper.getInterviewTurns('grounding-session')).single;
       final legacyTutor =

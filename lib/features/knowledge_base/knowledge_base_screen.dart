@@ -60,105 +60,151 @@ class KnowledgeBaseScreen extends ConsumerWidget {
       initialIndex: _initialIndex,
       child: Scaffold(
         body: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Expanded(
-                          child: Text(
-                            '知识库',
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.textPrimary,
+          child: NestedScrollView(
+            headerSliverBuilder: (context, innerBoxIsScrolled) => [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              '知识库',
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textPrimary,
+                              ),
                             ),
                           ),
-                        ),
-                        IconButton(
-                          tooltip: '编程学习路径',
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    const ConceptLearningPathScreen(),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.route_outlined),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    Row(
-                      children: [
-                        _MetricTile(
-                          icon: Icons.source,
-                          color: AppColors.blue,
-                          label: '来源',
-                          value: sourceCount.toString(),
-                        ),
-                        const SizedBox(width: 8),
-                        _MetricTile(
-                          icon: Icons.psychology,
-                          color: AppColors.green,
-                          label: '知识点',
-                          value: pointCount.toString(),
-                        ),
-                        const SizedBox(width: 8),
-                        _MetricTile(
-                          icon: Icons.quiz,
-                          color: AppColors.gold,
-                          label: '题目',
-                          value: questionCount.toString(),
-                        ),
-                        const SizedBox(width: 8),
-                        _MetricTile(
-                          icon: Icons.fact_check,
-                          color: pendingCount > 0
-                              ? AppColors.streakOrange
-                              : AppColors.textLight,
-                          label: '待核验',
-                          value: pendingCount.toString(),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const TabBar(
-                labelColor: AppColors.textPrimary,
-                unselectedLabelColor: AppColors.textSecondary,
-                indicatorColor: AppColors.green,
-                indicatorWeight: 3,
-                tabs: [
-                  Tab(text: '检索'),
-                  Tab(text: '来源'),
-                  Tab(text: '知识点'),
-                  Tab(text: '题目'),
-                  Tab(text: '待核验'),
-                ],
-              ),
-              Expanded(
-                child: TabBarView(
-                  children: [
-                    _KnowledgeSearchTab(
-                      initialQuery: initialSearchQuery,
-                      debounceDelay: searchDebounceDelay,
-                    ),
-                    _SourcesTab(sourcesAsync: sourcesAsync),
-                    _KnowledgePointsTab(pointsAsync: pointsAsync),
-                    _QuestionsTab(questionsAsync: questionsAsync),
-                    _PendingQuestionsTab(questionsAsync: pendingAsync),
-                  ],
+                          IconButton(
+                            tooltip: '编程学习路径',
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const ConceptLearningPathScreen(),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.route_outlined),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          // Android can build before the initial window size arrives.
+                          if (constraints.maxWidth <= 8) {
+                            return const SizedBox.shrink();
+                          }
+                          final labelWidth =
+                              MediaQuery.textScalerOf(context).scale(12) * 3 +
+                                  24;
+                          final fourColumnWidth =
+                              (constraints.maxWidth - 24) / 4;
+                          final columns = fourColumnWidth >= 76 &&
+                                  fourColumnWidth >= labelWidth
+                              ? 4
+                              : 2;
+                          final tileWidth =
+                              (constraints.maxWidth - 8 * (columns - 1)) /
+                                  columns;
+                          final tiles = [
+                            _MetricTile(
+                              icon: Icons.source,
+                              color: AppColors.blue,
+                              label: '来源',
+                              value: sourceCount.toString(),
+                            ),
+                            _MetricTile(
+                              icon: Icons.psychology,
+                              color: AppColors.green,
+                              label: '知识点',
+                              value: pointCount.toString(),
+                            ),
+                            _MetricTile(
+                              icon: Icons.quiz,
+                              color: AppColors.gold,
+                              label: '题目',
+                              value: questionCount.toString(),
+                            ),
+                            _MetricTile(
+                              icon: Icons.fact_check,
+                              color: pendingCount > 0
+                                  ? AppColors.streakOrange
+                                  : AppColors.textLight,
+                              label: '待核验',
+                              value: pendingCount.toString(),
+                            ),
+                          ];
+                          return Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              for (final tile in tiles)
+                                SizedBox(width: tileWidth, child: tile),
+                            ],
+                          );
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
+            body: Column(
+              children: [
+                const TabBar(
+                  isScrollable: true,
+                  tabAlignment: TabAlignment.start,
+                  labelColor: AppColors.textPrimary,
+                  unselectedLabelColor: AppColors.textSecondary,
+                  indicatorColor: AppColors.green,
+                  indicatorWeight: 3,
+                  tabs: [
+                    Tab(text: '检索'),
+                    Tab(text: '来源'),
+                    Tab(text: '知识点'),
+                    Tab(text: '题目'),
+                    Tab(text: '待核验'),
+                  ],
+                ),
+                Expanded(
+                  child: TabBarView(
+                    children: [
+                      _LibraryTabScrollScope(
+                        index: 0,
+                        child: _KnowledgeSearchTab(
+                          initialQuery: initialSearchQuery,
+                          debounceDelay: searchDebounceDelay,
+                        ),
+                      ),
+                      _LibraryTabScrollScope(
+                        index: 1,
+                        child: _SourcesTab(sourcesAsync: sourcesAsync),
+                      ),
+                      _LibraryTabScrollScope(
+                        index: 2,
+                        child: _KnowledgePointsTab(pointsAsync: pointsAsync),
+                      ),
+                      _LibraryTabScrollScope(
+                        index: 3,
+                        child: _QuestionsTab(questionsAsync: questionsAsync),
+                      ),
+                      _LibraryTabScrollScope(
+                        index: 4,
+                        child:
+                            _PendingQuestionsTab(questionsAsync: pendingAsync),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -176,6 +222,33 @@ class KnowledgeBaseScreen extends ConsumerWidget {
     final query = initialSearchQuery?.trim();
     if (query != null && query.isNotEmpty) return 0;
     return initialTabIndex.clamp(0, 4).toInt();
+  }
+}
+
+class _LibraryTabScrollScope extends StatelessWidget {
+  final int index;
+  final Widget child;
+
+  const _LibraryTabScrollScope({required this.index, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final tabs = DefaultTabController.of(context);
+    final scrollController = PrimaryScrollController.of(context);
+    return ListenableBuilder(
+      listenable: tabs,
+      child: child,
+      builder: (context, child) {
+        // A tab transition also mounts neighboring pages. Their idle scroll
+        // positions must not participate in the selected page's active drag.
+        return tabs.index == index
+            ? PrimaryScrollController(
+                controller: scrollController,
+                child: child!,
+              )
+            : PrimaryScrollController.none(child: child!);
+      },
+    );
   }
 }
 
@@ -198,6 +271,7 @@ class _KnowledgeSearchTabState extends ConsumerState<_KnowledgeSearchTab> {
   late final SearchQueryDebouncer _queryDebouncer;
   String _draftQuery = '';
   String _query = '';
+  int _answerRequestId = 0;
   bool _isAnswering = false;
   KnowledgeAnswerResult? _answer;
   String? _answerError;
@@ -248,173 +322,186 @@ class _KnowledgeSearchTabState extends ConsumerState<_KnowledgeSearchTab> {
         : ref.watch(knowledgeAnswerGroundedContextProvider(query));
     final answerSessionsAsync = ref.watch(knowledgeAnswerSessionListProvider);
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-          child: TextField(
-            key: const ValueKey('knowledge-search-input'),
-            controller: _controller,
-            onChanged: _setQuery,
-            textInputAction: TextInputAction.search,
-            decoration: InputDecoration(
-              hintText: '搜索来源、知识点、题目',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: draftQuery.isEmpty
-                  ? null
-                  : IconButton(
-                      tooltip: '清空',
-                      icon: const Icon(Icons.close),
-                      onPressed: () {
-                        _controller.clear();
-                        _setQuery('');
-                      },
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+                child: TextField(
+                  key: const ValueKey('knowledge-search-input'),
+                  controller: _controller,
+                  onChanged: _setQuery,
+                  textInputAction: TextInputAction.search,
+                  decoration: InputDecoration(
+                    hintText: '搜索来源、知识点、题目',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: draftQuery.isEmpty
+                        ? null
+                        : IconButton(
+                            tooltip: '清空',
+                            icon: const Icon(Icons.close),
+                            onPressed: () {
+                              _controller.clear();
+                              _setQuery('');
+                            },
+                          ),
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: AppColors.border),
                     ),
-              filled: true,
-              fillColor: Colors.white,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppColors.border),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide:
+                          const BorderSide(color: AppColors.border, width: 1.5),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide:
+                          const BorderSide(color: AppColors.green, width: 2),
+                    ),
+                  ),
+                ),
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide:
-                    const BorderSide(color: AppColors.border, width: 1.5),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppColors.green, width: 2),
-              ),
-            ),
+              if (draftQuery.isNotEmpty && draftQuery != query)
+                const LinearProgressIndicator(
+                  key: ValueKey('knowledge-search-debounce-progress'),
+                  minHeight: 2,
+                  color: AppColors.green,
+                ),
+              if (query.isNotEmpty &&
+                  hybridAsync?.valueOrNull?.status ==
+                      HybridKnowledgeSearchStatus.augmented)
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Chip(
+                      key: ValueKey('knowledge-search-augmented-chip'),
+                      avatar: Icon(Icons.auto_awesome, size: 16),
+                      label: Text('模型改写已融合'),
+                    ),
+                  ),
+                ),
+              if (query.isNotEmpty &&
+                  hybridAsync?.valueOrNull?.status ==
+                      HybridKnowledgeSearchStatus.fallback)
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Chip(
+                      key: ValueKey('knowledge-search-fallback-chip'),
+                      avatar: Icon(Icons.offline_bolt_outlined, size: 16),
+                      label: Text('已回退本地检索'),
+                    ),
+                  ),
+                ),
+              if (query.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: answerContextAsync!.when(
+                    data: (groundedContext) => _KnowledgeAnswerActionBar(
+                      query: query,
+                      contextChunkCount: groundedContext.items.length,
+                      isAnswering: _isAnswering,
+                      onRefreshContext: () => ref.invalidate(
+                        knowledgeAnswerGroundedContextProvider(query),
+                      ),
+                      onAnswer: draftQuery != query ||
+                              !groundedContext.isExecutable ||
+                              _isAnswering
+                          ? null
+                          : () => _answerQuestion(query, groundedContext),
+                    ),
+                    loading: () => const LinearProgressIndicator(
+                      color: AppColors.green,
+                    ),
+                    error: (error, _) => _KnowledgeAnswerContextErrorBar(
+                      query: query,
+                      error: error,
+                      onRetry: () => ref.invalidate(
+                        knowledgeAnswerGroundedContextProvider(query),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
-        if (draftQuery.isNotEmpty && draftQuery != query)
-          const LinearProgressIndicator(
-            key: ValueKey('knowledge-search-debounce-progress'),
-            minHeight: 2,
-            color: AppColors.green,
-          ),
-        if (query.isNotEmpty &&
-            hybridAsync?.valueOrNull?.status ==
-                HybridKnowledgeSearchStatus.augmented)
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Chip(
-                key: ValueKey('knowledge-search-augmented-chip'),
-                avatar: Icon(Icons.auto_awesome, size: 16),
-                label: Text('模型改写已融合'),
-              ),
-            ),
-          ),
-        if (query.isNotEmpty &&
-            hybridAsync?.valueOrNull?.status ==
-                HybridKnowledgeSearchStatus.fallback)
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Chip(
-                key: ValueKey('knowledge-search-fallback-chip'),
-                avatar: Icon(Icons.offline_bolt_outlined, size: 16),
-                label: Text('已回退本地检索'),
-              ),
-            ),
-          ),
-        if (query.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: answerContextAsync!.when(
-              data: (groundedContext) => _KnowledgeAnswerActionBar(
-                query: query,
-                contextChunkCount: groundedContext.items.length,
-                isAnswering: _isAnswering,
-                onRefreshContext: () => ref.invalidate(
-                  knowledgeAnswerGroundedContextProvider(query),
-                ),
-                onAnswer: !groundedContext.isExecutable || _isAnswering
-                    ? null
-                    : () => _answerQuestion(query, groundedContext),
-              ),
-              loading: () => const LinearProgressIndicator(
-                color: AppColors.green,
-              ),
-              error: (error, _) => _KnowledgeAnswerContextErrorBar(
-                query: query,
-                error: error,
-                onRetry: () => ref.invalidate(
-                  knowledgeAnswerGroundedContextProvider(query),
-                ),
-              ),
-            ),
-          ),
         if (_answer != null || _answerError != null)
-          _KnowledgeAnswerPanel(
-            question: query,
-            answer: _answer,
-            error: _answerError,
-            answerCompletedAt: _answerCompletedAt,
-            answerFailedAt: _answerFailedAt,
-            answerAttemptCount: _answerAttemptCount,
-            recordSaved: _answerSaved,
-            recordSavedAt: _answerSavedAt,
-            isRecording: _isRecordingAnswer,
-            recordError: _answerRecordError,
-            recordFailedAt: _answerRecordFailedAt,
-            recordAttemptCount: _answerRecordAttemptCount,
-            sourceChunks: _answerChunks,
-            onRetryAnswer: _retryKnowledgeAnswer,
-            onRetryRecord: _retryRecordKnowledgeAnswer,
-            onSourceGapSelected: _useKnowledgeAnswerQuery,
-            onFollowUpSelected: _useKnowledgeAnswerQuery,
+          SliverToBoxAdapter(
+            child: _KnowledgeAnswerPanel(
+              question: query,
+              answer: _answer,
+              error: _answerError,
+              answerCompletedAt: _answerCompletedAt,
+              answerFailedAt: _answerFailedAt,
+              answerAttemptCount: _answerAttemptCount,
+              recordSaved: _answerSaved,
+              recordSavedAt: _answerSavedAt,
+              isRecording: _isRecordingAnswer,
+              recordError: _answerRecordError,
+              recordFailedAt: _answerRecordFailedAt,
+              recordAttemptCount: _answerRecordAttemptCount,
+              sourceChunks: _answerChunks,
+              onRetryAnswer: _retryKnowledgeAnswer,
+              onRetryRecord: _retryRecordKnowledgeAnswer,
+              onSourceGapSelected: _useKnowledgeAnswerQuery,
+              onFollowUpSelected: _useKnowledgeAnswerQuery,
+            ),
           ),
-        Expanded(
-          child: query.isEmpty
-              ? _KnowledgeAnswerHistoryEmptyState(
-                  sessionsAsync: answerSessionsAsync,
-                  onSessionSelected: _openKnowledgeAnswerDetail,
-                  onRepairSearch: _useKnowledgeAnswerQuery,
-                  onOpenHistory: _openKnowledgeAnswerHistory,
-                  onOpenQualityIssues: () => _openKnowledgeAnswerHistory(
-                    initialOnlyQualityIssues: true,
-                  ),
-                  onOpenMissingCitations: () => _openKnowledgeAnswerHistory(
-                    initialOnlyWithoutCitations: true,
-                  ),
-                  onOpenSourceGaps: () => _openKnowledgeAnswerHistory(
-                    initialOnlyWithSourceGaps: true,
-                  ),
-                  onOpenRepairable: () => _openKnowledgeAnswerHistory(
-                    initialOnlyRepairable: true,
-                  ),
-                  onOpenNeedsReview: () => _openKnowledgeAnswerHistory(
-                    initialOnlyNeedsReview: true,
-                  ),
-                  onOpenCleanEvidence: () => _openKnowledgeAnswerHistory(
-                    initialOnlyCleanEvidence: true,
-                  ),
-                  onRetryRecentAnswers: () => ref.invalidate(
-                    knowledgeAnswerSessionListProvider,
-                  ),
-                )
-              : resultsAsync!.when(
-                  data: (results) {
-                    final hybridReport = hybridAsync?.valueOrNull;
-                    final displayResults = hybridReport?.status ==
-                            HybridKnowledgeSearchStatus.augmented
-                        ? hybridReport!.results
-                            .map((item) => item.result)
-                            .toList(growable: false)
-                        : results;
-                    if (displayResults.isEmpty) {
-                      return const _EmptyState(
-                        icon: Icons.search_off,
-                        title: '没有匹配结果',
-                      );
-                    }
-                    return ListView.separated(
-                      padding: const EdgeInsets.all(16),
+        query.isEmpty
+            ? _KnowledgeAnswerHistorySliver(
+                sessionsAsync: answerSessionsAsync,
+                onSessionSelected: _openKnowledgeAnswerDetail,
+                onRepairSearch: _useKnowledgeAnswerQuery,
+                onOpenHistory: _openKnowledgeAnswerHistory,
+                onOpenQualityIssues: () => _openKnowledgeAnswerHistory(
+                  initialOnlyQualityIssues: true,
+                ),
+                onOpenMissingCitations: () => _openKnowledgeAnswerHistory(
+                  initialOnlyWithoutCitations: true,
+                ),
+                onOpenSourceGaps: () => _openKnowledgeAnswerHistory(
+                  initialOnlyWithSourceGaps: true,
+                ),
+                onOpenRepairable: () => _openKnowledgeAnswerHistory(
+                  initialOnlyRepairable: true,
+                ),
+                onOpenNeedsReview: () => _openKnowledgeAnswerHistory(
+                  initialOnlyNeedsReview: true,
+                ),
+                onOpenCleanEvidence: () => _openKnowledgeAnswerHistory(
+                  initialOnlyCleanEvidence: true,
+                ),
+                onRetryRecentAnswers: () => ref.invalidate(
+                  knowledgeAnswerSessionListProvider,
+                ),
+              )
+            : resultsAsync!.when(
+                data: (results) {
+                  final hybridReport = hybridAsync?.valueOrNull;
+                  final displayResults = hybridReport?.status ==
+                          HybridKnowledgeSearchStatus.augmented
+                      ? hybridReport!.results
+                          .map((item) => item.result)
+                          .toList(growable: false)
+                      : results;
+                  if (displayResults.isEmpty) {
+                    return const _EmptyState(
+                      icon: Icons.search_off,
+                      title: '没有匹配结果',
+                      asSliver: true,
+                    );
+                  }
+                  return SliverPadding(
+                    padding: const EdgeInsets.all(16),
+                    sliver: SliverList.separated(
                       itemCount: displayResults.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 10),
                       itemBuilder: (context, index) {
@@ -424,10 +511,16 @@ class _KnowledgeSearchTabState extends ConsumerState<_KnowledgeSearchTab> {
                           onTap: () => _openResult(context, result),
                         );
                       },
-                    );
-                  },
-                  loading: () => const _LoadingState(),
-                  error: (error, _) => KnowledgeLibraryErrorState(
+                    ),
+                  );
+                },
+                loading: () => const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: _LoadingState(),
+                ),
+                error: (error, _) => SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: KnowledgeLibraryErrorState(
                     title: '检索结果读取失败',
                     retryLabel: '重试检索',
                     diagnosticTitle: '知识库检索结果读取失败',
@@ -442,7 +535,7 @@ class _KnowledgeSearchTabState extends ConsumerState<_KnowledgeSearchTab> {
                     },
                   ),
                 ),
-        ),
+              ),
       ],
     );
   }
@@ -450,6 +543,8 @@ class _KnowledgeSearchTabState extends ConsumerState<_KnowledgeSearchTab> {
   void _setQuery(String value) {
     _queryDebouncer.cancel();
     setState(() {
+      // Editing away and back to the same text still supersedes old work.
+      _answerRequestId += 1;
       _draftQuery = value;
       if (value.trim().isEmpty) _query = '';
       _isAnswering = false;
@@ -478,6 +573,13 @@ class _KnowledgeSearchTabState extends ConsumerState<_KnowledgeSearchTab> {
     GroundedLearningContext groundedContext, {
     bool resetAttemptCount = true,
   }) async {
+    if (!mounted ||
+        _isAnswering ||
+        _draftQuery.trim() != query ||
+        _query.trim() != query) {
+      return;
+    }
+    final requestId = ++_answerRequestId;
     final sourceChunks = groundedContext.chunks;
     setState(() {
       _isAnswering = true;
@@ -501,7 +603,7 @@ class _KnowledgeSearchTabState extends ConsumerState<_KnowledgeSearchTab> {
           sourceChunks: sourceChunks,
           groundedContext: groundedContext,
         );
-    if (!mounted || _query.trim() != query) return;
+    if (!_isCurrentAnswerRequest(requestId)) return;
 
     setState(() {
       _isAnswering = false;
@@ -521,9 +623,13 @@ class _KnowledgeSearchTabState extends ConsumerState<_KnowledgeSearchTab> {
         query,
         result.requireData,
         groundedContext,
+        requestId: requestId,
       );
     }
   }
+
+  bool _isCurrentAnswerRequest(int requestId) =>
+      mounted && _answerRequestId == requestId;
 
   void _useKnowledgeAnswerQuery(String query) {
     _controller.text = query;
@@ -591,8 +697,10 @@ class _KnowledgeSearchTabState extends ConsumerState<_KnowledgeSearchTab> {
   Future<void> _recordKnowledgeAnswer(
     String query,
     KnowledgeAnswerResult answer,
-    GroundedLearningContext? groundedContext,
-  ) async {
+    GroundedLearningContext? groundedContext, {
+    required int requestId,
+  }) async {
+    if (!_isCurrentAnswerRequest(requestId)) return;
     setState(() {
       _isRecordingAnswer = true;
       _answerRecordError = null;
@@ -626,8 +734,9 @@ class _KnowledgeSearchTabState extends ConsumerState<_KnowledgeSearchTab> {
               ),
             ),
           );
+      if (!mounted) return;
       invalidateAgentLearningRecordProviders(ref);
-      if (!mounted || _query.trim() != query) return;
+      if (!_isCurrentAnswerRequest(requestId)) return;
       setState(() {
         _answerSaved = true;
         _answerSavedAt = now;
@@ -636,7 +745,7 @@ class _KnowledgeSearchTabState extends ConsumerState<_KnowledgeSearchTab> {
         _answerRecordFailedAt = null;
       });
     } catch (e) {
-      if (!mounted || _query.trim() != query) return;
+      if (!_isCurrentAnswerRequest(requestId)) return;
       final failedAt = DateTime.now();
       setState(() {
         _answerSaved = false;
@@ -658,7 +767,12 @@ class _KnowledgeSearchTabState extends ConsumerState<_KnowledgeSearchTab> {
         _answerRecordError == null) {
       return;
     }
-    await _recordKnowledgeAnswer(query, answer, _answerContext);
+    await _recordKnowledgeAnswer(
+      query,
+      answer,
+      _answerContext,
+      requestId: _answerRequestId,
+    );
   }
 
   Future<void> _retryKnowledgeAnswer() async {
@@ -742,7 +856,7 @@ class _KnowledgeSearchTabState extends ConsumerState<_KnowledgeSearchTab> {
   }
 }
 
-class _KnowledgeAnswerHistoryEmptyState extends StatelessWidget {
+class _KnowledgeAnswerHistorySliver extends StatelessWidget {
   final AsyncValue<List<LearningSession>> sessionsAsync;
   final ValueChanged<LearningSession> onSessionSelected;
   final ValueChanged<String> onRepairSearch;
@@ -755,7 +869,7 @@ class _KnowledgeAnswerHistoryEmptyState extends StatelessWidget {
   final VoidCallback onOpenCleanEvidence;
   final VoidCallback onRetryRecentAnswers;
 
-  const _KnowledgeAnswerHistoryEmptyState({
+  const _KnowledgeAnswerHistorySliver({
     required this.sessionsAsync,
     required this.onSessionSelected,
     required this.onRepairSearch,
@@ -779,12 +893,13 @@ class _KnowledgeAnswerHistoryEmptyState extends StatelessWidget {
           return const _EmptyState(
             icon: Icons.search,
             title: '输入关键词检索知识库',
+            asSliver: true,
           );
         }
 
-        return ListView(
+        return SliverPadding(
           padding: const EdgeInsets.all(16),
-          children: [
+          sliver: SliverList.list(children: [
             const _EmptyState(
               icon: Icons.search,
               title: '输入关键词检索知识库',
@@ -823,17 +938,23 @@ class _KnowledgeAnswerHistoryEmptyState extends StatelessWidget {
               ),
               const SizedBox(height: 10),
             ],
-          ],
+          ]),
         );
       },
-      loading: () => const _LoadingState(),
-      error: (error, _) => KnowledgeLibraryErrorState(
-        title: '最近问答读取失败',
-        retryLabel: '重试读取最近问答',
-        diagnosticTitle: '知识库最近问答读取失败',
-        diagnosticSuccessMessage: '已复制最近问答读取诊断',
-        error: error,
-        onRetry: onRetryRecentAnswers,
+      loading: () => const SliverFillRemaining(
+        hasScrollBody: false,
+        child: _LoadingState(),
+      ),
+      error: (error, _) => SliverFillRemaining(
+        hasScrollBody: false,
+        child: KnowledgeLibraryErrorState(
+          title: '最近问答读取失败',
+          retryLabel: '重试读取最近问答',
+          diagnosticTitle: '知识库最近问答读取失败',
+          diagnosticSuccessMessage: '已复制最近问答读取诊断',
+          error: error,
+          onRetry: onRetryRecentAnswers,
+        ),
       ),
     );
   }
@@ -924,65 +1045,67 @@ class _KnowledgeAnswerActionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 10,
+      runSpacing: 8,
       children: [
-        Expanded(
-          child: Text(
-            contextChunkCount == 0 ? '暂无可引用片段' : '$contextChunkCount 条可引用片段',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textSecondary,
-            ),
+        Text(
+          contextChunkCount == 0 ? '暂无可引用片段' : '$contextChunkCount 条可引用片段',
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textSecondary,
           ),
         ),
-        const SizedBox(width: 10),
-        if (contextChunkCount == 0) ...[
-          IconButton(
-            tooltip: '查看来源',
-            icon: const Icon(Icons.source, size: 18),
-            color: AppColors.textSecondary,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints.tightFor(
-              width: 30,
-              height: 30,
-            ),
-            visualDensity: VisualDensity.compact,
-            onPressed: () => DefaultTabController.of(context).animateTo(1),
+        if (contextChunkCount == 0)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                tooltip: '查看来源',
+                icon: const Icon(Icons.source, size: 18),
+                color: AppColors.textSecondary,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(
+                  width: 30,
+                  height: 30,
+                ),
+                visualDensity: VisualDensity.compact,
+                onPressed: () => DefaultTabController.of(context).animateTo(1),
+              ),
+              const SizedBox(width: 4),
+              IconButton(
+                tooltip: '重新匹配来源片段',
+                icon: const Icon(Icons.refresh, size: 18),
+                color: AppColors.textSecondary,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(
+                  width: 30,
+                  height: 30,
+                ),
+                visualDensity: VisualDensity.compact,
+                onPressed: onRefreshContext,
+              ),
+              const SizedBox(width: 4),
+              IconButton(
+                tooltip: '复制无引用诊断',
+                icon: const Icon(Icons.copy, size: 18),
+                color: AppColors.textSecondary,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(
+                  width: 30,
+                  height: 30,
+                ),
+                visualDensity: VisualDensity.compact,
+                onPressed: () => _copyAnswerNoContextDiagnostic(
+                  context,
+                  query: query,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 4),
-          IconButton(
-            tooltip: '重新匹配来源片段',
-            icon: const Icon(Icons.refresh, size: 18),
-            color: AppColors.textSecondary,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints.tightFor(
-              width: 30,
-              height: 30,
-            ),
-            visualDensity: VisualDensity.compact,
-            onPressed: onRefreshContext,
-          ),
-          const SizedBox(width: 4),
-          IconButton(
-            tooltip: '复制无引用诊断',
-            icon: const Icon(Icons.copy, size: 18),
-            color: AppColors.textSecondary,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints.tightFor(
-              width: 30,
-              height: 30,
-            ),
-            visualDensity: VisualDensity.compact,
-            onPressed: () => _copyAnswerNoContextDiagnostic(
-              context,
-              query: query,
-            ),
-          ),
-          const SizedBox(width: 6),
-        ],
         ElevatedButton.icon(
           onPressed: onAnswer,
           icon: isAnswering
@@ -1121,7 +1244,8 @@ class _KnowledgeAnswerPanel extends StatelessWidget {
       hasError: error != null,
     );
     if (error != null) {
-      return Padding(
+      return SingleChildScrollView(
+        primary: false,
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1264,6 +1388,7 @@ class _KnowledgeAnswerPanel extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxHeight: 320),
         child: SingleChildScrollView(
+          primary: false,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1729,13 +1854,15 @@ class _SourcesTab extends ConsumerWidget {
         );
       },
       loading: () => const _LoadingState(),
-      error: (error, _) => KnowledgeLibraryErrorState(
-        title: '来源读取失败',
-        retryLabel: '重试读取来源',
-        diagnosticTitle: '知识库来源列表读取失败',
-        diagnosticSuccessMessage: '已复制来源读取诊断',
-        error: error,
-        onRetry: () => ref.invalidate(sourceListProvider),
+      error: (error, _) => _LibraryStateViewport(
+        child: KnowledgeLibraryErrorState(
+          title: '来源读取失败',
+          retryLabel: '重试读取来源',
+          diagnosticTitle: '知识库来源列表读取失败',
+          diagnosticSuccessMessage: '已复制来源读取诊断',
+          error: error,
+          onRetry: () => ref.invalidate(sourceListProvider),
+        ),
       ),
     );
   }
@@ -1746,7 +1873,7 @@ class _SourcesEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
+    return _LibraryStateViewport(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -1823,13 +1950,15 @@ class _KnowledgePointsTab extends ConsumerWidget {
         );
       },
       loading: () => const _LoadingState(),
-      error: (error, _) => KnowledgeLibraryErrorState(
-        title: '知识点读取失败',
-        retryLabel: '重试读取知识点',
-        diagnosticTitle: '知识库知识点列表读取失败',
-        diagnosticSuccessMessage: '已复制知识点读取诊断',
-        error: error,
-        onRetry: () => ref.invalidate(knowledgePointListProvider),
+      error: (error, _) => _LibraryStateViewport(
+        child: KnowledgeLibraryErrorState(
+          title: '知识点读取失败',
+          retryLabel: '重试读取知识点',
+          diagnosticTitle: '知识库知识点列表读取失败',
+          diagnosticSuccessMessage: '已复制知识点读取诊断',
+          error: error,
+          onRetry: () => ref.invalidate(knowledgePointListProvider),
+        ),
       ),
     );
   }
@@ -1864,57 +1993,63 @@ class _QuestionsTabState extends ConsumerState<_QuestionsTab> {
                 .where((question) => question.sourceStatus == _selectedStatus)
                 .toList();
 
-        return Column(
-          children: [
-            _QuestionStatusFilters(
-              questions: questions,
-              selectedStatus: _selectedStatus,
-              onSelected: (status) {
-                setState(() => _selectedStatus = status);
-              },
+        return CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: _QuestionStatusFilters(
+                questions: questions,
+                selectedStatus: _selectedStatus,
+                onSelected: (status) {
+                  setState(() => _selectedStatus = status);
+                },
+              ),
             ),
-            Expanded(
-              child: filteredQuestions.isEmpty
-                  ? _EmptyState(
-                      icon: Icons.filter_alt_off,
-                      title: '暂无${_selectedStatus?.label ?? ''}题目',
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: filteredQuestions.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 10),
-                      itemBuilder: (context, index) {
-                        final question = filteredQuestions[index];
-                        return _LibraryRow(
-                          icon: Icons.help_outline,
-                          color: _sourceStatusColor(question.sourceStatus),
-                          title: question.content,
-                          subtitle:
-                              '${question.type.label} · ${question.sourceStatus.label} · ${question.citationIds.length} 条引用',
-                          trailing: Icons.chevron_right,
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    QuestionEvidenceScreen(question: question),
-                              ),
-                            );
-                          },
+            if (filteredQuestions.isEmpty)
+              _EmptyState(
+                icon: Icons.filter_alt_off,
+                title: '暂无${_selectedStatus?.label ?? ''}题目',
+                asSliver: true,
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.all(16),
+                sliver: SliverList.separated(
+                  itemCount: filteredQuestions.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (context, index) {
+                    final question = filteredQuestions[index];
+                    return _LibraryRow(
+                      icon: Icons.help_outline,
+                      color: _sourceStatusColor(question.sourceStatus),
+                      title: question.content,
+                      subtitle:
+                          '${question.type.label} · ${question.sourceStatus.label} · ${question.citationIds.length} 条引用',
+                      trailing: Icons.chevron_right,
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                QuestionEvidenceScreen(question: question),
+                          ),
                         );
                       },
-                    ),
-            ),
+                    );
+                  },
+                ),
+              ),
           ],
         );
       },
       loading: () => const _LoadingState(),
-      error: (error, _) => KnowledgeLibraryErrorState(
-        title: '题目读取失败',
-        retryLabel: '重试读取题目',
-        diagnosticTitle: '知识库题目列表读取失败',
-        diagnosticSuccessMessage: '已复制题目读取诊断',
-        error: error,
-        onRetry: () => ref.invalidate(allQuestionsProvider),
+      error: (error, _) => _LibraryStateViewport(
+        child: KnowledgeLibraryErrorState(
+          title: '题目读取失败',
+          retryLabel: '重试读取题目',
+          diagnosticTitle: '知识库题目列表读取失败',
+          diagnosticSuccessMessage: '已复制题目读取诊断',
+          error: error,
+          onRetry: () => ref.invalidate(allQuestionsProvider),
+        ),
       ),
     );
   }
@@ -2026,15 +2161,17 @@ class _PendingQuestionsTabState extends ConsumerState<_PendingQuestionsTab> {
   bool _isVerifying = false;
 
   Future<void> _verifyAll(List<Question> questions) async {
-    if (_isVerifying) return;
+    if (!mounted || _isVerifying) return;
     setState(() => _isVerifying = true);
     try {
       final sourceChunkRepository = ref.read(sourceChunkRepositoryProvider);
       final plan =
           await const QuestionBulkVerificationService().buildPlanFromLoader(
         questions: questions,
-        citationExists: (citationId) async =>
-            await sourceChunkRepository.getSourceChunk(citationId) != null,
+        citationExists: (citationId) async {
+          if (!mounted) return false;
+          return await sourceChunkRepository.getSourceChunk(citationId) != null;
+        },
       );
       if (!mounted) return;
       if (!plan.hasUpdates) {
@@ -2050,6 +2187,7 @@ class _PendingQuestionsTabState extends ConsumerState<_PendingQuestionsTab> {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
+          scrollable: true,
           title: const Text('批量确认来源核验？'),
           content: Text(
             '将 ${plan.updates.length} 道引用片段仍可读取的题目标记为已核验。'
@@ -2070,35 +2208,10 @@ class _PendingQuestionsTabState extends ConsumerState<_PendingQuestionsTab> {
       );
       if (confirmed != true || !mounted) return;
 
-      await ref
-          .read(questionRepositoryProvider)
-          .updateQuestions(plan.updatedQuestions);
-      ref.invalidate(pendingQuestionListProvider);
-      ref.invalidate(allQuestionsProvider);
-      ref.invalidate(verifiedQuestionsProvider);
-      ref.invalidate(knowledgeSearchCorpusProvider);
-      ref.invalidate(practiceableKnowledgePointListProvider);
-      ref.invalidate(todayReviewQueueProvider);
-      ref.invalidate(learningAgentPlanProvider);
-      for (final update in plan.updates) {
-        final previousQuestion = questions[update.index];
-        ref.invalidate(
-          questionCitationChunksProvider(
-            previousQuestion.citationIds.join('\x00'),
-          ),
-        );
-        ref.invalidate(
-          questionCitationChunksProvider(
-            update.question.citationIds.join('\x00'),
-          ),
-        );
-        ref.invalidate(deckQuestionsProvider(update.question.deckId));
-        ref.invalidate(verifiedDeckQuestionsProvider(update.question.deckId));
-        final pointId = update.question.knowledgePointId;
-        if (pointId != null) {
-          ref.invalidate(knowledgePointQuestionsProvider(pointId));
-        }
-      }
+      await ref.read(questionVerificationOperationsProvider).saveBulk(
+            plan,
+            previousQuestions: questions,
+          );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2177,13 +2290,15 @@ class _PendingQuestionsTabState extends ConsumerState<_PendingQuestionsTab> {
         );
       },
       loading: () => const _LoadingState(),
-      error: (error, _) => KnowledgeLibraryErrorState(
-        title: '待核验内容读取失败',
-        retryLabel: '重试读取待核验',
-        diagnosticTitle: '知识库待核验列表读取失败',
-        diagnosticSuccessMessage: '已复制待核验读取诊断',
-        error: error,
-        onRetry: () => ref.invalidate(pendingQuestionListProvider),
+      error: (error, _) => _LibraryStateViewport(
+        child: KnowledgeLibraryErrorState(
+          title: '待核验内容读取失败',
+          retryLabel: '重试读取待核验',
+          diagnosticTitle: '知识库待核验列表读取失败',
+          diagnosticSuccessMessage: '已复制待核验读取诊断',
+          error: error,
+          onRetry: () => ref.invalidate(pendingQuestionListProvider),
+        ),
       ),
     );
   }
@@ -2215,49 +2330,44 @@ class _MetricTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        height: 76,
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppColors.border, width: 2),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: color, size: 22),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    value,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
-                    ),
+    return Container(
+      constraints: const BoxConstraints(minHeight: 76),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.border, width: 2),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 22),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
                   ),
-                  Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
+                ),
               ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textSecondary,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -3039,7 +3149,7 @@ class _QuestionEvidenceScreenState
     SourceStatus status,
     List<SourceChunk> citationChunks,
   ) async {
-    if (_isSaving) return;
+    if (!mounted || _isSaving) return;
     if (status == SourceStatus.verified && citationChunks.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -3060,23 +3170,10 @@ class _QuestionEvidenceScreenState
         sourceStatus: validCitationIds.isEmpty ? SourceStatus.noSource : status,
         citationIds: validCitationIds,
       );
-      await ref.read(questionRepositoryProvider).updateQuestion(updated);
-      ref.invalidate(pendingQuestionListProvider);
-      ref.invalidate(allQuestionsProvider);
-      ref.invalidate(verifiedQuestionsProvider);
-      ref.invalidate(knowledgeSearchCorpusProvider);
-      ref.invalidate(practiceableKnowledgePointListProvider);
-      ref.invalidate(todayReviewQueueProvider);
-      ref.invalidate(questionCitationChunksProvider(previousCitationKey));
-      ref.invalidate(
-        questionCitationChunksProvider(updated.citationIds.join('\x00')),
-      );
-      ref.invalidate(deckQuestionsProvider(updated.deckId));
-      ref.invalidate(verifiedDeckQuestionsProvider(updated.deckId));
-      if (updated.knowledgePointId != null) {
-        ref.invalidate(
-            knowledgePointQuestionsProvider(updated.knowledgePointId!));
-      }
+      await ref.read(questionVerificationOperationsProvider).saveStatus(
+            updated,
+            previousCitationKey: previousCitationKey,
+          );
 
       if (!mounted) return;
       setState(() {
@@ -3838,6 +3935,34 @@ class _EmptyBlock extends StatelessWidget {
   }
 }
 
+class _LibraryStateViewport extends StatelessWidget {
+  final Widget child;
+  final bool asSliver;
+
+  const _LibraryStateViewport({required this.child, this.asSliver = false});
+
+  @override
+  Widget build(BuildContext context) {
+    if (asSliver) {
+      return SliverFillRemaining(
+        hasScrollBody: false,
+        child: Center(child: child),
+      );
+    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final content = Center(child: child);
+        if (!constraints.hasBoundedHeight) return content;
+        return CustomScrollView(
+          slivers: [
+            SliverFillRemaining(hasScrollBody: false, child: content),
+          ],
+        );
+      },
+    );
+  }
+}
+
 class _LoadingState extends StatelessWidget {
   const _LoadingState();
 
@@ -3852,15 +3977,18 @@ class _LoadingState extends StatelessWidget {
 class _EmptyState extends StatelessWidget {
   final IconData icon;
   final String title;
+  final bool asSliver;
 
   const _EmptyState({
     required this.icon,
     required this.title,
+    this.asSliver = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Center(
+    return _LibraryStateViewport(
+      asSliver: asSliver,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

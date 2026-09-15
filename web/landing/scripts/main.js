@@ -1,281 +1,142 @@
-// Anchor Learning - Landing Page Scripts
+import { initializeLocale, setLocale, translate } from './i18n.js';
 
-// ========== GitHub Stars Fetcher ==========
-async function fetchGitHubStars() {
-  try {
-    const response = await fetch('https://api.github.com/repos/Drew-Z/anchor');
-    if (response.ok) {
-      const data = await response.json();
-      const starsElement = document.getElementById('github-stars');
-      if (starsElement) {
-        starsElement.textContent = `${data.stargazers_count} stars`;
+/** Controls a keyboard can reach, in document order. */
+const FOCUSABLE = 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/**
+ * The control that opened the mobile menu, so dismissing it can hand focus back. Null whenever the menu is
+ * closed, which is also how a close tells a real dismissal from the repeated `setMenuState(false)` calls
+ * that choosing a link or a language makes.
+ */
+let menuReturnFocus = null;
+
+/**
+ * True while the navigation is a panel behind the trigger rather than a row in the header. The trigger is
+ * only displayed at that breakpoint, so asking whether it is on screen keeps the breakpoint itself in the
+ * stylesheet instead of repeating the width here.
+ */
+function panelMode(button) {
+  return (button?.getClientRects().length ?? 0) > 0;
+}
+
+function menuIsOpen(navigation) {
+  return navigation?.classList.contains('is-open') === true;
+}
+
+/** The links a keyboard can reach inside the open panel, in document order. */
+function menuFocusables(navigation) {
+  const nodes = navigation?.querySelectorAll(FOCUSABLE) ?? [];
+  return [...nodes].filter((node) => node.getClientRects().length > 0);
+}
+
+/**
+ * Opens or closes the navigation. As a panel it is modal over a scrim, so opening moves focus inside it and
+ * a dismissal hands focus back to whatever opened it. A close that comes from choosing a link or a language
+ * passes `restoreFocus: false`: that choice already put focus where the reader asked for it, and the
+ * trigger would only take it straight back. Desktop is untouched, where the navigation is a header row with
+ * no scrim and nothing to open or close.
+ */
+function setMenuState(open, { restoreFocus = true } = {}) {
+  const button = document.querySelector('.menu-button');
+  const navigation = document.querySelector('.primary-nav');
+  const scrim = document.querySelector('.nav-scrim');
+  if (!button || !navigation) return;
+  const wasOpen = menuIsOpen(navigation);
+
+  button.setAttribute('aria-expanded', String(open));
+  button.setAttribute('aria-label', translate(open ? 'a11y.closeMenu' : 'a11y.openMenu'));
+  navigation.classList.toggle('is-open', open);
+  if (scrim) scrim.hidden = !open;
+
+  if (!panelMode(button)) {
+    menuReturnFocus = null;
+    return;
+  }
+  if (open && !wasOpen) {
+    const opener = document.activeElement;
+    // The trigger is the way in, and a browser that does not focus a clicked button leaves the active
+    // element somewhere the reader never asked to return to, so that falls back to the trigger.
+    menuReturnFocus = opener instanceof HTMLElement && !navigation.contains(opener) && opener.matches(FOCUSABLE)
+      ? opener
+      : button;
+    menuFocusables(navigation)[0]?.focus();
+    return;
+  }
+  if (!open && wasOpen) {
+    const opener = menuReturnFocus;
+    menuReturnFocus = null;
+    if (restoreFocus) (opener?.isConnected ? opener : button).focus();
+  }
+}
+
+function initializeNavigation() {
+  const button = document.querySelector('.menu-button');
+  const navigation = document.querySelector('.primary-nav');
+  const scrim = document.querySelector('.nav-scrim');
+  if (!button || !navigation) return;
+
+  button.addEventListener('click', () => {
+    setMenuState(button.getAttribute('aria-expanded') !== 'true');
+  });
+
+  navigation.addEventListener('click', (event) => {
+    // Choosing a destination is not a dismissal: the reader has moved on to that section, so focus stays
+    // with the link they picked rather than returning to the trigger.
+    if (event.target instanceof HTMLAnchorElement) setMenuState(false, { restoreFocus: false });
+  });
+
+  // A click on the scrim is a click at the page the panel is covering: treat it as a dismissal.
+  scrim?.addEventListener('click', () => setMenuState(false));
+
+  document.addEventListener('keydown', (event) => {
+    // An open panel is modal: the scrim covers the page, so Tab stays inside it rather than walking onto
+    // links the reader cannot see or click.
+    if (event.key === 'Tab' && menuIsOpen(navigation) && panelMode(button)) {
+      const focusables = menuFocusables(navigation);
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      if (first && (active === (event.shiftKey ? first : last) || !navigation.contains(active))) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
       }
+      return;
     }
-  } catch (error) {
-    console.error('Failed to fetch GitHub stars:', error);
-  }
+
+    // Only an open panel has anything to dismiss, and `setMenuState` keeps a closed one from moving focus.
+    if (event.key === 'Escape') setMenuState(false);
+  });
 }
 
-// ========== Mobile Menu Toggle ==========
-function initMobileMenu() {
-  const toggle = document.querySelector('.mobile-menu-toggle');
-  const navLinks = document.querySelector('.nav-links');
-
-  if (toggle && navLinks) {
-    toggle.addEventListener('click', () => {
-      navLinks.classList.toggle('active');
-      toggle.classList.toggle('active');
-    });
-
-    // Close menu when clicking outside
-    document.addEventListener('click', (e) => {
-      if (!toggle.contains(e.target) && !navLinks.contains(e.target)) {
-        navLinks.classList.remove('active');
-        toggle.classList.remove('active');
-      }
-    });
-
-    // Close menu when clicking a link
-    navLinks.querySelectorAll('a').forEach(link => {
-      link.addEventListener('click', () => {
-        navLinks.classList.remove('active');
-        toggle.classList.remove('active');
-      });
-    });
-  }
-}
-
-// ========== Smooth Scroll with Offset ==========
-function initSmoothScroll() {
-  document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-    anchor.addEventListener('click', function (e) {
-      const href = this.getAttribute('href');
-      if (href === '#') return;
-
-      e.preventDefault();
-      const target = document.querySelector(href);
-
-      if (target) {
-        const navHeight = document.querySelector('.nav').offsetHeight;
-        const targetPosition = target.offsetTop - navHeight - 20;
-
-        window.scrollTo({
-          top: targetPosition,
-          behavior: 'smooth'
-        });
-      }
+function initializeLocaleButtons() {
+  document.querySelectorAll('[data-locale]').forEach((button) => {
+    button.addEventListener('click', () => {
+      setLocale(button.dataset.locale);
+      // A language choice leaves focus on the switch that made it, so the reader can change their mind.
+      setMenuState(false, { restoreFocus: false });
     });
   });
 }
 
-// ========== Intersection Observer for Fade-in Animations ==========
-function initAnimations() {
-  const observerOptions = {
-    threshold: 0.1,
-    rootMargin: '0px 0px -50px 0px'
-  };
+function initializeCopyCommand() {
+  const button = document.querySelector('[data-copy]');
+  if (!button) return;
 
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        entry.target.classList.add('fade-in');
-        observer.unobserve(entry.target);
-      }
-    });
-  }, observerOptions);
-
-  // Observe elements
-  document.querySelectorAll('.feature-card, .workflow-step, .arch-layer, .use-case-card, .community-card').forEach(el => {
-    observer.observe(el);
-  });
-}
-
-// ========== Active Nav Link Highlight ==========
-function initActiveNavLinks() {
-  const sections = document.querySelectorAll('section[id]');
-  const navLinks = document.querySelectorAll('.nav-links a[href^="#"]');
-
-  function highlightNavLink() {
-    const scrollPosition = window.scrollY + 100;
-
-    sections.forEach(section => {
-      const sectionTop = section.offsetTop;
-      const sectionHeight = section.offsetHeight;
-      const sectionId = section.getAttribute('id');
-
-      if (scrollPosition >= sectionTop && scrollPosition < sectionTop + sectionHeight) {
-        navLinks.forEach(link => {
-          link.classList.remove('active');
-          if (link.getAttribute('href') === `#${sectionId}`) {
-            link.classList.add('active');
-          }
-        });
-      }
-    });
-  }
-
-  window.addEventListener('scroll', highlightNavLink);
-  highlightNavLink(); // Initial call
-}
-
-// ========== Copy Install Command ==========
-function initCopyCommand() {
-  const installCode = document.querySelector('.install-code');
-
-  if (installCode) {
-    installCode.style.cursor = 'pointer';
-    installCode.title = 'Click to copy';
-
-    installCode.addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText(installCode.textContent);
-
-        // Visual feedback
-        const originalText = installCode.textContent;
-        installCode.textContent = '✓ Copied to clipboard!';
-        installCode.style.color = '#22D3EE';
-
-        setTimeout(() => {
-          installCode.textContent = originalText;
-          installCode.style.color = '';
-        }, 2000);
-      } catch (error) {
-        console.error('Failed to copy:', error);
-      }
-    });
-  }
-}
-
-// ========== Nav Background on Scroll ==========
-function initNavScroll() {
-  const nav = document.querySelector('.nav');
-
-  function updateNav() {
-    if (window.scrollY > 50) {
-      nav.classList.add('scrolled');
-    } else {
-      nav.classList.remove('scrolled');
+  button.addEventListener('click', async () => {
+    const label = button.querySelector('.copy-label');
+    try {
+      await navigator.clipboard.writeText(button.dataset.copy ?? '');
+      if (label) label.textContent = translate('actions.copied');
+    } catch {
+      if (label) label.textContent = translate('actions.copyFailed');
     }
-  }
-
-  window.addEventListener('scroll', updateNav);
-  updateNav(); // Initial call
-}
-
-// ========== Analytics (placeholder) ==========
-function trackEvent(category, action, label) {
-  // Placeholder for analytics
-  console.log('Event:', category, action, label);
-
-  // If using Google Analytics:
-  // if (typeof gtag !== 'undefined') {
-  //   gtag('event', action, {
-  //     'event_category': category,
-  //     'event_label': label
-  //   });
-  // }
-}
-
-// Track CTA clicks
-function initAnalytics() {
-  document.querySelectorAll('.btn-primary, .btn-secondary').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const text = btn.textContent.trim();
-      trackEvent('CTA', 'click', text);
-    });
-  });
-
-  document.querySelectorAll('.community-card').forEach(card => {
-    card.addEventListener('click', () => {
-      const title = card.querySelector('h3').textContent;
-      trackEvent('Community', 'click', title);
-    });
+    window.setTimeout(() => {
+      if (label) label.textContent = translate('actions.copyInstall');
+    }, 1800);
   });
 }
 
-// ========== Keyboard Navigation Improvements ==========
-function initKeyboardNav() {
-  // Allow Escape to close mobile menu
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      const navLinks = document.querySelector('.nav-links');
-      const toggle = document.querySelector('.mobile-menu-toggle');
-
-      if (navLinks && toggle) {
-        navLinks.classList.remove('active');
-        toggle.classList.remove('active');
-      }
-    }
-  });
-}
-
-// ========== Preload Critical Resources ==========
-function preloadResources() {
-  // Preload GitHub API request
-  const link = document.createElement('link');
-  link.rel = 'dns-prefetch';
-  link.href = 'https://api.github.com';
-  document.head.appendChild(link);
-}
-
-// ========== Performance: Lazy Load Images ==========
-function initLazyLoad() {
-  if ('loading' in HTMLImageElement.prototype) {
-    // Browser supports native lazy loading
-    document.querySelectorAll('img[data-src]').forEach(img => {
-      img.src = img.dataset.src;
-    });
-  } else {
-    // Fallback for older browsers
-    const lazyImages = document.querySelectorAll('img[data-src]');
-    const imageObserver = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          const img = entry.target;
-          img.src = img.dataset.src;
-          imageObserver.unobserve(img);
-        }
-      });
-    });
-
-    lazyImages.forEach(img => imageObserver.observe(img));
-  }
-}
-
-// ========== Initialize Everything ==========
-function init() {
-  // Fetch dynamic data
-  fetchGitHubStars();
-
-  // Initialize features
-  initMobileMenu();
-  initSmoothScroll();
-  initAnimations();
-  initActiveNavLinks();
-  initCopyCommand();
-  initNavScroll();
-  initAnalytics();
-  initKeyboardNav();
-  initLazyLoad();
-
-  // Preload resources
-  preloadResources();
-
-  console.log('⚓ Anchor Learning - Landing page initialized');
-}
-
-// Run when DOM is ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
-} else {
-  init();
-}
-
-// ========== Export for Testing ==========
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = {
-    fetchGitHubStars,
-    trackEvent,
-    init
-  };
-}
+initializeLocale();
+initializeLocaleButtons();
+initializeNavigation();
+initializeCopyCommand();

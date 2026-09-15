@@ -13,7 +13,7 @@ class AndroidProjectDirectorySelection {
 }
 
 class AndroidProjectDirectoryBridge {
-  static const channelName = 'com.example.dlg_q/project_directory';
+  static const channelName = 'cc.eu.playlab.anchor/project_directory';
   static const defaultMaxEntries = 2000;
 
   final MethodChannel _channel;

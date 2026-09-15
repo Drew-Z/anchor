@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
-import 'package:dlg_q/services/release/private_alpha_operator_pack_evidence.dart';
+import 'package:anchor_learning/services/release/private_alpha_operator_pack_evidence.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
@@ -18,7 +18,8 @@ void main() {
 
   test('custom pack verifies headings and exact blank-template hashes',
       () async {
-    final root = await Directory.systemTemp.createTemp('duoduo-operator-');
+    final root =
+        await Directory.systemTemp.createTemp('anchor-learning-operator-');
     addTearDown(() => root.delete(recursive: true));
     const content = '# Template\n## Required\n';
     final file = File(p.join(root.path, 'template.md'));
@@ -40,8 +41,64 @@ void main() {
     expect(verification.blockers, isEmpty);
   });
 
+  test('verifies CRLF and LF checkouts against the same pinned hash', () async {
+    final root =
+        await Directory.systemTemp.createTemp('anchor-learning-operator-');
+    addTearDown(() => root.delete(recursive: true));
+    const lfContent = '# Template\n## Required\nbody\n';
+    final spec = PrivateAlphaOperatorTemplateSpec(
+      id: 'template',
+      relativePath: 'template.md',
+      approvedSha256: sha256.convert(utf8.encode(lfContent)).toString(),
+      requiredHeadings: const ['# Template', '## Required'],
+    );
+    final verifier = PrivateAlphaOperatorPackVerifier(templates: [spec]);
+    final file = File(p.join(root.path, 'template.md'));
+
+    for (final content in [
+      lfContent,
+      lfContent.replaceAll('\n', '\r\n'),
+      lfContent.replaceAll('\n', '\r'),
+    ]) {
+      await file.writeAsString(content);
+      final verification = await verifier.verify(
+        evidence: _validEvidence(),
+        repositoryRoot: root.path,
+      );
+
+      expect(verification.blockers, isEmpty);
+    }
+  });
+
+  test('still reports drift for real content changes on a CRLF checkout',
+      () async {
+    final root =
+        await Directory.systemTemp.createTemp('anchor-learning-operator-');
+    addTearDown(() => root.delete(recursive: true));
+    const lfContent = '# Template\n## Required\nbody\n';
+    await File(p.join(root.path, 'template.md'))
+        .writeAsString('# Template\r\n## Required\r\nedited\r\n');
+
+    final verification = await PrivateAlphaOperatorPackVerifier(
+      templates: [
+        PrivateAlphaOperatorTemplateSpec(
+          id: 'template',
+          relativePath: 'template.md',
+          approvedSha256: sha256.convert(utf8.encode(lfContent)).toString(),
+          requiredHeadings: const ['# Template', '## Required'],
+        ),
+      ],
+    ).verify(
+      evidence: _validEvidence(),
+      repositoryRoot: root.path,
+    );
+
+    expect(verification.blockers, ['operator_pack_template_drift:template']);
+  });
+
   test('blocks missing roles, policies, sections and template drift', () async {
-    final root = await Directory.systemTemp.createTemp('duoduo-operator-');
+    final root =
+        await Directory.systemTemp.createTemp('anchor-learning-operator-');
     addTearDown(() => root.delete(recursive: true));
     await File(p.join(root.path, 'template.md')).writeAsString('# Template\n');
     const verifier = PrivateAlphaOperatorPackVerifier(

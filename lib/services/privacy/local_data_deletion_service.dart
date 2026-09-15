@@ -3,6 +3,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../../data/database/database_helper.dart';
 import '../../data/models/product_event.dart';
+import '../gamification_service.dart';
 import '../onboarding/first_run_progress.dart';
 import '../openai_service.dart';
 import 'privacy_preferences.dart';
@@ -33,14 +34,8 @@ class LocalDataDeletionResult {
 
 class LocalDataDeletionService {
   static const Set<String> _modelPreferenceKeys = {
-    'ai_model',
-    'ai_base_url',
     'ai_provider_id',
-    'ai_api_protocol',
     'ai_model_acceptance_reports_v1',
-    'ai_api_key',
-    'openai_api_key',
-    'openai_model',
   };
 
   final DatabaseHelper _databaseHelper;
@@ -84,6 +79,20 @@ class LocalDataDeletionService {
       }
     });
 
+    if (scopes.contains(LocalDataScope.learningHistory) ||
+        scopes.contains(LocalDataScope.learningContent)) {
+      final preferences = await _preferencesLoader();
+      final legacyKeys = preferences
+          .getKeys()
+          .where(GamificationService.isLegacyStatisticsKey)
+          .toList();
+      for (final key in legacyKeys) {
+        if (!await preferences.remove(key)) {
+          throw StateError('Legacy learning statistics could not be removed.');
+        }
+      }
+    }
+
     if (scopes.contains(LocalDataScope.modelConfiguration)) {
       await _deleteModelConfiguration();
     }
@@ -120,9 +129,17 @@ class LocalDataDeletionService {
       'tutor_turns',
       'learning_sessions',
       'study_records',
+      'quiz_save_operations',
+      'gamification_state',
     ]) {
       deletedRows[table] = await transaction.delete(table);
     }
+    // Keep the marker so old preferences cannot repopulate deleted history,
+    // even if their separate cleanup fails and the user retries deletion.
+    await transaction.insert('gamification_state', {
+      'key': GamificationService.legacyImportKey,
+      'value_json': 'true',
+    });
     await transaction.update('questions', {
       'last_reviewed_at': null,
       'next_review_at': null,

@@ -3,13 +3,13 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:dlg_q/main.dart';
+import 'package:anchor_learning/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-import 'package:dlg_q/core/providers/providers.dart';
-import 'package:dlg_q/data/database/database_helper.dart';
-import 'package:dlg_q/services/onboarding/first_run_progress.dart';
+import 'package:anchor_learning/core/providers/providers.dart';
+import 'package:anchor_learning/data/database/database_helper.dart';
+import 'package:anchor_learning/services/onboarding/first_run_progress.dart';
 
 void main() {
   sqfliteFfiInit();
@@ -36,7 +36,7 @@ void main() {
           overrides: [
             databaseProvider.overrideWithValue(databaseHelper),
           ],
-          child: const DIYDuolingoApp(),
+          child: const AnchorLearningApp(),
         ),
       );
       for (var attempt = 0; attempt < 30; attempt++) {

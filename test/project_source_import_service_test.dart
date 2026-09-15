@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:dlg_q/services/ingestion/project_source_import_service.dart';
+import 'package:anchor_learning/services/ingestion/project_source_import_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
@@ -12,7 +12,7 @@ void main() {
 
     setUp(() async {
       tempDirectory = await Directory.systemTemp.createTemp(
-        'duoduo-project-import-',
+        'anchor-learning-project-import-',
       );
     });
 
@@ -256,6 +256,30 @@ void main() {
       expect(chunks.first.content, 'line 1\nline 2');
       expect(chunks.first.contentHash, hasLength(64));
       expect(chunks.last.locator, 'lib/app.dart:5-5');
+    });
+
+    test('assigns unique chunk identity and provenance across files', () async {
+      await _writeFile(tempDirectory, 'README.md', '# Demo\n\nOverview\n');
+      await _writeFile(tempDirectory, 'lib/app.dart', 'void main() {}\n');
+
+      const service = ProjectSourceImportService();
+      final snapshot = await service.scanDirectory(tempDirectory.path);
+      final chunks = service.buildSourceChunks(
+        snapshot: snapshot,
+        selectedPaths: {'README.md', 'lib/app.dart'},
+        sourceId: 'source-1',
+        createdAt: DateTime(2026, 7, 14),
+      );
+
+      expect(chunks.map((chunk) => chunk.id), [
+        'source-1_chunk_0',
+        'source-1_chunk_1',
+      ]);
+      expect(chunks.map((chunk) => chunk.chunkIndex), [0, 1]);
+      expect(
+        chunks.map((chunk) => chunk.relativePath),
+        ['README.md', 'lib/app.dart'],
+      );
     });
   });
 }

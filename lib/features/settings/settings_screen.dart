@@ -8,7 +8,7 @@ import '../../services/ai/ai_model_acceptance.dart';
 import '../../services/ai/ai_provider_diagnostics.dart';
 import '../../services/openai_service.dart';
 import '../../services/privacy/product_event_recorder.dart';
-import '../../shared/widgets/duo_button.dart';
+import '../../shared/widgets/anchor_button.dart';
 import 'privacy_data_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -732,7 +732,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const SizedBox(height: 32),
 
               // === 保存按钮 ===
-              DuoButton(
+              AnchorButton(
                 label: _isSaving ? '保存中...' : '保存设置',
                 color: AppColors.green,
                 width: double.infinity,

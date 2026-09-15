@@ -99,4 +99,4 @@ Closes #(issue number)
 
 **感谢你的贡献!** 🎉
 
-请确保你已阅读 [贡献指南](../CONTRIBUTING.md) 和 [行为准则](../CODE_OF_CONDUCT.md)。
+请确保你已阅读 [贡献指南](../CONTRIBUTING.md)。

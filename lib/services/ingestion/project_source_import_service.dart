@@ -304,10 +304,15 @@ class ProjectSourceImportService {
       final relativePath = _normalizeRelativePath(
         p.relative(entity.path, from: root.absolute.path),
       );
+      // Directory scans can observe build/test cache files being removed by a
+      // concurrent tool. Treat a vanished entry as an unscannable file rather
+      // than failing the entire import.
+      final byteLength = await _tryFileLength(entity);
+      if (byteLength == null) continue;
       entries.add(
         ProjectSourceInputFile(
           relativePath: relativePath,
-          byteLength: await entity.length(),
+          byteLength: byteLength,
           readBytes: entity.readAsBytes,
         ),
       );
@@ -329,6 +334,14 @@ class ProjectSourceImportService {
       files: collected.files,
       exclusions: collected.exclusions,
     );
+  }
+
+  Future<int?> _tryFileLength(File file) async {
+    try {
+      return await file.length();
+    } on FileSystemException {
+      return null;
+    }
   }
 
   Future<ProjectSourceSnapshot> scanDirectoryEntries({
@@ -476,6 +489,22 @@ class ProjectSourceImportService {
       ..sort((a, b) => a.relativePath.compareTo(b.relativePath));
     final chunks = <SourceChunk>[];
 
+    void appendSemanticChunks(
+      Iterable<SourceChunk> fileChunks,
+      String relativePath,
+    ) {
+      for (final chunk in fileChunks) {
+        final chunkIndex = chunks.length;
+        chunks.add(
+          chunk.copyWith(
+            id: '${sourceId}_chunk_$chunkIndex',
+            chunkIndex: chunkIndex,
+            relativePath: relativePath,
+          ),
+        );
+      }
+    }
+
     for (final file in selectedFiles) {
       // 检测文件类型
       final ext = p.extension(file.relativePath).toLowerCase();
@@ -490,7 +519,7 @@ class ProjectSourceImportService {
           createdAt: createdAt,
           baseLocator: file.relativePath,
         );
-        chunks.addAll(mdChunks);
+        appendSemanticChunks(mdChunks, file.relativePath);
       } else if (isCode) {
         // 代码文件使用固定行数切分(保持简单可溯源)
         final codeChunks = _semanticChunker.chunkCode(
@@ -500,7 +529,7 @@ class ProjectSourceImportService {
           createdAt: createdAt,
           maxLinesPerChunk: maxLinesPerChunk,
         );
-        chunks.addAll(codeChunks);
+        appendSemanticChunks(codeChunks, file.relativePath);
       } else {
         // 其他文本文件回退到行切分
         final lines = const LineSplitter().convert(file.content);
@@ -532,9 +561,31 @@ class ProjectSourceImportService {
 
   bool _isCodeFile(String ext) {
     const codeExtensions = {
-      '.dart', '.java', '.kt', '.swift', '.js', '.ts', '.tsx', '.jsx',
-      '.py', '.rb', '.go', '.rs', '.c', '.cpp', '.h', '.hpp', '.cs',
-      '.php', '.sh', '.bash', '.sql', '.yaml', '.yml', '.json', '.xml',
+      '.dart',
+      '.java',
+      '.kt',
+      '.swift',
+      '.js',
+      '.ts',
+      '.tsx',
+      '.jsx',
+      '.py',
+      '.rb',
+      '.go',
+      '.rs',
+      '.c',
+      '.cpp',
+      '.h',
+      '.hpp',
+      '.cs',
+      '.php',
+      '.sh',
+      '.bash',
+      '.sql',
+      '.yaml',
+      '.yml',
+      '.json',
+      '.xml',
     };
     return codeExtensions.contains(ext);
   }

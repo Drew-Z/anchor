@@ -1,4 +1,4 @@
-import 'package:dlg_q/services/release/private_alpha_physical_device_evidence.dart';
+import 'package:anchor_learning/services/release/private_alpha_physical_device_evidence.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -44,6 +44,45 @@ void main() {
       'physical_device_api_24_to_35_required',
       'physical_device_execution_required',
     ]);
+  });
+
+  test('holds the Tier B physical ceiling at API 35 by release policy', () {
+    // Flutter 3.44 supports API 36 and the Tier A emulator target runs API 36,
+    // but the Tier B physical range stops at 35 until physical API 36
+    // acceptance exists. Widening this is a release-owned decision; see the
+    // supported-device matrix in docs/private-alpha-release-checklist.md.
+    const verifier = PrivateAlphaPhysicalDeviceEvidenceVerifier();
+    for (final apiLevel in const [24, 35]) {
+      final verification = verifier.verify(
+        evidence: _evidence(
+          completedAt: evaluatedAt.subtract(const Duration(hours: 2)),
+          apkHash: apkHash,
+          apiLevel: apiLevel,
+        ),
+        expectedApkSha256: apkHash,
+        evaluatedAt: evaluatedAt,
+      );
+
+      expect(verification.blockers, isEmpty, reason: 'API $apiLevel');
+    }
+
+    for (final apiLevel in const [23, 36]) {
+      final verification = verifier.verify(
+        evidence: _evidence(
+          completedAt: evaluatedAt.subtract(const Duration(hours: 2)),
+          apkHash: apkHash,
+          apiLevel: apiLevel,
+        ),
+        expectedApkSha256: apkHash,
+        evaluatedAt: evaluatedAt,
+      );
+
+      expect(
+        verification.blockers,
+        ['physical_device_api_24_to_35_required'],
+        reason: 'API $apiLevel',
+      );
+    }
   });
 
   test('rejects failed smoke fields without exposing device identity', () {

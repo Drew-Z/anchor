@@ -1,22 +1,28 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:dlg_q/core/providers/providers.dart';
-import 'package:dlg_q/data/database/database_helper.dart';
-import 'package:dlg_q/data/models/knowledge_point.dart';
-import 'package:dlg_q/data/models/knowledge_point_source.dart';
-import 'package:dlg_q/data/models/programming_exercise.dart';
-import 'package:dlg_q/data/models/programming_exercise_attempt.dart';
-import 'package:dlg_q/data/models/source.dart';
-import 'package:dlg_q/data/models/source_chunk.dart';
-import 'package:dlg_q/data/repositories/knowledge_point_repository.dart';
-import 'package:dlg_q/data/repositories/programming_exercise_repository.dart';
-import 'package:dlg_q/data/repositories/source_chunk_repository.dart';
-import 'package:dlg_q/features/agent/programming_exercise_screen.dart';
-import 'package:dlg_q/services/openai_service.dart';
+import 'package:anchor_learning/core/providers/providers.dart';
+import 'package:anchor_learning/data/database/database_helper.dart';
+import 'package:anchor_learning/data/models/grounded_learning_context.dart';
+import 'package:anchor_learning/data/models/knowledge_point.dart';
+import 'package:anchor_learning/data/models/knowledge_point_source.dart';
+import 'package:anchor_learning/data/models/programming_exercise.dart';
+import 'package:anchor_learning/data/models/programming_exercise_attempt.dart';
+import 'package:anchor_learning/data/models/question.dart';
+import 'package:anchor_learning/data/models/source.dart';
+import 'package:anchor_learning/data/models/source_chunk.dart';
+import 'package:anchor_learning/data/repositories/knowledge_point_repository.dart';
+import 'package:anchor_learning/data/repositories/programming_exercise_repository.dart';
+import 'package:anchor_learning/data/repositories/source_chunk_repository.dart';
+import 'package:anchor_learning/features/agent/programming_exercise_screen.dart';
+import 'package:anchor_learning/services/ai/ai_task_result.dart';
+import 'package:anchor_learning/services/ai/tasks/programming_exercise_evaluation_task.dart';
+import 'package:anchor_learning/services/ai/tasks/programming_exercise_generation_task.dart';
+import 'package:anchor_learning/services/openai_service.dart';
 
 import 'support/fake_programming_review_closure_service.dart';
 
@@ -183,6 +189,218 @@ void main() {
     expect(exerciseRepository.attempts.single.formalMasteryApplied, isTrue);
     expect(knowledgeRepository.point.masteryLevel, isNot(20));
   });
+
+  testWidgets('pending generation owns the generate action', (tester) async {
+    final openai = _ControlledOpenAIService.pendingKey();
+    final generation = _ControlledGenerationTask.pending();
+    await _pumpProgrammingScreen(
+      tester,
+      openai: openai,
+      generation: generation,
+      evaluation: _ControlledEvaluationTask.pending(),
+    );
+
+    final generate = find.byKey(
+      const ValueKey('generate-programming-exercises'),
+    );
+    await tester.tap(generate);
+    await tester.tap(generate);
+    await tester.pump();
+
+    openai.pendingKey!.complete(true);
+    await tester.pump();
+
+    expect(openai.hasApiKeyCalls, 1);
+    expect(generation.runCalls, 1);
+  });
+
+  testWidgets('late generation result after route exit does not persist',
+      (tester) async {
+    final generation = _ControlledGenerationTask.pending();
+    await _pumpProgrammingScreen(
+      tester,
+      openai: _ControlledOpenAIService.immediateKey(),
+      generation: generation,
+      evaluation: _ControlledEvaluationTask.pending(),
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('generate-programming-exercises')),
+    );
+    await tester.pump();
+    expect(generation.runCalls, 1);
+    await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
+
+    generation.pendingResult!.complete(
+      AiTaskResult.success(const <ProgrammingExerciseDraft>[]),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('mounted generation failure remains retryable', (tester) async {
+    await _pumpProgrammingScreen(
+      tester,
+      openai: _ControlledOpenAIService.immediateKey(),
+      generation:
+          _ControlledGenerationTask.failure('controlled generation failure'),
+      evaluation: _ControlledEvaluationTask.pending(),
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('generate-programming-exercises')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+        find.textContaining('controlled generation failure'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('generate-programming-exercises')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('pending submission owns the evaluate action', (tester) async {
+    final openai = _ControlledOpenAIService.pendingKey();
+    final evaluation = _ControlledEvaluationTask.pending();
+    await _pumpProgrammingScreen(
+      tester,
+      openai: openai,
+      generation: _ControlledGenerationTask.pending(),
+      evaluation: evaluation,
+      includeVerifiedExercise: true,
+    );
+
+    final answer = find.byKey(
+      const ValueKey('programming-exercise-answer-input'),
+    );
+    await tester.ensureVisible(answer);
+    await tester.enterText(answer, 'A grounded answer.');
+    final submit = find.byKey(
+      const ValueKey('submit-programming-exercise-answer'),
+    );
+    await tester.ensureVisible(submit);
+    await tester.tap(submit);
+    await tester.tap(submit);
+    await tester.pump();
+
+    openai.pendingKey!.complete(true);
+    await tester.pump();
+
+    expect(openai.hasApiKeyCalls, 1);
+    expect(evaluation.runCalls, 1);
+  });
+
+  testWidgets('late submission key result after route exit is ignored',
+      (tester) async {
+    final openai = _ControlledOpenAIService.pendingKey();
+    final evaluation = _ControlledEvaluationTask.pending();
+    await _pumpProgrammingScreen(
+      tester,
+      openai: openai,
+      generation: _ControlledGenerationTask.pending(),
+      evaluation: evaluation,
+      includeVerifiedExercise: true,
+    );
+
+    final answer = find.byKey(
+      const ValueKey('programming-exercise-answer-input'),
+    );
+    await tester.ensureVisible(answer);
+    await tester.enterText(answer, 'A grounded answer.');
+    final submit = find.byKey(
+      const ValueKey('submit-programming-exercise-answer'),
+    );
+    await tester.ensureVisible(submit);
+    await tester.tap(submit);
+    await tester.pump();
+    await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
+
+    openai.pendingKey!.complete(true);
+    await tester.pumpAndSettle();
+
+    expect(evaluation.runCalls, 0);
+    expect(tester.takeException(), isNull);
+  });
+}
+
+Future<_FakeProgrammingExerciseRepository> _pumpProgrammingScreen(
+  WidgetTester tester, {
+  required OpenAIService openai,
+  required ProgrammingExerciseGenerationTask generation,
+  required ProgrammingExerciseEvaluationTask evaluation,
+  bool includeVerifiedExercise = false,
+}) async {
+  final now = DateTime(2026, 7, 15);
+  final point = KnowledgePoint(
+    id: 'programming-point',
+    title: 'Programming point',
+    summary: 'A source-backed programming point.',
+    createdAt: now,
+    updatedAt: now,
+  );
+  final chunk = SourceChunk(
+    id: 'programming-chunk',
+    sourceId: 'programming-source',
+    chunkIndex: 0,
+    content: 'return persistedValue;',
+    locator: 'lib/store.dart:10-10',
+    contentHash: 'programming-hash',
+    createdAt: now,
+  );
+  final exercise = ProgrammingExercise(
+    id: 'programming-exercise-existing',
+    knowledgePointId: point.id,
+    kind: ProgrammingExerciseKind.codeReading,
+    prompt: 'What value does the function return?',
+    referenceAnswer: 'persistedValue',
+    conceptAccuracyCriterion: 'Name the returned value.',
+    reasoningProcessCriterion: 'Trace the return statement.',
+    evidenceUseCriterion: 'Use the cited line.',
+    clarityCriterion: 'Answer directly.',
+    sourceStatus: SourceStatus.verified,
+    citationIds: [chunk.id],
+    createdAt: now,
+    updatedAt: now,
+  );
+  final knowledgeRepository = _FakeKnowledgePointRepository(point, chunk.id);
+  final chunkRepository = _FakeSourceChunkRepository(chunk);
+  final exerciseRepository = _FakeProgrammingExerciseRepository();
+  if (includeVerifiedExercise) exerciseRepository.exercises.add(exercise);
+
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        openaiServiceProvider.overrideWithValue(openai),
+        knowledgePointRepositoryProvider.overrideWithValue(knowledgeRepository),
+        sourceChunkRepositoryProvider.overrideWithValue(chunkRepository),
+        programmingExerciseRepositoryProvider
+            .overrideWithValue(exerciseRepository),
+        programmingExerciseGenerationTaskProvider.overrideWithValue(generation),
+        programmingExerciseEvaluationTaskProvider.overrideWithValue(evaluation),
+        sourceProvider.overrideWith(
+          (ref, sourceId) async => Source(
+            id: sourceId,
+            title: 'Store source',
+            type: SourceType.project,
+            trustLevel: SourceTrustLevel.sourceCode,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        ),
+      ],
+      child: MaterialApp(
+        home: ProgrammingExerciseScreen(
+          knowledgePoint: point,
+          initialExerciseId: includeVerifiedExercise ? exercise.id : null,
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+  return exerciseRepository;
 }
 
 class _FakeKnowledgePointRepository extends KnowledgePointRepository {
@@ -290,5 +508,86 @@ class _SequencedOpenAIService extends OpenAIService {
     double? temperature,
   }) async {
     return jsonEncode(responses[_index++]);
+  }
+}
+
+class _ControlledOpenAIService extends OpenAIService {
+  final Completer<bool>? pendingKey;
+  final bool immediateKey;
+  int hasApiKeyCalls = 0;
+
+  _ControlledOpenAIService._({this.pendingKey, this.immediateKey = false});
+
+  factory _ControlledOpenAIService.pendingKey() =>
+      _ControlledOpenAIService._(pendingKey: Completer<bool>());
+
+  factory _ControlledOpenAIService.immediateKey() =>
+      _ControlledOpenAIService._(immediateKey: true);
+
+  @override
+  Future<bool> hasApiKey({String? providerId}) {
+    hasApiKeyCalls++;
+    final pending = pendingKey;
+    if (pending != null) return pending.future;
+    return Future.value(immediateKey);
+  }
+}
+
+class _ControlledGenerationTask extends ProgrammingExerciseGenerationTask {
+  final Completer<AiTaskResult<List<ProgrammingExerciseDraft>>>? pendingResult;
+  final String? failureMessage;
+  int runCalls = 0;
+
+  _ControlledGenerationTask._({this.pendingResult, this.failureMessage})
+      : super(OpenAIService());
+
+  factory _ControlledGenerationTask.pending() => _ControlledGenerationTask._(
+        pendingResult:
+            Completer<AiTaskResult<List<ProgrammingExerciseDraft>>>(),
+      );
+
+  factory _ControlledGenerationTask.failure(String message) =>
+      _ControlledGenerationTask._(failureMessage: message);
+
+  @override
+  Future<AiTaskResult<List<ProgrammingExerciseDraft>>> run({
+    required KnowledgePoint knowledgePoint,
+    required List<SourceChunk> sourceChunks,
+  }) {
+    runCalls++;
+    final pending = pendingResult;
+    if (pending != null) return pending.future;
+    return Future.value(
+      AiTaskResult.failure(
+        type: AiTaskErrorType.request,
+        message: failureMessage!,
+      ),
+    );
+  }
+}
+
+class _ControlledEvaluationTask extends ProgrammingExerciseEvaluationTask {
+  final Completer<AiTaskResult<ProgrammingExerciseEvaluationResult>>?
+      pendingResult;
+  int runCalls = 0;
+
+  _ControlledEvaluationTask._({required this.pendingResult})
+      : super(OpenAIService());
+
+  factory _ControlledEvaluationTask.pending() => _ControlledEvaluationTask._(
+        pendingResult:
+            Completer<AiTaskResult<ProgrammingExerciseEvaluationResult>>(),
+      );
+
+  @override
+  Future<AiTaskResult<ProgrammingExerciseEvaluationResult>> run({
+    required KnowledgePoint knowledgePoint,
+    required ProgrammingExercise exercise,
+    required String userAnswer,
+    required List<SourceChunk> sourceChunks,
+    GroundedLearningContext? groundedContext,
+  }) {
+    runCalls++;
+    return pendingResult!.future;
   }
 }

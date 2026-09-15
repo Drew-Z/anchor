@@ -152,8 +152,9 @@ class ProgrammingSourceImportService {
     required DateTime createdAt,
   }) {
     // 检测内容是否为 Markdown(含标题/代码块)
-    final isMarkdown = content.contains(RegExp(r'^#{1,6}\s', multiLine: true)) ||
-        content.contains('```');
+    final isMarkdown =
+        content.contains(RegExp(r'^#{1,6}\s', multiLine: true)) ||
+            content.contains('```');
 
     if (isMarkdown) {
       // 使用语义切分器按标题/代码块切分

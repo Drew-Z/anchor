@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/database/database_helper.dart';
@@ -61,10 +63,12 @@ import '../../services/ai/tasks/tutor_socratic_task.dart';
 import '../../services/ai/ai_model_acceptance.dart';
 import '../../services/content_analyzer.dart';
 import '../../services/gamification_service.dart';
+import '../../services/quiz_persistence_service.dart';
 import '../../services/ingestion/android_project_directory_bridge.dart';
 import '../../services/ingestion/project_learning_draft_service.dart';
 import '../../services/ingestion/project_source_import_service.dart';
 import '../../services/ingestion/programming_source_import_service.dart';
+import '../../services/ingestion/question_bulk_verification_service.dart';
 import '../../services/ingestion/semantic_chunker.dart';
 import '../../services/ingestion/source_grounded_ingestion_service.dart';
 import '../../services/onboarding/first_run_model_readiness.dart';
@@ -257,6 +261,68 @@ final localDataBackupServiceProvider = Provider<LocalDataBackupService>((ref) {
   return LocalDataBackupService(databaseHelper: ref.read(databaseProvider));
 });
 
+final localDataOperationsProvider = Provider<LocalDataOperations>((ref) {
+  return LocalDataOperations(
+    ref,
+    ref.watch(localDataBackupServiceProvider),
+    ref.watch(localDataDeletionServiceProvider),
+  );
+});
+
+/// Refreshes persisted data independently of the privacy route's lifetime.
+class LocalDataOperations {
+  final Ref _ref;
+  final LocalDataBackupService _backup;
+  final LocalDataDeletionService _deletion;
+  bool _disposed = false;
+
+  LocalDataOperations(this._ref, this._backup, this._deletion) {
+    _ref.onDispose(() => _disposed = true);
+  }
+
+  Future<LocalDataRestoreResult> restoreBackup(String sourcePath) async {
+    try {
+      return await _backup.restoreBackup(sourcePath);
+    } finally {
+      // A consumer may have read the candidate before a failed restore rolls
+      // back. Reload the final stored state on either outcome.
+      if (!_disposed) _invalidateDatabaseBackedProviders(_invalidate);
+    }
+  }
+
+  Future<LocalDataDeletionResult> delete(Set<LocalDataScope> scopes) async {
+    final selected = Set<LocalDataScope>.unmodifiable(scopes);
+    try {
+      return await _deletion.delete(selected);
+    } finally {
+      // SQLite deletion can finish before separate preference cleanup fails.
+      // Keep the error, while showing the data that actually remains.
+      if (!_disposed) {
+        _invalidate(productEventListProvider);
+        if (selected.contains(LocalDataScope.learningHistory) ||
+            selected.contains(LocalDataScope.learningContent)) {
+          _invalidateDatabaseBackedProviders(_invalidate);
+        }
+        if (selected.contains(LocalDataScope.onboardingState)) {
+          _invalidate(firstRunProgressProvider);
+          _invalidate(learningAgentGoalProvider);
+        }
+        if (selected.contains(LocalDataScope.modelConfiguration)) {
+          _invalidate(firstRunModelReadinessProvider);
+        }
+      }
+    }
+  }
+
+  void _invalidate(ProviderOrFamily provider) {
+    // Ref.invalidate's debug dependency check initializes unread providers.
+    // Only existing caches need refreshing; avoid starting onboarding or other
+    // unrelated data work as a side effect of invalidation.
+    if (provider is ProviderBase<Object?> && !_ref.exists(provider)) return;
+    _ref.invalidate(provider);
+  }
+}
+
 final aiModelAcceptanceRunnerProvider =
     Provider<AiModelAcceptanceRunner>((ref) {
   return AiModelAcceptanceRunner(
@@ -342,9 +408,7 @@ final semanticChunkerProvider = Provider<SemanticChunker>((ref) {
 });
 
 final questionValidatorProvider = Provider<QuestionValidator>((ref) {
-  return QuestionValidator(
-    openaiService: ref.read(openaiServiceProvider),
-  );
+  return QuestionValidator();
 });
 
 final programmingSourceImportServiceProvider =
@@ -514,6 +578,14 @@ final reviewSchedulerServiceProvider = Provider<ReviewSchedulerService>((ref) {
 
 final gamificationServiceProvider = Provider<GamificationService>((ref) {
   return GamificationService(ref.read(databaseProvider));
+});
+
+final quizPersistenceServiceProvider = Provider<QuizPersistenceService>((ref) {
+  return QuizPersistenceService(
+    databaseHelper: ref.read(databaseProvider),
+    gamificationService: ref.read(gamificationServiceProvider),
+    reviewScheduler: ref.read(reviewSchedulerServiceProvider),
+  );
 });
 
 // ============ 数据 Provider ============
@@ -747,63 +819,72 @@ final learningAgentWorkspaceServiceProvider =
 });
 
 void invalidateAgentLearningRecordProviders(WidgetRef ref) {
-  ref.invalidate(learningSessionListProvider);
-  ref.invalidate(interviewSessionListProvider);
-  ref.invalidate(tutorSessionListProvider);
-  ref.invalidate(knowledgeAnswerSessionListProvider);
-  ref.invalidate(agentSessionListProvider);
-  ref.invalidate(agentSessionMemoryIndexProvider);
-  ref.invalidate(allInterviewTurnsProvider);
-  ref.invalidate(allTutorTurnsProvider);
-  ref.invalidate(allProgrammingExerciseAttemptsProvider);
-  ref.invalidate(allProgrammingReviewActionsProvider);
-  ref.invalidate(allKnowledgePointSourcesProvider);
-  ref.invalidate(learningAgentMemoryBuildResultProvider);
-  ref.invalidate(learningAgentMemoryStoreProvider);
-  ref.invalidate(projectInterviewOutcomeProvider);
+  _invalidateAgentLearningRecordProviders(ref.invalidate);
 }
 
-void invalidateDatabaseBackedProviders(WidgetRef ref) {
-  ref.invalidate(productEventListProvider);
-  ref.invalidate(deckListProvider);
-  ref.invalidate(sourceListProvider);
-  ref.invalidate(sourceProvider);
-  ref.invalidate(knowledgePointListProvider);
-  ref.invalidate(evidenceBackedKnowledgePointListProvider);
-  ref.invalidate(knowledgePointProvider);
-  ref.invalidate(pendingQuestionListProvider);
-  ref.invalidate(sourceChunksProvider);
-  ref.invalidate(sourceKnowledgePointsProvider);
-  ref.invalidate(knowledgePointSourcesProvider);
-  ref.invalidate(knowledgePointEvidenceChunksProvider);
-  ref.invalidate(questionCitationChunksProvider);
-  ref.invalidate(knowledgePointQuestionsProvider);
-  ref.invalidate(interviewTurnsProvider);
-  ref.invalidate(tutorTurnsProvider);
-  ref.invalidate(programmingExercisesProvider);
-  ref.invalidate(programmingExerciseAttemptsProvider);
-  ref.invalidate(programmingReviewQueueProvider);
-  ref.invalidate(userStatsProvider);
-  ref.invalidate(deckQuestionsProvider);
-  ref.invalidate(verifiedDeckQuestionsProvider);
-  ref.invalidate(studyRecordProvider);
-  ref.invalidate(allQuestionsProvider);
-  ref.invalidate(verifiedQuestionsProvider);
-  ref.invalidate(verifiedPracticeTargetsProvider);
-  ref.invalidate(practiceableKnowledgePointListProvider);
-  ref.invalidate(knowledgeSearchCorpusProvider);
-  ref.invalidate(knowledgeSearchResultsProvider);
-  ref.invalidate(knowledgeAnswerGroundedContextProvider);
-  ref.invalidate(knowledgeAnswerContextChunksProvider);
-  ref.invalidate(learningAgentActiveCheckpointListProvider);
-  ref.invalidate(learningAgentPlanProvider);
-  ref.invalidate(learningAgentWorkspaceProvider);
-  ref.invalidate(todayReviewQueueProvider);
-  ref.invalidate(monthlyCheckInProvider);
-  ref.invalidate(earnedMedalsProvider);
-  ref.invalidate(totalCorrectProvider);
-  ref.invalidate(perfectCountProvider);
-  invalidateAgentLearningRecordProviders(ref);
+void _invalidateAgentLearningRecordProviders(
+  void Function(ProviderOrFamily) invalidate,
+) {
+  invalidate(learningSessionListProvider);
+  invalidate(interviewSessionListProvider);
+  invalidate(tutorSessionListProvider);
+  invalidate(knowledgeAnswerSessionListProvider);
+  invalidate(agentSessionListProvider);
+  invalidate(agentSessionMemoryIndexProvider);
+  invalidate(allInterviewTurnsProvider);
+  invalidate(allTutorTurnsProvider);
+  invalidate(allProgrammingExerciseAttemptsProvider);
+  invalidate(allProgrammingReviewActionsProvider);
+  invalidate(allKnowledgePointSourcesProvider);
+  invalidate(learningAgentMemoryBuildResultProvider);
+  invalidate(learningAgentMemoryStoreProvider);
+  invalidate(projectInterviewOutcomeProvider);
+}
+
+void _invalidateDatabaseBackedProviders(
+  void Function(ProviderOrFamily) invalidate,
+) {
+  invalidate(productEventListProvider);
+  invalidate(deckListProvider);
+  invalidate(sourceListProvider);
+  invalidate(sourceProvider);
+  invalidate(knowledgePointListProvider);
+  invalidate(evidenceBackedKnowledgePointListProvider);
+  invalidate(knowledgePointProvider);
+  invalidate(pendingQuestionListProvider);
+  invalidate(sourceChunksProvider);
+  invalidate(sourceKnowledgePointsProvider);
+  invalidate(knowledgePointSourcesProvider);
+  invalidate(knowledgePointEvidenceChunksProvider);
+  invalidate(questionCitationChunksProvider);
+  invalidate(knowledgePointQuestionsProvider);
+  invalidate(interviewTurnsProvider);
+  invalidate(tutorTurnsProvider);
+  invalidate(allProgrammingExercisesProvider);
+  invalidate(programmingExercisesProvider);
+  invalidate(programmingExerciseAttemptsProvider);
+  invalidate(programmingReviewQueueProvider);
+  invalidate(userStatsProvider);
+  invalidate(deckQuestionsProvider);
+  invalidate(verifiedDeckQuestionsProvider);
+  invalidate(studyRecordProvider);
+  invalidate(allQuestionsProvider);
+  invalidate(verifiedQuestionsProvider);
+  invalidate(verifiedPracticeTargetsProvider);
+  invalidate(practiceableKnowledgePointListProvider);
+  invalidate(knowledgeSearchCorpusProvider);
+  invalidate(knowledgeSearchResultsProvider);
+  invalidate(knowledgeAnswerGroundedContextProvider);
+  invalidate(knowledgeAnswerContextChunksProvider);
+  invalidate(learningAgentActiveCheckpointListProvider);
+  invalidate(learningAgentPlanProvider);
+  invalidate(learningAgentWorkspaceProvider);
+  invalidate(todayReviewQueueProvider);
+  invalidate(monthlyCheckInProvider);
+  invalidate(earnedMedalsProvider);
+  invalidate(totalCorrectProvider);
+  invalidate(perfectCountProvider);
+  _invalidateAgentLearningRecordProviders(invalidate);
 }
 
 void invalidateLearningAgentPlanInputProviders(
@@ -924,18 +1005,25 @@ final userStatsProvider =
 
 class UserStatsNotifier extends StateNotifier<AsyncValue<UserStats>> {
   final GamificationService _service;
+  int _loadVersion = 0;
 
   UserStatsNotifier(this._service) : super(const AsyncValue.loading()) {
     _load();
   }
 
   Future<void> _load() async {
+    final version = ++_loadVersion;
     try {
       final stats = await _service.getStats();
-      state = AsyncValue.data(stats);
+      if (mounted && version == _loadVersion) state = AsyncValue.data(stats);
     } catch (e, st) {
-      state = AsyncValue.error(e, st);
+      if (mounted && version == _loadVersion) state = AsyncValue.error(e, st);
     }
+  }
+
+  void acceptSavedStats(UserStats stats) {
+    _loadVersion++;
+    if (mounted) state = AsyncValue.data(stats);
   }
 
   Future<void> onCorrect() async {
@@ -989,6 +1077,162 @@ final studyRecordProvider =
 });
 
 // ============ 操作 Provider ============
+
+final questionVerificationOperationsProvider =
+    Provider<QuestionVerificationOperations>((ref) {
+  return QuestionVerificationOperations(
+    ref,
+    ref.watch(questionRepositoryProvider),
+  );
+});
+
+/// Refreshes a saved verification while the shared provider scope is alive.
+class QuestionVerificationOperations {
+  final Ref _ref;
+  final QuestionRepository _repository;
+  bool _disposed = false;
+
+  QuestionVerificationOperations(this._ref, this._repository) {
+    _ref.onDispose(() => _disposed = true);
+  }
+
+  Future<void> saveStatus(
+    Question question, {
+    required String previousCitationKey,
+  }) async {
+    await _repository.updateQuestion(question);
+    if (_disposed) return;
+
+    _invalidate(pendingQuestionListProvider);
+    _invalidate(allQuestionsProvider);
+    _invalidate(verifiedQuestionsProvider);
+    _invalidate(knowledgeSearchCorpusProvider);
+    _invalidate(practiceableKnowledgePointListProvider);
+    _invalidate(todayReviewQueueProvider);
+    _invalidate(questionCitationChunksProvider(previousCitationKey));
+    _invalidate(
+        questionCitationChunksProvider(question.citationIds.join('\x00')));
+    _invalidate(deckQuestionsProvider(question.deckId));
+    _invalidate(verifiedDeckQuestionsProvider(question.deckId));
+    if (question.knowledgePointId != null) {
+      _invalidate(knowledgePointQuestionsProvider(question.knowledgePointId!));
+    }
+  }
+
+  Future<void> saveBulk(
+    QuestionBulkVerificationPlan plan, {
+    required List<Question> previousQuestions,
+  }) async {
+    await _repository.updateQuestions(plan.updatedQuestions);
+    if (_disposed) return;
+
+    _invalidate(pendingQuestionListProvider);
+    _invalidate(allQuestionsProvider);
+    _invalidate(verifiedQuestionsProvider);
+    _invalidate(knowledgeSearchCorpusProvider);
+    _invalidate(practiceableKnowledgePointListProvider);
+    _invalidate(todayReviewQueueProvider);
+    _ref.invalidate(learningAgentPlanProvider);
+    for (final update in plan.updates) {
+      final previousQuestion = previousQuestions[update.index];
+      _invalidate(
+        questionCitationChunksProvider(
+          previousQuestion.citationIds.join('\x00'),
+        ),
+      );
+      _invalidate(
+        questionCitationChunksProvider(
+          update.question.citationIds.join('\x00'),
+        ),
+      );
+      _invalidate(deckQuestionsProvider(update.question.deckId));
+      _invalidate(verifiedDeckQuestionsProvider(update.question.deckId));
+      final pointId = update.question.knowledgePointId;
+      if (pointId != null) {
+        _invalidate(knowledgePointQuestionsProvider(pointId));
+      }
+    }
+  }
+
+  void _invalidate(ProviderBase<Object?> provider) {
+    // Avoid initializing unread providers through Ref's debug dependency check.
+    if (_ref.exists(provider)) _ref.invalidate(provider);
+  }
+}
+
+final quizOperationsProvider = Provider<QuizOperations>((ref) {
+  return QuizOperations(ref, ref.watch(quizPersistenceServiceProvider));
+});
+
+/// Keeps post-save refreshes independent of quiz route lifetime.
+class QuizOperations {
+  final Ref _ref;
+  final QuizPersistenceService _persistence;
+  bool _disposed = false;
+
+  QuizOperations(this._ref, this._persistence) {
+    _ref.onDispose(() => _disposed = true);
+  }
+
+  Future<QuizAnswerSaveResult> saveAnswer({
+    required String operationId,
+    required Question question,
+    required bool isCorrect,
+  }) async {
+    final result = await _persistence.saveAnswer(
+      operationId: operationId,
+      question: question,
+      isCorrect: isCorrect,
+    );
+    if (_disposed) return result;
+    _ref.invalidate(todayReviewQueueProvider);
+    _ref.invalidate(allQuestionsProvider);
+    _ref.invalidate(verifiedQuestionsProvider);
+    if (result.question.deckId.isNotEmpty) {
+      _ref.invalidate(deckQuestionsProvider(result.question.deckId));
+      _ref.invalidate(verifiedDeckQuestionsProvider(result.question.deckId));
+    }
+    final pointId = result.question.knowledgePointId;
+    if (pointId != null && pointId.isNotEmpty) {
+      _ref.invalidate(knowledgePointListProvider);
+      _ref.invalidate(evidenceBackedKnowledgePointListProvider);
+      _ref.invalidate(practiceableKnowledgePointListProvider);
+      _ref.invalidate(knowledgePointProvider(pointId));
+      _ref.invalidate(knowledgePointQuestionsProvider(pointId));
+    }
+    _ref.invalidate(monthlyCheckInProvider);
+    _ref.invalidate(earnedMedalsProvider);
+    _ref.invalidate(totalCorrectProvider);
+    _refreshStats();
+    return result;
+  }
+
+  Future<QuizCompletionSaveResult> saveCompletion({
+    required String operationId,
+    required String? deckId,
+    required int correctCount,
+    required int totalCount,
+  }) async {
+    final result = await _persistence.saveCompletion(
+      operationId: operationId,
+      deckId: deckId,
+      correctCount: correctCount,
+      totalCount: totalCount,
+    );
+    if (_disposed) return result;
+    _ref.invalidate(perfectCountProvider);
+    _ref.invalidate(deckListProvider);
+    if (deckId != null) _ref.invalidate(studyRecordProvider(deckId));
+    _refreshStats();
+    return result;
+  }
+
+  void _refreshStats() {
+    // A receipt's stats describe its original commit, which may predate other
+    // saves. Refresh reads current data and handles read errors independently.
+    unawaited(_ref.read(userStatsProvider.notifier).refresh());
+  }
+}
 
 /// 题包操作
 final deckOperationsProvider = Provider<DeckOperations>((ref) {
@@ -1250,7 +1494,14 @@ final knowledgeAnswerGroundedContextProvider =
     );
   }
 
-  final results = await ref.watch(knowledgeSearchResultsProvider(query).future);
+  // Match the displayed branch without waiting for optional model expansion.
+  final hybridReport =
+      ref.watch(knowledgeHybridSearchReportProvider(query)).valueOrNull;
+  final lexicalResults =
+      await ref.watch(knowledgeSearchResultsProvider(query).future);
+  final results = hybridReport?.status == HybridKnowledgeSearchStatus.augmented
+      ? hybridReport!.results.map((item) => item.result).toList(growable: false)
+      : lexicalResults;
   final corpus = await ref.watch(knowledgeSearchCorpusProvider.future);
   final selection = ref.read(knowledgeAnswerContextServiceProvider).select(
         results: results,

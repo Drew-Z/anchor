@@ -1,13 +1,16 @@
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
-import 'package:dlg_q/services/release/private_alpha_release_evidence.dart';
+import 'package:anchor_learning/services/release/private_alpha_release_evidence.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
 void main() {
+  final evaluatedAt = DateTime.utc(2026, 7, 17, 12);
+
   test('verifies a passing gate against the actual APK identity', () async {
-    final root = await Directory.systemTemp.createTemp('duoduo-release-');
+    final root =
+        await Directory.systemTemp.createTemp('anchor-learning-release-');
     addTearDown(() => root.delete(recursive: true));
     final apk = File(p.join(root.path, 'build', 'app.apk'));
     await apk.parent.create(recursive: true);
@@ -23,6 +26,7 @@ void main() {
         await const PrivateAlphaReleaseEvidenceVerifier().verify(
       evidence: evidence,
       repositoryRoot: root.path,
+      evaluatedAt: evaluatedAt,
     );
 
     expect(verification.passed, isTrue);
@@ -30,7 +34,8 @@ void main() {
   });
 
   test('holds when the APK is missing or its identity drifts', () async {
-    final root = await Directory.systemTemp.createTemp('duoduo-release-');
+    final root =
+        await Directory.systemTemp.createTemp('anchor-learning-release-');
     addTearDown(() => root.delete(recursive: true));
     final missing = await const PrivateAlphaReleaseEvidenceVerifier().verify(
       evidence: _evidence(
@@ -39,6 +44,7 @@ void main() {
         hash: List.filled(64, '0').join(),
       ),
       repositoryRoot: root.path,
+      evaluatedAt: evaluatedAt,
     );
     expect(missing.blockers, contains('android_build_apk_missing'));
 
@@ -52,6 +58,7 @@ void main() {
         hash: List.filled(64, '0').join(),
       ),
       repositoryRoot: root.path,
+      evaluatedAt: evaluatedAt,
     );
     expect(drifted.blockers, [
       'android_build_bytes_mismatch',
@@ -60,7 +67,8 @@ void main() {
   });
 
   test('rejects unsafe paths and incomplete automated evidence', () async {
-    final root = await Directory.systemTemp.createTemp('duoduo-release-');
+    final root =
+        await Directory.systemTemp.createTemp('anchor-learning-release-');
     addTearDown(() => root.delete(recursive: true));
     final verification =
         await const PrivateAlphaReleaseEvidenceVerifier().verify(
@@ -72,11 +80,78 @@ void main() {
         arm64Only: false,
       ),
       repositoryRoot: root.path,
+      evaluatedAt: evaluatedAt,
     );
     expect(verification.blockers, [
       'automated_gate_evidence_invalid',
       'android_build_evidence_invalid',
       'android_build_path_outside_repository',
+    ]);
+  });
+
+  test('holds stale and future automated gate evidence', () async {
+    final root =
+        await Directory.systemTemp.createTemp('anchor-learning-release-');
+    addTearDown(() => root.delete(recursive: true));
+    final apk = File(p.join(root.path, 'build', 'app.apk'));
+    await apk.parent.create(recursive: true);
+    const bytes = [1, 2, 3, 4, 5];
+    await apk.writeAsBytes(bytes);
+    const verifier = PrivateAlphaReleaseEvidenceVerifier();
+    PrivateAlphaReleaseEvidence evidenceCompletedAt(DateTime completedAt) {
+      return _evidence(
+        apkPath: p.join('build', 'app.apk'),
+        bytes: bytes.length,
+        hash: sha256.convert(bytes).toString(),
+        completedAt: completedAt,
+      );
+    }
+
+    final stale = await verifier.verify(
+      evidence:
+          evidenceCompletedAt(evaluatedAt.subtract(const Duration(hours: 25))),
+      repositoryRoot: root.path,
+      evaluatedAt: evaluatedAt,
+    );
+    expect(stale.blockers, ['automated_gate_evidence_stale']);
+
+    final future = await verifier.verify(
+      evidence:
+          evidenceCompletedAt(evaluatedAt.add(const Duration(minutes: 1))),
+      repositoryRoot: root.path,
+      evaluatedAt: evaluatedAt,
+    );
+    expect(future.blockers, ['automated_gate_evidence_stale']);
+
+    final edge = await verifier.verify(
+      evidence:
+          evidenceCompletedAt(evaluatedAt.subtract(const Duration(hours: 24))),
+      repositoryRoot: root.path,
+      evaluatedAt: evaluatedAt,
+    );
+    expect(edge.blockers, isEmpty);
+  });
+
+  test('reports stale gate evidence even when the APK is missing', () async {
+    final root =
+        await Directory.systemTemp.createTemp('anchor-learning-release-');
+    addTearDown(() => root.delete(recursive: true));
+
+    final verification =
+        await const PrivateAlphaReleaseEvidenceVerifier().verify(
+      evidence: _evidence(
+        apkPath: p.join('build', 'missing.apk'),
+        bytes: 5,
+        hash: List.filled(64, '0').join(),
+        completedAt: evaluatedAt.subtract(const Duration(hours: 25)),
+      ),
+      repositoryRoot: root.path,
+      evaluatedAt: evaluatedAt,
+    );
+
+    expect(verification.blockers, [
+      'automated_gate_evidence_stale',
+      'android_build_apk_missing',
     ]);
   });
 
@@ -95,6 +170,26 @@ void main() {
       }),
       throwsA(isA<FormatException>()),
     );
+    for (final path in const [
+      'C:/private/app.apk',
+      r'C:\private\app.apk',
+      '/tmp/app.apk',
+      'file:///tmp/app.apk',
+      'https://example.com/app.apk',
+      'data:text/plain,app.apk',
+    ]) {
+      expect(
+        () => PrivateAlphaAndroidBuildEvidence.fromJson({
+          'apk_path': path,
+          'bytes': 1,
+          'sha256': List.filled(64, '0').join(),
+          'arm64_only': true,
+          'v2_signed': true,
+        }),
+        throwsA(isA<FormatException>()),
+        reason: path,
+      );
+    }
   });
 }
 
@@ -104,11 +199,12 @@ PrivateAlphaReleaseEvidence _evidence({
   required String hash,
   int testsPassed = 262,
   bool arm64Only = true,
+  DateTime? completedAt,
 }) {
   return PrivateAlphaReleaseEvidence(
     schemaVersion: 2,
     automatedGate: PrivateAlphaAutomatedGateEvidence(
-      completedAt: DateTime.utc(2026, 7, 17),
+      completedAt: completedAt ?? DateTime.utc(2026, 7, 17, 10),
       testsPassed: testsPassed,
       analyzerErrors: 0,
       analyzerWarnings: 0,

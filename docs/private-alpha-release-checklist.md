@@ -1,16 +1,18 @@
-# Duoduo Private Alpha Release Checklist
+# Anchor Learning Private Alpha Release Checklist
 
 ## Release Identity
 
-- Product: Duoduo / 多多学
+- Product: Anchor Learning / 锚学
 - Channel: Private Alpha
-- App version: `1.0.0+1`
-- Android package: `com.example.dlg_q`
-- Database: SQLite `dlg_q.db`, schema `23`
-- Distribution: direct debug APK sideload to invited testers only
+- App version: `1.0.0+2005`
+- Arm64 split APK manifest versionCode: `4005`
+- Android package: `cc.eu.playlab.anchor`
+- Database: SQLite `anchor_learning.db`, schema `23`
+- Distribution: direct sideload of the signed Arm64 release APK to invited testers only
 
-This is not a production store release. The package identifier and debug signing
-must be replaced before public distribution.
+This is not a production store release. The current candidate already uses the
+final Android package identifier and the Anchor Learning release certificate;
+store publication still requires the external readiness gates below.
 
 ## Supported-Device Matrix
 
@@ -19,7 +21,8 @@ must be replaced before public distribution.
 | A | Android API 36, x86_64 emulator, 1080x2400 / 420 dpi | Release exercise target | Build, install, migration, cold start, backup-delete-restore, export, screenshot, and log scan on every alpha build |
 | B | Android API 24-35, Arm64 physical device | Cohort candidate | Run the short device smoke before enrolling that device; record API, ABI, viewport, install result, backup/restore result, and known OEM issue |
 | Unsupported | Android API 23 and earlier | Do not install | Current Flutter 3.44 support starts at API 24 |
-| Not release-supported | iOS, Windows, macOS, Linux, web | Deferred | Framework support does not imply Duoduo release support; no end-to-end acceptance has been completed |
+| Unsupported | Android API 36 and later, physical device | Not cohort-eligible | Flutter 3.44 supports API 36, but no physical API 36 acceptance has been completed. The Tier A API 36 emulator target does not extend the Tier B physical range. Raising this ceiling is a release-owned decision that requires physical acceptance evidence first |
+| Not release-supported | iOS, Windows, macOS, Linux, web | Deferred | Framework support does not imply Anchor Learning release support; no end-to-end acceptance has been completed |
 
 The fixed Tier A device for Leaf 21.5 is `emulator-5554`, Android API 36,
 x86_64, physical size 1080x2400, density 420.
@@ -61,10 +64,10 @@ Stable user-facing error codes:
 
 | Code | Meaning | Recovery |
 | --- | --- | --- |
-| `invalid_file` | Missing, oversized, unreadable, or non-SQLite input | Select an unmodified Duoduo `.db` export |
+| `invalid_file` | Missing, oversized, unreadable, or non-SQLite input | Select an unmodified Anchor Learning `.db` export |
 | `unsupported_schema` | Schema is outside 12-23 | Restore with a compatible app version first, then export again |
 | `integrity_failure` | SQLite integrity check failed | Use another backup; do not retry the same damaged file |
-| `missing_tables` | Required Duoduo tables are absent | Select a complete database backup, not a partial table export |
+| `missing_tables` | Required Anchor Learning tables are absent | Select a complete database backup, not a partial table export |
 | `restore_failure` | Replacement, migration, or final validation failed | Confirm the UI reports automatic rollback; restart and verify current data |
 
 ## Automated Gate
@@ -89,7 +92,7 @@ Evaluate the release decision from explicit, machine-readable evidence:
 
 ```powershell
 & 'D:\tools\flutter\bin\dart.bat' run tool\private_alpha_readiness.dart `
-  --evidence test\fixtures\release\private_alpha_readiness_current.json `
+  --evidence build\validation\private-alpha-readiness.json `
   --format json
 ```
 
@@ -104,8 +107,12 @@ The CLI recomputes the repository-relative APK byte length and SHA-256 before
 evaluating readiness. Missing APKs, paths outside the repository, identity
 drift, zero tests, analyzer errors/warnings, failed formatting or diff checks,
 non-arm64 declarations, and missing v2-signing declarations add explicit
-blockers even when the legacy summary booleans are true. The structured evidence
-must never contain credentials or credential-bearing URLs.
+blockers even when the legacy summary booleans are true. automated_gate
+completed_at follows the same 24-hour freshness policy as model-acceptance and
+physical-device evidence: evidence older than 24 hours or dated in the future
+adds automated_gate_evidence_stale, so the local gate must be re-run inside the
+final release window. The structured evidence must never contain credentials or
+credential-bearing URLs.
 Schema v2 privacy_scan.paths explicitly lists each release evidence, feedback,
 support, or event artifact that must be inspected. Every path must remain inside
 the repository root. Findings are deduplicated and expose only a fixed category
@@ -140,28 +147,12 @@ The verifier also requires the six approved blank operator templates, their
 required headings, and their frozen SHA-256 values. Missing or changed templates
 block readiness, ensuring filled participant records remain outside the
 repository.
-When cohort_completed is true, schema v2 must include anonymous cohort_evidence.
-The formal denominator must remain exactly A01-A10; S01-S02 shakedown records,
-replacement participants, duplicate codes, and denominator drift are forbidden.
-Each participant records only a fixed track, terminal invitation/consent state,
-D0/D7/D14 status, grounded-turn booleans, learning-claim enum, and opaque EV-*
-references. The cohort must bind the exact release APK and the complete set of
-release-day profile fingerprints, preserve withdrawals in the denominator, and
-record an ordered freeze/final-decision timeline plus opaque COHORT-* and
-REPORT-* references. A GO, CONDITIONAL GO, or NO-GO decision may close the
-study; completion never means the product targets passed. Names, contact
-details, credentials, project identifiers, private paths, source text, answers,
-and model output are forbidden.
-When all external gates are true, readiness also runs one release-consistency
-check over the same parsed evidence and one captured evaluation time. The final
-cohort decision must be GO; CONDITIONAL GO and NO-GO remain blockers rather than
-being converted into release approval. Cohort operator_record_locator must
-equal the operator pack external_record_locator. Every formal participant must
-record the exact profile fingerprint and credential scope actually used, and
-that pair must exist in both release-day acceptance and controlled-credential
-bindings. Unrelated but individually well-formed records, profile drift, or
-scope drift block readiness without exposing participant codes or record
-contents.
+Formal cohort evidence is optional research material and is not required by
+readiness schema v2 or the technical release evaluator. If collected, keep the
+formal denominator at A01-A10 and retain all participant records outside the
+repository; do not synthesize or use them as release evidence. The optional
+cohort verifier and consistency checks remain available for research bundles,
+but their decision does not change technical release readiness.
 When physical_device_passed is true, schema v2 must include
 physical_device_evidence containing the executed preflight JSON plus its
 completion time. The report must be PASSED, no more than 24 hours old, bound to
@@ -183,9 +174,8 @@ The CLI only reads arguments/files, formats that report, and maps GO/HOLD or
 input errors to exit codes. An end-to-end test must build a temporary anonymous
 bundle with a real temporary APK identity, clean scan artifact, frozen operator
 templates, controlled fake references, release-day profiles, physical report,
-and A01-A10 cohort; the complete bundle must reach GO, while changing only the
-final decision to NO-GO must produce HOLD. Test fixtures never count as actual
-release, device, credential, owner, or participant evidence.
+and optional cohort; the technical bundle must reach GO. Test fixtures never
+count as actual release, device, credential, owner, or participant evidence.
 The CLI process contract is covered independently from the evaluator. A real
 subprocess must return 0 with parseable JSON for a complete GO bundle, 2 with
 JSON or Markdown for a valid HOLD, 64 for argument/schema errors, and 66 for a
@@ -198,8 +188,8 @@ schema/private-alpha-readiness-v2.schema.json (JSON Schema Draft 2020-12).
 Create a draft with tool/private_alpha_readiness_init.dart; it requires a real
 repository-relative APK and positive test count, computes APK bytes/SHA-256, and
 writes only below ignored build/. Format, diff, Arm64, and v2-signing claims
-are false unless their explicit command flags are supplied. All five external
-gates are always initialized false and no conditional evidence object is
+are false unless their explicit command flags are supplied. All four external
+technical gates are always initialized false and no conditional evidence object is
 invented. The generated file must evaluate to HOLD before real external evidence
 is attached. See docs/private-alpha-readiness-evidence.md.
 ## Android Build Gate
@@ -234,31 +224,40 @@ Run the read-only preflight before installing on a physical candidate:
 
 ```powershell
 & 'D:\tools\flutter\bin\dart.bat' run tool\private_alpha_device_preflight.dart `
+  --apk build\app\outputs\flutter-apk\app-arm64-v8a-release.apk `
+  --adb 'C:\Users\zhang\AppData\Local\Android\sdk\platform-tools\adb.exe' `
   --serial <adb-serial> `
-  --expected-sha256 <recorded-apk-sha256>
+  --expected-sha256 641a1a107c687e4903b3c64a65111c4eeff88804d2cc056374026fafa29c54b3 `
+  --format json
 ```
 
 `READY` means the selected device is physical Arm64 on API 24-35 and the APK
 hash matches. The default command does not install or launch anything. After
 reviewing the report, execute the app-only smoke with the same arguments plus
-`--execute`.
+`--execute`. When switching an already-installed debug build to the release
+certificate, export and hash the database first, then perform a full uninstall;
+Android rejects an in-place update when the signing certificates differ.
 
-The execute path is intentionally limited to `adb install -r` for Duoduo,
-force-stopping and launching `com.example.dlg_q`, checking its PID, and reading
+The execute path is intentionally limited to `adb install -r` for Anchor Learning,
+force-stopping and launching `cc.eu.playlab.anchor`, checking its PID, and reading
 logcat for that PID. It does not clear global logcat, inspect another package,
 modify device settings, or create files in shared device storage.
 
 ```powershell
-adb devices -l
-adb install -r build\app\outputs\flutter-apk\app-debug.apk
-adb shell am force-stop com.example.dlg_q
-adb shell am start -W -n com.example.dlg_q/.MainActivity
+& 'D:\tools\flutter\bin\dart.bat' run tool\private_alpha_device_preflight.dart `
+  --apk build\app\outputs\flutter-apk\app-arm64-v8a-release.apk `
+  --adb 'C:\Users\zhang\AppData\Local\Android\sdk\platform-tools\adb.exe' `
+  --serial <adb-serial> `
+  --expected-sha256 641a1a107c687e4903b3c64a65111c4eeff88804d2cc056374026fafa29c54b3 `
+  --format json `
+  --execute
 ```
 
 Pass criteria:
 
 - install succeeds without removing existing user data;
-- launch state is cold and the process remains alive;
+- launch succeeds for the requested Activity and the process remains alive
+  (Android/OEM builds may report `LaunchState: UNKNOWN` even on success);
 - first visible screen matches the stored onboarding state;
 - logcat has no `FATAL EXCEPTION`, `AndroidRuntime: FATAL`, `E/flutter`, ANR,
   SQLite exception, database lock, or uncaught restore error.
@@ -351,6 +350,8 @@ five-task acceptance matrix.
 
 - Flutter supported platforms, including Android API 24-36 for Flutter 3.44:
   https://docs.flutter.dev/reference/supported-platforms
+  This is framework capability only. The Tier B physical ceiling is API 35 by
+  release policy; do not widen the gate to API 36 from this citation.
 - Android Storage Access Framework and system document picker:
   https://developer.android.com/guide/topics/providers/document-provider
 - SQLite `VACUUM INTO` consistent snapshot and interruption caveat:
@@ -360,34 +361,15 @@ five-task acceptance matrix.
 
 Sources were fetched through `smart-search fetch` on 2026-07-16.
 
-## Leaf 21.5 Recorded Evidence
+## Current Leaf 21.5 Evidence
 
-Recorded on 2026-07-16 against Tier A `emulator-5554`:
-
-- `flutter test --no-pub`: 215 tests passed;
-- `flutter analyze --no-pub --no-fatal-infos`: 0 errors, 0 warnings,
-  34 existing info lints;
-- `git diff --check` and the credential-shaped review passed;
-- Gradle 9.4.1 completed 203 tasks for `android-x64` using the offline command
-  above;
-- `build/app/outputs/flutter-apk/app-debug.apk`: 78,072,121 bytes,
-  SHA-256 `ee166a61343c19b07ad31ca00b8adf3699a2f572006d72ab9ad523c3ff5fa6ab`,
-  v2 debug signature verified;
-- APK identity: `com.example.dlg_q`, version `1.0.0+1`, min SDK 24,
-  target SDK 36, compile SDK 37;
-- overwrite install preserved the schema 23 database; initial cold start was
-  5.841 seconds;
-- Android DocumentsUI completed database export, save-cancel protection,
-  backup-then-delete, direct delete, and restore confirmation;
-- deleting product events left exactly one new `data_deleted` event; restoring
-  refreshed the two saved events without restart and survived a cold restart;
-- the post-restore database reported schema 23 and `integrity_check = ok`;
-- the final app-process log scan contained 66 lines and no Flutter,
-  AndroidRuntime, ANR, SQLite, lock, or restore error match;
-- screenshots and UI hierarchies are retained under `build/validation/leaf21_5_*`.
-
-The pre-install database was restored byte-for-byte after acceptance. Its final
-SHA-256 is `65872231a9a9ad7248368d6e760a07c359f2efd43e42ab5623e3df377904a892`.
+The current release candidate is tracked in `docs/PRODUCTIZATION_RELEASE_PLAN.md`
+and `docs/OPEN_SOURCE_CHECKLIST.md`. Its signed Arm64 APK is bound to SHA-256
+`641a1a107c687e4903b3c64a65111c4eeff88804d2cc056374026fafa29c54b3`, uses
+package `cc.eu.playlab.anchor`, and has completed the physical-device smoke on
+the OnePlus PGP110 (API 35, Arm64). This evidence does not replace the
+release-day model, controlled-credential, or owner gates below; formal cohort
+material is optional research.
 
 ## Leaf 21.6a Readiness Evidence
 
@@ -503,9 +485,3 @@ The Arm64 Tier B technical gate is complete. A shared public relay remains a
 development credential only; formal participant invitations still require a
 controlled or participant-owned profile with a current App `5/5` report and an
 explicit data-handling owner.
-
-
-
-
-
-

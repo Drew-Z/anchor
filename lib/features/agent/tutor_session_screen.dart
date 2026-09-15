@@ -11,7 +11,7 @@ import '../../data/models/source_chunk.dart';
 import '../../data/models/tutor_turn.dart';
 import '../../services/agent/grounded_learning_context_service.dart';
 import '../../services/ai/tasks/tutor_explanation_task.dart';
-import '../../shared/widgets/duo_button.dart';
+import '../../shared/widgets/anchor_button.dart';
 import '../../shared/widgets/source_citation_block.dart';
 import '../knowledge_base/knowledge_library_error_state.dart';
 import 'programming_exercise_screen.dart';
@@ -89,42 +89,47 @@ class _TutorSessionScreenState extends ConsumerState<TutorSessionScreen> {
   }
 
   Future<void> _explain(KnowledgePoint point) async {
-    final hasKey = await ref.read(openaiServiceProvider).hasApiKey();
-    if (!hasKey) {
-      if (!mounted) return;
-      setState(() {
-        _selectedPoint = point;
-        _errorMessage = '请先在设置中配置 AI API Key';
-      });
-      return;
-    }
-
+    if (!mounted || _isGenerating || _isSubmittingAnswer) return;
     setState(() {
-      _selectedPoint = point;
-      _evidenceChunks = [];
-      _prerequisitePoints = [];
-      _prerequisiteChunksByPointId = const {};
-      _groundedContext = null;
-      _explanation = null;
-      _turns = [];
-      _sessionId = null;
-      _currentQuestion = null;
-      _answerController.clear();
       _isGenerating = true;
-      _isSubmittingAnswer = false;
-      _errorMessage = null;
       _turnErrorMessage = null;
     });
 
     try {
+      final hasKey = await ref.read(openaiServiceProvider).hasApiKey();
+      if (!mounted) return;
+      if (!hasKey) {
+        setState(() {
+          _selectedPoint = point;
+          _isGenerating = false;
+          _errorMessage = '请先在设置中配置 AI API Key';
+        });
+        return;
+      }
+
+      setState(() {
+        _selectedPoint = point;
+        _evidenceChunks = [];
+        _prerequisitePoints = [];
+        _prerequisiteChunksByPointId = const {};
+        _groundedContext = null;
+        _explanation = null;
+        _turns = [];
+        _sessionId = null;
+        _currentQuestion = null;
+        _answerController.clear();
+        _errorMessage = null;
+        _turnErrorMessage = null;
+      });
+
       final evidence = await _loadTutorEvidence(point);
+      if (!mounted) return;
       if (evidence.currentChunks.isEmpty) {
         throw StateError('这个知识点还没有来源片段，无法进行有依据的讲解');
       }
       if (!evidence.groundedContext.isExecutable) {
         throw StateError(evidence.groundedContext.diagnosticLines.join('\n'));
       }
-      if (!mounted) return;
       setState(() {
         _evidenceChunks = evidence.currentChunks;
         _prerequisitePoints = evidence.prerequisitePoints;
@@ -140,6 +145,7 @@ class _TutorSessionScreenState extends ConsumerState<TutorSessionScreen> {
                 evidence.prerequisiteChunksByPointId,
             groundedContext: evidence.groundedContext,
           );
+      if (!mounted) return;
       if (!result.isSuccess) {
         throw StateError(result.errorMessage ?? '导师讲解生成失败');
       }
@@ -160,6 +166,8 @@ class _TutorSessionScreenState extends ConsumerState<TutorSessionScreen> {
             : null;
         _isGenerating = false;
       });
+    } on _TutorRouteExited {
+      return;
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -172,7 +180,9 @@ class _TutorSessionScreenState extends ConsumerState<TutorSessionScreen> {
   Future<_TutorEvidence> _loadTutorEvidence(KnowledgePoint point) async {
     final repository = ref.read(knowledgePointRepositoryProvider);
     final currentChunks = await _loadEvidenceChunks(point.id);
+    if (!mounted) throw const _TutorRouteExited();
     final relations = await repository.getKnowledgePointPrerequisites();
+    if (!mounted) throw const _TutorRouteExited();
     final prerequisiteIds = relations
         .where((relation) => relation.knowledgePointId == point.id)
         .map((relation) => relation.prerequisiteKnowledgePointId)
@@ -184,6 +194,7 @@ class _TutorSessionScreenState extends ConsumerState<TutorSessionScreen> {
     final prerequisiteChunksByPointId = <String, List<SourceChunk>>{};
     for (final prerequisiteId in prerequisiteIds) {
       final prerequisite = await repository.getKnowledgePoint(prerequisiteId);
+      if (!mounted) throw const _TutorRouteExited();
       if (prerequisite == null ||
           prerequisite.kind != KnowledgePointKind.concept) {
         continue;
@@ -251,6 +262,7 @@ class _TutorSessionScreenState extends ConsumerState<TutorSessionScreen> {
     final sources = <String, Source>{};
     for (final sourceId in chunks.map((chunk) => chunk.sourceId).toSet()) {
       final source = await ref.read(sourceProvider(sourceId).future);
+      if (!mounted) throw const _TutorRouteExited();
       if (source != null) sources[source.id] = source;
     }
     return sources.values.toList(growable: false);
@@ -262,11 +274,13 @@ class _TutorSessionScreenState extends ConsumerState<TutorSessionScreen> {
     final relations = await ref
         .read(knowledgePointRepositoryProvider)
         .getKnowledgePointSources(knowledgePointId);
+    if (!mounted) throw const _TutorRouteExited();
     final chunks = <SourceChunk>[];
     for (final relation in relations) {
       final chunk = await ref
           .read(sourceChunkRepositoryProvider)
           .getSourceChunk(relation.sourceChunkId);
+      if (!mounted) throw const _TutorRouteExited();
       if (chunk != null) chunks.add(chunk);
     }
     chunks.sort((a, b) {
@@ -298,6 +312,7 @@ class _TutorSessionScreenState extends ConsumerState<TutorSessionScreen> {
             ),
           ),
         );
+    if (!mounted) throw const _TutorRouteExited();
     invalidateAgentLearningRecordProviders(ref);
     return sessionId;
   }
@@ -307,11 +322,13 @@ class _TutorSessionScreenState extends ConsumerState<TutorSessionScreen> {
     final question = _currentQuestion?.trim();
     final answer = _answerController.text.trim();
     final sessionId = _sessionId;
-    if (point == null ||
+    if (!mounted ||
+        point == null ||
         question == null ||
         question.isEmpty ||
         sessionId == null ||
-        _isSubmittingAnswer) {
+        _isSubmittingAnswer ||
+        _isGenerating) {
       return;
     }
     if (answer.isEmpty) {
@@ -335,6 +352,7 @@ class _TutorSessionScreenState extends ConsumerState<TutorSessionScreen> {
             previousTurns: _turns,
             groundedContext: _groundedContext,
           );
+      if (!mounted) return;
       if (!result.isSuccess) {
         throw StateError(result.errorMessage ?? '导师反馈生成失败');
       }
@@ -360,12 +378,14 @@ class _TutorSessionScreenState extends ConsumerState<TutorSessionScreen> {
         groundingDisposition: feedback.groundingDisposition,
         createdAt: now,
       );
+      if (!mounted) return;
       await ref
           .read(programmingReviewClosureServiceProvider)
           .closeTutorTurn(turn: turn);
-      await _updateTutorSessionSummary(point, sessionId, [..._turns, turn]);
-
       if (!mounted) return;
+      await _updateTutorSessionSummary(point, sessionId, [..._turns, turn]);
+      if (!mounted) return;
+
       setState(() {
         _turns = [..._turns, turn];
         _currentQuestion = feedback.evidenceSufficient &&
@@ -394,6 +414,7 @@ class _TutorSessionScreenState extends ConsumerState<TutorSessionScreen> {
   ) async {
     final repository = ref.read(learningSessionRepositoryProvider);
     final session = await repository.getLearningSession(sessionId);
+    if (!mounted) throw const _TutorRouteExited();
     if (session == null) return;
     await repository.updateLearningSession(
       session.copyWith(
@@ -508,7 +529,7 @@ class _TutorSessionScreenState extends ConsumerState<TutorSessionScreen> {
                 ],
                 if (_selectedPoint != null) ...[
                   const SizedBox(height: 14),
-                  DuoButton(
+                  AnchorButton(
                     key: const ValueKey('open-programming-exercises'),
                     label: '进入编程练习',
                     color: AppColors.purple,
@@ -812,7 +833,7 @@ class _ExplanationView extends StatelessWidget {
             ),
           ),
         const SizedBox(height: 12),
-        DuoButton(
+        AnchorButton(
           label: '重新讲解',
           color: AppColors.blue,
           width: double.infinity,
@@ -947,7 +968,7 @@ class _CurrentQuestionCard extends StatelessWidget {
           if (isSubmitting)
             const _GeneratingBlock(label: '正在核对回答与来源...')
           else
-            DuoButton(
+            AnchorButton(
               key: const ValueKey('tutor-submit-answer'),
               label: '提交回答',
               color: AppColors.green,
@@ -1357,4 +1378,8 @@ class _EmptyTutorState extends StatelessWidget {
       ),
     );
   }
+}
+
+class _TutorRouteExited implements Exception {
+  const _TutorRouteExited();
 }

@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
-import 'package:dlg_q/services/release/private_alpha_operator_pack_evidence.dart';
+import 'package:anchor_learning/services/release/private_alpha_operator_pack_evidence.dart';
 
 class PrivateAlphaReadinessTestFixture {
   final Directory root;
@@ -21,7 +21,8 @@ Future<PrivateAlphaReadinessTestFixture> createPrivateAlphaReadinessFixture(
   DateTime evaluatedAt, {
   String decision = 'go',
 }) async {
-  final root = await Directory.systemTemp.createTemp('duoduo-readiness-go-');
+  final root =
+      await Directory.systemTemp.createTemp('anchor-learning-readiness-go-');
   final apk = File('${root.path}${Platform.pathSeparator}build'
       '${Platform.pathSeparator}app.apk');
   await apk.parent.create(recursive: true);

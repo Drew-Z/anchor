@@ -1,0 +1,16 @@
+{
+  "name": "anchor-web",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "serve": "http-server landing -p 4173 -c-1",
+    "test:unit": "node --test tests/*.test.mjs",
+    "test:e2e": "playwright test",
+    "test": "npm run test:unit && npm run test:e2e"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.2",
+    "http-server": "^14.1.1"
+  }
+}

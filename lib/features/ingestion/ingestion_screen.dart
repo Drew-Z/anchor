@@ -10,7 +10,7 @@ import '../../data/models/source.dart';
 import '../../data/models/source_chunk.dart';
 import '../../services/ingestion/programming_source_import_service.dart';
 import '../../services/ingestion/source_grounded_ingestion_service.dart';
-import '../../shared/widgets/duo_button.dart';
+import '../../shared/widgets/anchor_button.dart';
 import 'deck_preview_screen.dart';
 import 'knowledge_review_screen.dart';
 import 'project_import_screen.dart';
@@ -78,17 +78,10 @@ class _IngestionScreenState extends ConsumerState<IngestionScreen> {
   }
 
   Future<void> _analyze() async {
+    if (_isAnalyzing) return;
     final text = _textController.text.trim();
     if (text.isEmpty && _imageBase64 == null) {
       setState(() => _errorMessage = '请输入或粘贴内容');
-      return;
-    }
-
-    // 检查 API Key
-    final openai = ref.read(openaiServiceProvider);
-    final hasKey = await openai.hasApiKey();
-    if (!hasKey) {
-      setState(() => _errorMessage = '请先在设置中配置 OpenAI API Key');
       return;
     }
 
@@ -99,6 +92,18 @@ class _IngestionScreenState extends ConsumerState<IngestionScreen> {
     });
 
     try {
+      // 检查 API Key，并让 key 查询也受当前分析 ownership 保护。
+      final hasKey = await ref.read(openaiServiceProvider).hasApiKey();
+      if (!mounted) return;
+      if (!hasKey) {
+        setState(() {
+          _isAnalyzing = false;
+          _errorMessage = '请先在设置中配置模型凭据';
+          _statusText = '';
+        });
+        return;
+      }
+
       if (text.isNotEmpty) {
         await _analyzeTextWithSources(
           text,
@@ -114,6 +119,7 @@ class _IngestionScreenState extends ConsumerState<IngestionScreen> {
         text: text,
         imageBase64: _imageBase64,
       );
+      if (!mounted) return;
 
       setState(() => _statusText = '正在生成题目...');
       await Future.delayed(const Duration(milliseconds: 500));
@@ -179,6 +185,7 @@ class _IngestionScreenState extends ConsumerState<IngestionScreen> {
         await ref.read(knowledgeExtractionTaskProvider).run(
               sourceChunks: chunks,
             );
+    if (!mounted) return;
     if (!extractionResult.isSuccess) {
       throw StateError(extractionResult.errorMessage ?? '知识点抽取失败');
     }
@@ -197,6 +204,7 @@ class _IngestionScreenState extends ConsumerState<IngestionScreen> {
             buildResult.knowledgePoints.length,
           ),
         );
+    if (!mounted) return;
     if (!questionResult.isSuccess) {
       throw StateError(questionResult.errorMessage ?? '题目生成失败');
     }
@@ -210,8 +218,8 @@ class _IngestionScreenState extends ConsumerState<IngestionScreen> {
       questions: questions,
       chunks: chunks,
     );
-
     if (!mounted) return;
+
     setState(() {
       _isAnalyzing = false;
       _statusText = '';
@@ -509,7 +517,7 @@ class _IngestionScreenState extends ConsumerState<IngestionScreen> {
           ],
           const SizedBox(height: 24),
           // 开始拆解按钮
-          DuoButton(
+          AnchorButton(
             label: 'AI 拆解为题目',
             color: AppColors.green,
             width: double.infinity,
@@ -524,61 +532,68 @@ class _IngestionScreenState extends ConsumerState<IngestionScreen> {
   }
 
   Widget _buildLoadingView() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // 动画图标
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: AppColors.greenLight,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.auto_awesome,
-                color: AppColors.green,
-                size: 40,
-              ),
-            )
-                .animate(
-                  onPlay: (controller) => controller.repeat(),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(32),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: constraints.maxHeight - 64,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // 动画图标
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: AppColors.greenLight,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.auto_awesome,
+                    color: AppColors.green,
+                    size: 40,
+                  ),
                 )
-                .shimmer(duration: 1500.ms),
-            const SizedBox(height: 24),
-            Text(
-              _statusText,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
+                    .animate(
+                      onPlay: (controller) => controller.repeat(),
+                    )
+                    .shimmer(duration: 1500.ms),
+                const SizedBox(height: 24),
+                Text(
+                  _statusText,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'AI 正在分析内容并生成题目，请稍候...',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                // 进度指示器
+                const SizedBox(
+                  width: 200,
+                  child: LinearProgressIndicator(
+                    backgroundColor: AppColors.surface,
+                    color: AppColors.green,
+                    minHeight: 8,
+                    borderRadius: BorderRadius.all(Radius.circular(4)),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'AI 正在分析内容并生成题目，请稍候...',
-              style: TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 32),
-            // 进度指示器
-            const SizedBox(
-              width: 200,
-              child: LinearProgressIndicator(
-                backgroundColor: AppColors.surface,
-                color: AppColors.green,
-                minHeight: 8,
-                borderRadius: BorderRadius.all(Radius.circular(4)),
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

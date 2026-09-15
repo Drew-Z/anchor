@@ -8,9 +8,9 @@
   - Android 原生依赖通过 `settings.gradle.kts` 中的插件管理器（Plugin Management）自动加载 Flutter 插件及 Android/Kotlin 插件。
 
 ### 2. 关键配置文件
-- **`pubspec.yaml`**: 定义应用元数据（名称 `dlg_q`，版本 `1.0.0+1`）、Dart 依赖（如 `flutter_riverpod`, `dio`）及资源文件路径。
+- **`pubspec.yaml`**: 定义应用元数据（名称 `anchor_learning`，版本 `1.0.0+1`）、Dart 依赖（如 `flutter_riverpod`, `dio`）及资源文件路径。
 - **`android/build.gradle.kts`**: 根级 Gradle 配置，统一设置仓库源（Google, MavenCentral）并自定义构建输出目录至项目根目录的 `build/` 文件夹。
-- **`android/app/build.gradle.kts`**: 应用级配置，指定包名 `com.example.dlg_q`，编译 SDK 版本跟随 Flutter 配置，Java/Kotlin 编译目标设为 **JVM 17**。
+- **`android/app/build.gradle.kts`**: 应用级配置，指定包名 `cc.eu.playlab.anchor`，编译 SDK 版本跟随 Flutter 配置，Java/Kotlin 编译目标设为 **JVM 17**。
 - **`analysis_options.yaml`**: 集成 `flutter_lints` 进行静态代码分析，确保代码规范。
 
 ### 3. 构建约定与流程

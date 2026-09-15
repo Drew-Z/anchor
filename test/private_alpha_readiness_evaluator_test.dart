@@ -1,5 +1,5 @@
-import 'package:dlg_q/services/release/private_alpha_readiness.dart';
-import 'package:dlg_q/services/release/private_alpha_readiness_evaluator.dart';
+import 'package:anchor_learning/services/release/private_alpha_readiness.dart';
+import 'package:anchor_learning/services/release/private_alpha_readiness_evaluator.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/private_alpha_readiness_test_fixture.dart';
@@ -21,7 +21,8 @@ void main() {
     expect(report.blockers, isEmpty);
   });
 
-  test('keeps a complete NO-GO study bundle on HOLD', () async {
+  test('ignores optional cohort study decisions for release readiness',
+      () async {
     final fixture = await createPrivateAlphaReadinessFixture(
       evaluatedAt,
       decision: 'noGo',
@@ -34,10 +35,7 @@ void main() {
       evaluatedAt: evaluatedAt,
     );
 
-    expect(report.status, PrivateAlphaReadinessStatus.hold);
-    expect(
-      report.blockers,
-      ['release_consistency_cohort_decision_not_go'],
-    );
+    expect(report.status, PrivateAlphaReadinessStatus.go);
+    expect(report.blockers, isEmpty);
   });
 }

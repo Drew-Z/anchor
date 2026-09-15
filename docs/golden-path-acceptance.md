@@ -16,7 +16,7 @@ project source
 -> next interview entry
 ```
 
-The fixture studies Duoduo's own durable tool checkpoint implementation. The
+The fixture studies Anchor Learning's own durable tool checkpoint implementation. The
 project directory scanner imports these files on every run:
 
 - `lib/services/agent/learning_agent_state.dart`
@@ -28,7 +28,7 @@ question, feedback citation, and review action must resolve to chunks built by
 
 ## Fixed Inputs
 
-- Fixture: `test/fixtures/golden_path/duoduo_checkpoint_fixture.json`
+- Fixture: `test/fixtures/golden_path/anchor-learning_checkpoint_fixture.json`
 - Test: `test/golden_path_test.dart`
 - Storage: a fresh in-memory SQLite schema v17 database
 - AI boundary: a queued fake `OpenAIService` with five ordered JSON responses

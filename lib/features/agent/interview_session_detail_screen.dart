@@ -29,12 +29,23 @@ class InterviewSessionDetailScreen extends ConsumerWidget {
         child: turnsAsync.when(
           data: (turns) {
             if (turns.isEmpty) {
-              return const _EmptyReview();
+              return _EmptyReview(
+                session: session,
+                canResume: _hasResumePath(session, turns),
+              );
             }
 
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                if (session.endedAt == null) ...[
+                  _IncompleteInterviewNotice(
+                    session: session,
+                    turnCount: turns.length,
+                    canResume: _hasResumePath(session, turns),
+                  ),
+                  const SizedBox(height: 14),
+                ],
                 _SessionSummary(session: session, turns: turns),
                 const SizedBox(height: 14),
                 for (var i = 0; i < turns.length; i++) ...[
@@ -415,21 +426,132 @@ class _MetaChip extends StatelessWidget {
 }
 
 class _EmptyReview extends StatelessWidget {
-  const _EmptyReview();
+  final LearningSession session;
+  final bool canResume;
+
+  const _EmptyReview({required this.session, required this.canResume});
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Text(
-        '这次面试还没有保存回合',
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textSecondary,
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: _IncompleteInterviewNotice(
+          session: session,
+          turnCount: 0,
+          canResume: canResume,
         ),
       ),
     );
   }
+}
+
+class _IncompleteInterviewNotice extends ConsumerWidget {
+  final LearningSession session;
+  final int turnCount;
+  final bool canResume;
+
+  const _IncompleteInterviewNotice({
+    required this.session,
+    required this.turnCount,
+    required this.canResume,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isIncomplete = session.endedAt == null;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isIncomplete
+            ? AppColors.gold.withValues(alpha: 0.12)
+            : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isIncomplete ? AppColors.gold : AppColors.border,
+          width: 2,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            isIncomplete ? '这次面试尚未完成' : '这次面试还没有保存回合',
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            isIncomplete
+                ? canResume
+                    ? '已保存 $turnCount 轮评分。继续后会恢复未完成的来源约束问题。'
+                    : '已保存 $turnCount 轮评分。本次没有可恢复的问题，可以完成面试。'
+                : '本次未产生可复盘的评分记录。',
+            style: const TextStyle(
+              fontSize: 14,
+              height: 1.45,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          if (isIncomplete) ...[
+            const SizedBox(height: 14),
+            FilledButton.icon(
+              onPressed: canResume
+                  ? () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              InterviewSessionScreen(resumeSession: session),
+                        ),
+                      );
+                    }
+                  : () async {
+                      final completedSession = session.copyWith(
+                        endedAt: DateTime.now(),
+                        xpGained: turnCount * 15,
+                        summary: '完成 $turnCount 轮项目面试训练',
+                      );
+                      await ref
+                          .read(learningSessionRepositoryProvider)
+                          .updateLearningSession(completedSession);
+                      invalidateAgentLearningRecordProviders(ref);
+                      if (context.mounted) Navigator.of(context).pop();
+                    },
+              icon: Icon(canResume ? Icons.play_arrow : Icons.check),
+              label: Text(canResume ? '继续面试' : '完成面试'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+bool _hasResumePath(LearningSession session, List<InterviewTurn> turns) {
+  if (session.endedAt != null) return false;
+  final targetIds =
+      session.targetId?.split('\x00').where((id) => id.isNotEmpty).toSet() ??
+          const <String>{};
+  if (targetIds.isEmpty) return false;
+
+  final pointCounts = <String, int>{};
+  for (final turn in turns) {
+    final pointId = turn.knowledgePointId;
+    if (pointId == null || pointId.isEmpty) continue;
+    pointCounts[pointId] = (pointCounts[pointId] ?? 0) + 1;
+  }
+  final latest = turns.isEmpty ? null : turns.last;
+  if (latest != null &&
+      latest.knowledgePointId != null &&
+      latest.nextInterviewQuestion.trim().isNotEmpty &&
+      pointCounts[latest.knowledgePointId!] == 1) {
+    return true;
+  }
+  return targetIds.any((id) => !pointCounts.containsKey(id));
 }
 
 String _dateText(DateTime value) {

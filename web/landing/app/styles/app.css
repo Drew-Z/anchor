@@ -1,0 +1,3251 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/*
+ * Theme tokens. `:root` carries the light palette; `[data-theme="dark"]` overrides
+ * the same names. Every colour used by this stylesheet lives here so a theme switch
+ * cannot leave a hardcoded literal behind. The app sets `data-theme` on <html>;
+ * inline styles are unavailable because the deployed CSP uses `style-src 'self'`.
+ *
+ * These names and values are the shared contract with the landing page
+ * (`../../styles/main.css`). The landing document is permanently dark, so it starts
+ * from this file's dark polarity and re-scopes the same names inside its light
+ * bands; where both files name a role, the value here is the one that wins. The
+ * roles held in common are the ink family, the paper/panel neutrals, the
+ * green/deep-green pair with its on-colours, the evidence material, the hairlines,
+ * and the radius scale. Changing one of those here means changing it there too.
+ */
+:root {
+  color-scheme: light;
+  --ink: #0b1210;
+  --ink-raised: #14211d;
+  --paper: #f5f7f3;
+  --panel: #ffffff;
+  --panel-muted: #edf1ec;
+  --text: #15201c;
+  --text-muted: #5a6861;
+  --text-inverse: #f7faf6;
+  --chrome-text: #c4d0ca;
+  --green: #11845c;
+  --green-deep: #0d6e4d;
+  --green-bright: #3ddc97;
+  --green-soft: #dff5ea;
+  /* Green text on a light surface has to clear 4.5:1 on the lightest thing it ever
+     sits on, which is `--panel`, and on the washes it labels. `--green` itself only
+     reaches 4.35:1 on `--paper`, so the text role takes the deeper green: 5.8 on
+     paper, 6.3 on panel, 5.5 on green-soft. `--green` stays the fill and border
+     value, where white-on-it is the pairing that matters. */
+  --accent-text: #0d6e4d;
+  --accent-ink: #0a5c3f;
+  --accent-line: #81bda5;
+  --accent-line-strong: #7aa992;
+  --accent-line-soft: #a6c6b8;
+  --accent-wash: #f0faf5;
+  --accent-wash-card: #f4fbf7;
+  --accent-wash-panel: #f6fbf8;
+  --on-accent: #ffffff;
+  --on-bright: #052217;
+  --yellow: #f4c95d;
+  --evidence-soft: #fffdf4;
+  --evidence-wash: #fdf3d8;
+  --evidence-text: #6b5a21;
+  --evidence-quote: #51491f;
+  /* The rail that marks checked evidence. It is the one part of the evidence material
+     that has to hold its own against the surface behind it, so it is a token rather
+     than `--yellow`: bright yellow reaches only 1.5:1 on these near-white fills, while
+     this deeper amber clears 3:1 on evidence-soft, evidence-wash, paper, and panel and
+     stays in the same warm family. In dark theme the surfaces invert and `--yellow`
+     itself is already well clear, so that is what the rail becomes. */
+  --evidence-rail: #a9781a;
+  --mark: #ffe08a;
+  --mark-text: #3f3208;
+  --coral: #d85e4d;
+  --coral-deep: #bf4a3a;
+  --coral-soft: #fde8e4;
+  --danger-text: #7c2f22;
+  --on-danger: #ffffff;
+  --line: #ccd5d0;
+  --line-dark: #2c4139;
+  --track: #dde3df;
+  --scrim: rgba(11, 18, 16, 0.44);
+  /* Two steps, and every corner in this file is one of them: `--radius-sm` for controls
+     and inline marks, `--radius` for anything that reads as a surface (cards, panels,
+     inputs, media). The values this replaced ran 3/4/6/7/8px, which was five steps for
+     two jobs. Circles stay `50%`; that is a shape, not a step on this scale. */
+  --radius-sm: 4px;
+  --radius: 8px;
+  --header-height: 64px;
+  --sidebar-width: 286px;
+  --tabbar-height: 58px;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #05100c;
+  --ink-raised: #0e1c17;
+  --paper: #0f1613;
+  --panel: #17221e;
+  --panel-muted: #1c2723;
+  --text: #e8efea;
+  --text-muted: #a6b5ae;
+  --green: #1b9d70;
+  --green-deep: #24b881;
+  --green-soft: #133429;
+  --accent-text: #57d3a1;
+  --accent-ink: #8ce6bb;
+  --accent-line: #2f6d57;
+  --accent-line-strong: #3d7f66;
+  --accent-line-soft: #2c5f4d;
+  --accent-wash: #10241d;
+  --accent-wash-card: #11241e;
+  --accent-wash-panel: #12261f;
+  --on-accent: #04150f;
+  --evidence-soft: #2a2413;
+  --evidence-wash: #33290f;
+  --evidence-text: #e6cf94;
+  --evidence-quote: #ded4b0;
+  /* Dark surfaces put the rail well clear on its own: 9.8:1 on evidence-soft. */
+  --evidence-rail: #f4c95d;
+  --mark: #5c4a15;
+  --mark-text: #ffe9b0;
+  --coral: #e8705f;
+  --coral-deep: #f08877;
+  --coral-soft: #3a1f1a;
+  --danger-text: #ffb3a3;
+  --line: #2c3b35;
+  --line-dark: #24352e;
+  --track: #253630;
+  --scrim: rgba(2, 7, 5, 0.62);
+}
+
+html,
+body {
+  min-width: 320px;
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background: var(--paper);
+  color: var(--text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  letter-spacing: 0;
+}
+
+button,
+a,
+input {
+  font: inherit;
+  letter-spacing: 0;
+}
+
+button {
+  cursor: pointer;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.16;
+  letter-spacing: 0;
+}
+
+.skip-link {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+  z-index: 1000;
+}
+
+.skip-link:focus {
+  top: 8px;
+  left: 8px;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 9px 12px;
+  overflow: visible;
+  clip: auto;
+  border-radius: var(--radius-sm);
+  background: var(--yellow);
+  color: var(--ink);
+}
+
+.app-header {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 100;
+  display: flex;
+  height: var(--header-height);
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--line-dark);
+  background: var(--ink);
+  color: var(--text-inverse);
+}
+
+.app-brand {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-brand img {
+  width: 30px;
+  height: 30px;
+}
+
+.app-brand div {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.app-brand strong {
+  overflow: hidden;
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-brand span {
+  color: var(--green-bright);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.app-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.back-link {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 7px;
+  color: var(--chrome-text);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.back-link:hover {
+  color: var(--green-bright);
+}
+
+.locale-switch {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  width: 108px;
+  height: 36px;
+  border: 1px solid var(--line-dark);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--ink-raised);
+}
+
+.locale-switch button {
+  border: 0;
+  background: transparent;
+  color: var(--chrome-text);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.locale-switch button[aria-pressed="true"] {
+  background: var(--green-bright);
+  color: var(--on-bright);
+}
+
+.icon-button {
+  display: inline-flex;
+  width: 38px;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line-dark);
+  border-radius: var(--radius-sm);
+  background: var(--ink-raised);
+  color: var(--text-inverse);
+}
+
+.dataset-menu-button {
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dataset-menu-button span {
+  width: 18px;
+  height: 2px;
+  background: currentColor;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  height: 100vh;
+  padding-top: var(--header-height);
+}
+
+.app-sidebar {
+  display: flex;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px 18px 18px;
+  border-right: 1px solid var(--line);
+  background: var(--panel-muted);
+  flex-direction: column;
+  gap: 18px;
+}
+
+/*
+ * The drawer's scrim. It never paints outside the drawer breakpoint, where the sidebar is a permanent
+ * column with nothing to dim, and it sits under the drawer (90) while staying over the content. The
+ * header (100) and the tab bar (95) remain above it, so the trigger that closes the drawer and the
+ * primary navigation are still reachable while it is up.
+ */
+.app-scrim {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 88;
+  background: var(--scrim);
+}
+
+.sidebar-top {
+  display: none;
+  justify-content: flex-end;
+}
+
+.sidebar-block {
+  min-width: 0;
+}
+
+.sidebar-block .eyebrow {
+  margin-bottom: 8px;
+}
+
+.app-nav {
+  display: grid;
+  gap: 3px;
+}
+
+.nav-link {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 11px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.nav-link:hover {
+  border-color: var(--line);
+  background: var(--panel);
+}
+
+.nav-link[aria-current="page"] {
+  border-color: var(--accent-line);
+  background: var(--green-soft);
+  color: var(--accent-ink);
+}
+
+.nav-link span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-icon {
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sidebar-import {
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.eyebrow {
+  margin-bottom: 0;
+  color: var(--accent-text);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.sidebar-close {
+  display: none;
+  color: var(--text-inverse);
+  font-size: 24px;
+}
+
+.dataset-list {
+  display: grid;
+  gap: 7px;
+}
+
+.dataset-button {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 58px;
+  padding: 9px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+}
+
+.dataset-button:hover {
+  border-color: var(--line);
+  background: var(--panel);
+}
+
+.dataset-button[aria-current="page"] {
+  border-color: var(--accent-line);
+  background: var(--green-soft);
+}
+
+.dataset-mark {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--ink);
+  color: var(--green-bright);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.dataset-label {
+  min-width: 0;
+}
+
+.dataset-label strong,
+.dataset-label span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dataset-label strong {
+  font-size: 14px;
+}
+
+.dataset-label span,
+.dataset-progress {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.dataset-progress {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.privacy-note {
+  margin-top: auto;
+  padding: 16px 2px 14px;
+  border-top: 1px solid var(--line);
+}
+
+.privacy-note strong {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 12px;
+}
+
+.privacy-note p {
+  margin-bottom: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.reset-button {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.reset-button:hover {
+  border-color: var(--coral);
+  color: var(--coral);
+}
+
+.app-content {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--paper);
+}
+
+.shell-view,
+.welcome-view,
+.quiz-view,
+.completion-view {
+  width: min(calc(100% - 48px), 920px);
+  margin: 0 auto;
+  padding: 54px 0 72px;
+}
+
+.welcome-view {
+  min-height: calc(100vh - var(--header-height));
+}
+
+.welcome-heading {
+  max-width: 680px;
+  margin-bottom: 44px;
+}
+
+.welcome-heading h1,
+.completion-view h1 {
+  margin-bottom: 16px;
+  font-size: 42px;
+}
+
+.welcome-heading p,
+.completion-view > p {
+  color: var(--text-muted);
+  font-size: 17px;
+}
+
+.dataset-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-block: 1px solid var(--line);
+}
+
+.dataset-choice {
+  min-width: 0;
+  padding: 26px 22px;
+  border: 0;
+  border-right: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+}
+
+.dataset-choice:last-child {
+  border-right: 0;
+}
+
+.dataset-choice:hover {
+  background: var(--green-soft);
+}
+
+.dataset-choice .dataset-mark {
+  margin-bottom: 24px;
+}
+
+.dataset-choice h2 {
+  margin-bottom: 9px;
+  font-size: 21px;
+}
+
+.dataset-choice p {
+  min-height: 70px;
+  margin-bottom: 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.dataset-choice footer {
+  display: flex;
+  justify-content: space-between;
+  color: var(--accent-text);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+/* Deck library. The toolbar sits above the grid: the field filters what is already on the page, and the
+   import link is the only way out of bundled material, mirroring the Android deck list's add button. */
+.deck-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 14px 24px;
+  margin-bottom: 4px;
+}
+
+.deck-search-field {
+  max-width: 420px;
+}
+
+.deck-import-link {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.deck-status {
+  margin: 16px 0 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.deck-empty {
+  max-width: 62ch;
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* The card is one button, so its parts stack rather than relying on a nested grid the button would
+   flatten for assistive technology. */
+.deck-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.deck-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.deck-card:disabled:hover {
+  background: transparent;
+}
+
+.deck-card p {
+  margin-bottom: 14px;
+}
+
+.deck-card-verified {
+  margin-bottom: 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.deck-card-progress {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 18px;
+}
+
+/* The track and its fill are spans, because the card is a button and its content stays phrasing-level.
+   Both need an explicit box: an inline element ignores the width the decile class sets. */
+.deck-progress-track {
+  display: block;
+  grid-column: auto;
+}
+
+.deck-progress-track .progress-bar {
+  display: block;
+}
+
+.deck-card-percent {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.deck-card footer {
+  margin-top: auto;
+  gap: 12px;
+}
+
+.deck-card-action {
+  text-align: right;
+}
+
+/* A finished deck deepens the bar. The Android list shades three mastery tiers, but this palette has no
+   third bar colour that clears 3:1 against `--track` in both themes, so the tier stays in the text and
+   the action label and colour is never the only thing carrying it. */
+.deck-card[data-deck-tier='complete'] .progress-bar {
+  background: var(--green-deep);
+}
+
+.quiz-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 22px;
+  margin-bottom: 30px;
+}
+
+.quiz-header h1 {
+  margin: 0 0 6px;
+  font-size: 26px;
+}
+
+.quiz-header p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.score-block {
+  text-align: right;
+}
+
+.score-block span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.score-block strong {
+  font-size: 22px;
+}
+
+.progress-track {
+  grid-column: 1 / -1;
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--track);
+}
+
+.progress-bar {
+  height: 100%;
+  background: var(--green);
+  transition: width 180ms ease;
+}
+
+.progress-step-0 { width: 0; }
+.progress-step-1 { width: 25%; }
+.progress-step-2 { width: 50%; }
+.progress-step-3 { width: 75%; }
+.progress-step-4 { width: 100%; }
+
+.question-panel {
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 32px 0;
+}
+
+.question-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.question-kind,
+.source-kind {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--panel-muted);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.question-index {
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.question-title {
+  max-width: 790px;
+  margin-bottom: 8px;
+  font-size: 28px;
+}
+
+.question-instruction {
+  margin-bottom: 24px;
+  color: var(--text-muted);
+}
+
+.answer-list {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.answer-option {
+  position: relative;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  min-height: 52px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  cursor: pointer;
+}
+
+.answer-option:hover {
+  border-color: var(--accent-line-strong);
+}
+
+.answer-option:has(input:checked) {
+  border-color: var(--green);
+  background: var(--green-soft);
+}
+
+.answer-option input {
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: var(--green);
+}
+
+.answer-option.is-correct {
+  border-color: var(--green);
+  background: var(--green-soft);
+}
+
+.answer-option.is-incorrect {
+  border-color: var(--coral);
+  background: var(--coral-soft);
+}
+
+.question-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.action-group {
+  display: flex;
+  gap: 10px;
+}
+
+.button {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 16px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-weight: 750;
+}
+
+.button-primary {
+  background: var(--green);
+  color: var(--on-accent);
+}
+
+.button-primary:hover {
+  background: var(--green-deep);
+}
+
+.button-secondary {
+  border-color: var(--line);
+  background: var(--panel);
+  color: var(--text);
+}
+
+.button-secondary:hover {
+  border-color: var(--accent-text);
+  color: var(--accent-text);
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.feedback-panel {
+  margin-top: 26px;
+  border-top: 1px solid var(--line);
+  padding-top: 26px;
+}
+
+.feedback-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  font-size: 16px;
+}
+
+.feedback-status span {
+  display: inline-flex;
+  width: 26px;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--green-soft);
+  color: var(--accent-ink);
+  font-weight: 900;
+}
+
+.feedback-status.is-incorrect span {
+  background: var(--coral-soft);
+  color: var(--coral);
+}
+
+.explanation-block h2,
+.citation-section h2,
+.tutor-panel h2 {
+  margin-bottom: 8px;
+  font-size: 15px;
+}
+
+.explanation-block p {
+  max-width: 760px;
+  color: var(--text-muted);
+}
+
+.citation-section {
+  margin-top: 22px;
+}
+
+.citation-list {
+  display: grid;
+  gap: 10px;
+}
+
+.citation-item {
+  border-left: 3px solid var(--evidence-rail);
+  background: var(--evidence-soft);
+  padding: 14px 16px;
+}
+
+.citation-locator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 7px;
+  color: var(--evidence-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.citation-item blockquote {
+  margin: 0;
+  color: var(--evidence-quote);
+  font-size: 13px;
+}
+
+.tutor-trigger {
+  margin-top: 22px;
+}
+
+.tutor-panel {
+  margin-top: 12px;
+  padding: 18px;
+  border: 1px solid var(--accent-line-soft);
+  border-radius: var(--radius);
+  background: var(--accent-wash);
+}
+
+.tutor-disclosure {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.tutor-panel ul {
+  margin: 14px 0 0;
+  padding-left: 22px;
+}
+
+.tutor-panel li + li {
+  margin-top: 8px;
+}
+
+/*
+ * The completion screen carries a full per-question review, so it is taller than the viewport on every
+ * deck. `flex-start` keeps the score and the first review row reachable: centring a list this tall inside a
+ * scrolling parent pushes its top edge above the scroll origin, where it cannot be scrolled back to.
+ */
+.completion-view {
+  display: flex;
+  min-height: calc(100vh - var(--header-height));
+  align-items: flex-start;
+}
+
+.completion-inner {
+  width: 100%;
+  padding: 44px 0;
+}
+
+.completion-score {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 32px 0;
+}
+
+.completion-score strong {
+  color: var(--accent-text);
+  font-size: 64px;
+}
+
+.completion-score span {
+  color: var(--text-muted);
+  font-size: 18px;
+}
+
+.completion-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Completion review: one row per question, with the stored answer beside the dataset's own */
+
+.completion-review {
+  margin-top: 44px;
+  padding-top: 32px;
+  border-top: 1px solid var(--line);
+}
+
+.completion-review h2 {
+  margin-bottom: 8px;
+  font-size: 22px;
+}
+
+.completion-review-summary {
+  margin-top: 14px;
+  color: var(--text);
+  font-weight: 750;
+}
+
+.completion-review-gap {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--evidence-rail);
+  background: var(--evidence-soft);
+  color: var(--evidence-text);
+  font-size: 13px;
+}
+
+.completion-review-list {
+  display: grid;
+  gap: 16px;
+  margin: 22px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * The left border is the status: green for supported, coral for not, grey when nothing was stored. It repeats
+ * what the label already says in words, so colour is never the only carrier.
+ */
+.completion-review-row {
+  min-width: 0;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--text-muted);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.completion-review-row.is-correct {
+  border-left-color: var(--green);
+}
+
+.completion-review-row.is-incorrect {
+  border-left-color: var(--coral);
+}
+
+.completion-row-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.completion-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: var(--radius-sm);
+  background: var(--panel-muted);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.is-correct .completion-status {
+  background: var(--green-soft);
+  color: var(--accent-ink);
+}
+
+.is-incorrect .completion-status {
+  background: var(--coral-soft);
+  color: var(--coral-deep);
+}
+
+.completion-status-mark {
+  font-size: 12px;
+}
+
+.completion-row-prompt {
+  margin-bottom: 14px;
+  font-size: 16px;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+.completion-answers {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.completion-answer {
+  padding: 10px 12px;
+  border-left: 3px solid var(--line);
+  background: var(--panel-muted);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.completion-answer-mine {
+  border-left-color: var(--text-muted);
+}
+
+.is-correct .completion-answer-mine {
+  border-left-color: var(--green);
+}
+
+.is-incorrect .completion-answer-mine {
+  border-left-color: var(--coral);
+}
+
+.completion-answer-expected {
+  border-left-color: var(--green);
+}
+
+.completion-answer-label {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.completion-answer-value.is-empty {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Every surface links a citation back to its passage, so all of them read the same: the quiz feedback panel,
+   the completion review, and both Agent panels. A long locator can be the whole label, so the text wraps and
+   breaks rather than pushing the citation card past the viewport. */
+.agent-source-link,
+.completion-source-link,
+.feedback-source-link {
+  display: inline-block;
+  margin-top: 10px;
+  color: var(--accent-text);
+  font-size: 12px;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+.agent-source-hint,
+.agent-source-note,
+.feedback-source-hint,
+.feedback-source-note {
+  margin-top: 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.completion-row-note {
+  margin-bottom: 14px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.completion-row-actions {
+  margin-top: 14px;
+}
+
+.completion-review .tutor-disclosure {
+  margin-top: 20px;
+}
+
+.app-tabbar {
+  display: none;
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 95;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  height: var(--tabbar-height);
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.tab-link {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 2px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.tab-link span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab-link[aria-current="page"] {
+  color: var(--accent-text);
+}
+
+.view-heading {
+  max-width: 700px;
+  margin-bottom: 26px;
+}
+
+.view-heading h1 {
+  margin-bottom: 12px;
+  font-size: 34px;
+}
+
+.view-lead {
+  margin-bottom: 0;
+  color: var(--text-muted);
+  font-size: 16px;
+}
+
+.view-breadcrumb {
+  margin-bottom: 18px;
+}
+
+.view-breadcrumb a {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.view-breadcrumb a:hover {
+  color: var(--accent-text);
+}
+
+.shell-scope {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 28px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.shell-scope span:last-child {
+  min-width: 0;
+  flex: 1 1 220px;
+}
+
+.shell-scope-footer {
+  margin: 30px 0 20px;
+}
+
+.scope-badge {
+  display: inline-flex;
+  min-height: 22px;
+  flex: 0 0 auto;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.scope-local {
+  background: var(--green-soft);
+  color: var(--accent-ink);
+}
+
+.scope-android {
+  background: var(--evidence-wash);
+  color: var(--evidence-text);
+}
+
+/* Today's local count. A panel rather than a stat card, because it carries a bar and the two lines of
+   scope copy that keep it from reading as a streak or a server-side schedule. */
+.today-card {
+  padding: 16px 18px;
+  margin-bottom: 18px;
+  border: 1px solid var(--accent-line-soft);
+  border-radius: var(--radius);
+  background: var(--accent-wash-card);
+}
+
+.today-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px 14px;
+  margin-bottom: 10px;
+}
+
+.today-head h2 {
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.today-head strong {
+  flex: 0 0 auto;
+  font-size: 15px;
+}
+
+.today-track {
+  grid-column: auto;
+}
+
+.today-status {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.today-status.is-done {
+  color: var(--accent-text);
+}
+
+.today-note {
+  max-width: 62ch;
+  margin-top: 8px;
+  margin-bottom: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 26px;
+}
+
+/* Home reports a fourth number, coverage, so it gets its own column count. Profile keeps three. */
+.stat-grid-home {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.stat-card {
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.stat-card span {
+  display: block;
+  overflow: hidden;
+  margin-bottom: 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.stat-card strong {
+  font-size: 26px;
+}
+
+.stat-card small {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.shell-cards {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 34px;
+}
+
+/* Four equal next actions read as a set of choices; one column would rank them by accident. */
+.action-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.home-focus {
+  margin-bottom: 30px;
+}
+
+/* `.shell-card p` is the more specific selector for this paragraph, so the eyebrow restates itself. */
+.shell-card-accent .eyebrow {
+  margin-bottom: 2px;
+  color: var(--accent-text);
+  font-size: 11px;
+}
+
+.shell-card {
+  min-width: 0;
+  padding: 20px 22px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.shell-card-accent {
+  border-color: var(--accent-line-soft);
+  background: var(--accent-wash-card);
+}
+
+.shell-card h2 {
+  margin-bottom: 8px;
+  font-size: 17px;
+}
+
+.shell-card p {
+  max-width: 62ch;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.shell-card .button {
+  margin-top: 4px;
+}
+
+.shell-card-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  margin-bottom: 8px;
+}
+
+.shell-card-head h2 {
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.shell-card-head p {
+  margin: 2px 0 0;
+}
+
+.shell-card-head .dataset-mark {
+  flex: 0 0 auto;
+}
+
+/* Home's Agent slot when a guided session is stored. It sits in the four-up action grid, so the lines
+   under the head are tight: dataset, turn counter, bar, reflection count, storage scope. Selectors are
+   `.shell-card` descendants so they outrank the shared `.shell-card p` rule above. */
+.shell-card .home-agent-counter {
+  margin: 10px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.home-agent-track {
+  grid-column: auto;
+  margin-top: 8px;
+}
+
+.shell-card .home-agent-written {
+  margin: 8px 0 0;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.shell-card .home-agent-written.is-done {
+  color: var(--accent-text);
+}
+
+.shell-card .home-agent-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+
+.card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.scope-list {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.scope-list li + li {
+  margin-top: 6px;
+}
+
+.shell-section h2 {
+  margin-bottom: 6px;
+  font-size: 20px;
+}
+
+.section-lead {
+  max-width: 62ch;
+  margin-bottom: 16px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.plan-list,
+.loop-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plan-list {
+  display: grid;
+  gap: 8px;
+}
+
+.plan-summary {
+  margin-bottom: 14px;
+  color: var(--accent-text);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.plan-row {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--text);
+  text-decoration: none;
+}
+
+/* Last in the row so the label, status, and arrow stay on one line and the bar takes the next.
+   The track and its fill are spans, because the row is a link and its content stays phrasing-level. */
+.plan-track {
+  display: block;
+}
+
+.plan-track .progress-bar {
+  display: block;
+}
+
+.plan-row:hover {
+  border-color: var(--accent-line);
+  background: var(--green-soft);
+}
+
+.plan-label {
+  min-width: 0;
+}
+
+.plan-label strong,
+.plan-label span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plan-label strong {
+  font-size: 14px;
+}
+
+.plan-label span {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.plan-status {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.plan-status.is-done {
+  color: var(--accent-text);
+}
+
+.plan-arrow {
+  color: var(--text-muted);
+}
+
+.source-group {
+  margin-bottom: 26px;
+}
+
+.source-group-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.source-group-head h2 {
+  min-width: 0;
+  margin-bottom: 0;
+  font-size: 18px;
+}
+
+.source-group-link {
+  margin-left: auto;
+  color: var(--accent-text);
+  font-size: 12px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.citation-question {
+  margin: 10px 0 0;
+  color: var(--evidence-text);
+  font-size: 12px;
+}
+
+.citation-question span {
+  margin-right: 6px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.loop-list {
+  display: grid;
+  gap: 10px;
+}
+
+.loop-list li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.loop-index {
+  display: inline-flex;
+  width: 26px;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--panel-muted);
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.loop-list strong {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 14px;
+}
+
+.loop-list p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* Browser-local import */
+
+.import-panel {
+  margin-bottom: 26px;
+}
+
+.import-drop {
+  position: relative;
+  border: 2px dashed var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.import-drop:hover,
+.import-drop.is-dragging {
+  border-color: var(--accent-text);
+  background: var(--green-soft);
+}
+
+/* The native control is layered over the whole zone so a click anywhere opens the picker. */
+.import-file {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.import-drop:focus-within {
+  outline: 3px solid var(--yellow);
+  outline-offset: 3px;
+}
+
+.import-drop-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 30px 20px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.import-drop-label .nav-icon {
+  width: 24px;
+  height: 24px;
+  color: var(--accent-text);
+}
+
+.import-drop-label strong {
+  font-size: 15px;
+}
+
+.import-drop-label span {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.import-limits {
+  margin: 10px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.import-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 12px 0 0;
+  border-left: 3px solid var(--coral);
+  background: var(--coral-soft);
+  padding: 12px 14px;
+  color: var(--danger-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.import-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin: 16px 0 0;
+}
+
+.import-meta dt {
+  margin-bottom: 3px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.import-meta dd {
+  margin: 0;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+/* Browser library: sources the learner imported, kept visually distinct from bundled data */
+
+.local-library {
+  margin-bottom: 26px;
+  padding: 20px;
+  border: 1px solid var(--accent-line-soft);
+  border-radius: var(--radius);
+  background: var(--accent-wash-panel);
+}
+
+.local-library:focus {
+  outline: none;
+}
+
+.local-empty {
+  margin-bottom: 14px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.local-source-list {
+  display: grid;
+  gap: 12px;
+}
+
+.local-source {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.local-source-head {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+}
+
+.local-source-title {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.local-source-title strong {
+  display: block;
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+
+.local-source-title span {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.local-source-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.local-source-actions .button {
+  min-height: 36px;
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.local-truncated {
+  margin: 12px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.local-section-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+/* Grey, not the yellow of `.citation-item`: an imported excerpt is unverified file text. */
+.local-section {
+  border-left: 3px solid var(--line);
+  background: var(--panel-muted);
+  padding: 12px 14px;
+}
+
+.local-section-locator {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px 12px;
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.local-section-kind {
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.local-section-heading {
+  margin: 7px 0 0;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.local-section-text {
+  margin: 6px 0 0;
+  color: var(--text);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.local-confirm {
+  margin-top: 14px;
+  border: 1px solid var(--coral);
+  border-radius: var(--radius);
+  background: var(--coral-soft);
+  padding: 14px 16px;
+}
+
+.local-confirm-title {
+  margin: 0;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.local-confirm-body {
+  margin: 5px 0 0;
+  color: var(--danger-text);
+  font-size: 13px;
+}
+
+.local-confirm .card-actions {
+  margin-top: 12px;
+}
+
+.button-danger {
+  border-color: var(--coral);
+  background: var(--coral);
+  color: var(--on-danger);
+}
+
+.button-danger:hover {
+  background: var(--coral-deep);
+}
+
+.local-no-ai {
+  margin-top: 14px;
+}
+
+.local-reset {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.local-reset h3 {
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.local-reset p {
+  margin: 0 0 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.bundled-library {
+  margin-bottom: 18px;
+}
+
+/* Library search. Matching is literal substring matching over the records already on this page, so the
+   surface stays a filter over what is visible rather than a second, cleverer view of it. The deck
+   surface searches the same way, so it shares this field rather than restating its rules. */
+.library-search {
+  margin-bottom: 18px;
+}
+
+.library-search-field,
+.deck-search-field {
+  display: grid;
+  gap: 7px;
+}
+
+.library-search-label,
+.deck-search-label {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.library-search-row,
+.deck-search-row {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.library-search-input,
+.deck-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+}
+
+.library-search-input:focus,
+.deck-search-input:focus {
+  border-color: var(--green);
+}
+
+.library-search-clear,
+.deck-search-clear {
+  flex: 0 0 auto;
+}
+
+/* `.button` sets an explicit display, which outranks the user-agent rule for [hidden]. */
+.library-search-clear[hidden],
+.deck-search-clear[hidden] {
+  display: none;
+}
+
+.library-search-hint,
+.deck-search-hint {
+  max-width: 62ch;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.library-search-filters {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  align-items: end;
+  gap: 14px 24px;
+  margin-top: 16px;
+}
+
+.library-search-kinds {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.library-search-kinds legend {
+  padding: 0;
+  margin-bottom: 9px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.library-search-kind-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.library-search-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 13px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.library-search-kind:hover {
+  border-color: var(--accent-line-strong);
+}
+
+.library-search-kind:has(input:checked) {
+  border-color: var(--green);
+  background: var(--green-soft);
+}
+
+.library-search-scope {
+  display: grid;
+  gap: 7px;
+}
+
+.library-search-select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+}
+
+.library-search-select:focus {
+  border-color: var(--green);
+}
+
+.library-search-status {
+  margin: 16px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.library-search-results {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.library-search-empty {
+  max-width: 62ch;
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* A result inherits the colour of what it came from: yellow for a checked bundled excerpt, grey for
+   imported file text, the same distinction `.citation-item` and `.local-section` already carry. */
+.library-result {
+  padding: 14px 16px;
+  border-left: 3px solid var(--line);
+  background: var(--panel-muted);
+}
+
+.library-result-bundled {
+  border-left-color: var(--evidence-rail);
+  background: var(--evidence-soft);
+}
+
+.library-result-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px 12px;
+}
+
+.library-result-kind {
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.library-result-scope {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.library-result-scope-name {
+  min-width: 0;
+}
+
+.library-result-locator {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.library-result-bundled .library-result-locator {
+  color: var(--evidence-text);
+}
+
+.library-result-detail {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.library-result-detail span {
+  margin-right: 6px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.library-result-bundled .library-result-detail {
+  color: var(--evidence-text);
+}
+
+.library-result-text {
+  margin: 8px 0 0;
+  color: var(--text);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.library-result-bundled .library-result-text {
+  color: var(--evidence-quote);
+}
+
+/* Highlight tokens of its own: the evidence material already spends the warm family on "checked
+   evidence" here, and the mark has to stay legible on both the bundled card and the grey imported
+   one, in both themes. */
+.library-result mark {
+  padding: 0 1px;
+  border-radius: var(--radius-sm);
+  background: var(--mark);
+  color: var(--mark-text);
+  font-weight: 800;
+}
+
+.library-result-reason {
+  margin: 10px 0 0;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.library-result-reason span {
+  margin-right: 6px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.library-result-note {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.library-result-actions {
+  margin-top: 12px;
+}
+
+.local-section:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+
+/* The section a search result addressed. Focus alone would not show it: these panels are only
+   programmatically focusable, so they draw no focus ring, and after a reload nothing on screen would say
+   which passage the link was for. Kept to the left rule and a tint, so it marks the target without
+   promoting imported file text to the yellow of a checked `.citation-item`. */
+.local-section.is-section-target {
+  border-left-color: var(--green);
+  background: var(--green-soft);
+}
+
+/* The Content-Security-Policy forbids inline styles, so any computed progress width arrives as one of
+   these decile classes instead of a `style` attribute. Shared by the Agent session and the deck cards. */
+.agent-fill-0, .deck-fill-0 { width: 0; }
+.agent-fill-10, .deck-fill-10 { width: 10%; }
+.agent-fill-20, .deck-fill-20 { width: 20%; }
+.agent-fill-30, .deck-fill-30 { width: 30%; }
+.agent-fill-40, .deck-fill-40 { width: 40%; }
+.agent-fill-50, .deck-fill-50 { width: 50%; }
+.agent-fill-60, .deck-fill-60 { width: 60%; }
+.agent-fill-70, .deck-fill-70 { width: 70%; }
+.agent-fill-80, .deck-fill-80 { width: 80%; }
+.agent-fill-90, .deck-fill-90 { width: 90%; }
+.agent-fill-100, .deck-fill-100 { width: 100%; }
+
+.agent-stack {
+  gap: 14px;
+}
+
+.agent-panel {
+  min-width: 0;
+}
+
+.agent-dataset {
+  margin: 2px 0 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.agent-progress {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 18px;
+}
+
+.agent-progress .progress-track {
+  grid-column: auto;
+}
+
+.agent-counter {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.agent-picker {
+  display: grid;
+  gap: 9px;
+  margin: 16px 0;
+  padding: 0;
+  border: 0;
+}
+
+.agent-picker legend {
+  padding: 0;
+  margin-bottom: 9px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.agent-option {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  cursor: pointer;
+}
+
+.agent-option:hover {
+  border-color: var(--accent-line-strong);
+}
+
+.agent-option:has(input:checked) {
+  border-color: var(--green);
+  background: var(--green-soft);
+}
+
+.agent-option input {
+  width: 18px;
+  height: 18px;
+  margin: 3px 0 0;
+  accent-color: var(--green);
+}
+
+.agent-option-body {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.agent-option-body strong {
+  overflow-wrap: anywhere;
+}
+
+.agent-option-body span {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.agent-option-meta {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.agent-turn {
+  min-width: 0;
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+}
+
+.agent-turn h3 {
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+.agent-focus {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.agent-focus code {
+  color: var(--evidence-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.agent-prompt {
+  max-width: 62ch;
+  margin-bottom: 18px;
+  color: var(--text);
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+
+.agent-hints {
+  margin-top: 20px;
+  padding: 16px 18px;
+  border: 1px solid var(--accent-line-soft);
+  border-radius: var(--radius);
+  background: var(--accent-wash);
+}
+
+.agent-hints-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-bottom: 4px;
+}
+
+.agent-hints-head h3 {
+  margin: 0;
+}
+
+.agent-chip {
+  display: inline-flex;
+  min-height: 22px;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--panel-muted);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.agent-hint-list {
+  margin: 12px 0 14px;
+  padding-left: 22px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.agent-hint-list li + li {
+  margin-top: 8px;
+}
+
+.agent-reflection {
+  margin-top: 22px;
+}
+
+.agent-reflection-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.agent-reflection-help {
+  margin: 0 0 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.agent-reflection-input {
+  display: block;
+  width: 100%;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  resize: vertical;
+}
+
+.agent-reflection-input:focus {
+  border-color: var(--green);
+}
+
+.agent-reflection-count {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+}
+
+.agent-error {
+  margin: 10px 0 0;
+  padding: 9px 12px;
+  border-left: 3px solid var(--coral);
+  background: var(--coral-soft);
+  color: var(--danger-text);
+  font-size: 13px;
+}
+
+.agent-actions {
+  margin-top: 20px;
+}
+
+.agent-note {
+  margin: 16px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.agent-note[hidden] {
+  display: none;
+}
+
+.agent-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.agent-recap h3 {
+  margin-bottom: 10px;
+  font-size: 15px;
+}
+
+.agent-recap-list {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.agent-recap-list li {
+  min-width: 0;
+}
+
+.agent-recap-prompt {
+  margin-bottom: 6px;
+  color: var(--text);
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+.agent-recap-mine {
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--green);
+  background: var(--panel);
+  overflow-wrap: anywhere;
+}
+
+.agent-recap-mine span {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+/* Profile and privacy: stored-state inventory, backup, theme, scoped deletions */
+
+.theme-switch {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 38px;
+  margin-top: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--panel);
+}
+
+.theme-switch button {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.theme-switch button:hover {
+  color: var(--accent-text);
+}
+
+.theme-switch button[aria-pressed="true"] {
+  background: var(--green-soft);
+  color: var(--accent-ink);
+}
+
+.theme-switch .nav-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.storage-table {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 0;
+}
+
+.storage-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 4px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.storage-row strong {
+  min-width: 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.storage-size {
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.storage-row span:last-child:not(.storage-size) {
+  grid-column: 1 / -1;
+  color: var(--text-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.storage-key {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.storage-total {
+  margin: 12px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.backup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+/* The restore control is a real file input styled as a button-sized label. */
+.restore-picker {
+  position: relative;
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  color: var(--text);
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.restore-picker:hover {
+  border-color: var(--accent-text);
+  color: var(--accent-text);
+}
+
+.restore-picker:focus-within {
+  outline: 3px solid var(--yellow);
+  outline-offset: 3px;
+}
+
+.restore-picker input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.restore-review {
+  margin-top: 16px;
+  padding: 16px 18px;
+  border: 1px solid var(--accent-line-soft);
+  border-radius: var(--radius);
+  background: var(--accent-wash);
+}
+
+.restore-review:focus {
+  outline: none;
+}
+
+.restore-review h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+
+.restore-review-lead {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.restore-warning {
+  margin: 12px 0 0;
+  border-left: 3px solid var(--coral);
+  background: var(--coral-soft);
+  padding: 10px 12px;
+  color: var(--danger-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.restore-sections {
+  margin: 12px 0 0;
+  padding-left: 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.restore-sections li {
+  overflow-wrap: anywhere;
+}
+
+.privacy-actions {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0 0;
+}
+
+.privacy-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.privacy-row strong {
+  min-width: 0;
+  font-size: 14px;
+}
+
+.privacy-row p {
+  grid-column: 1;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.privacy-row .button {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  white-space: nowrap;
+}
+
+.privacy-row-danger {
+  border-color: var(--accent-line-soft);
+}
+
+.privacy-confirm {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+  border: 1px solid var(--coral);
+  border-radius: var(--radius);
+  background: var(--coral-soft);
+  padding: 12px 14px;
+}
+
+.privacy-confirm:focus {
+  outline: none;
+}
+
+.privacy-confirm p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--danger-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.privacy-confirm .card-actions {
+  margin-top: 10px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+:focus-visible {
+  outline: 3px solid var(--yellow);
+  outline-offset: 3px;
+}
+
+@media (max-width: 900px) {
+  :root {
+    --sidebar-width: 250px;
+  }
+
+  .shell-view,
+  .welcome-view,
+  .quiz-view,
+  .completion-view {
+    width: min(calc(100% - 36px), 920px);
+    padding-top: 40px;
+  }
+
+  .view-heading h1 {
+    font-size: 30px;
+  }
+
+  .dataset-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dataset-choice,
+  .dataset-choice:last-child {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .dataset-choice:last-child {
+    border-bottom: 0;
+  }
+
+  .dataset-choice p {
+    min-height: 0;
+  }
+
+  /* The import link drops under the field: side by side, a bilingual label leaves the input too narrow. */
+  .deck-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .deck-search-field {
+    max-width: none;
+  }
+
+  .deck-import-link {
+    justify-self: start;
+  }
+}
+
+@media (max-width: 720px) {
+  body {
+    overflow: auto;
+  }
+
+  /* One column: the source select needs the full width once the kind row no longer fits beside it. */
+  .library-search-filters {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .back-link {
+    display: none;
+  }
+
+  .dataset-menu-button,
+  .sidebar-close {
+    display: inline-flex;
+  }
+
+  .sidebar-top {
+    display: flex;
+  }
+
+  .app-shell {
+    display: block;
+    min-height: 100vh;
+    height: auto;
+  }
+
+  .app-sidebar {
+    position: fixed;
+    inset: var(--header-height) auto var(--tabbar-height) 0;
+    z-index: 90;
+    width: min(88vw, 320px);
+    border-right: 1px solid var(--line);
+    box-shadow: 20px 0 48px rgba(4, 19, 13, 0.24);
+    transform: translateX(-105%);
+    transition: transform 180ms ease;
+  }
+
+  .app-sidebar.is-open {
+    transform: translateX(0);
+  }
+
+  /* Open is the only state that shows the scrim, and `hidden` is what the script toggles. */
+  .app-scrim:not([hidden]) {
+    display: block;
+  }
+
+  /* Primary navigation moves to the bottom tab bar, so the drawer keeps only secondary controls. */
+  .app-nav {
+    display: none;
+  }
+
+  .app-tabbar {
+    display: grid;
+  }
+
+  .app-content {
+    min-height: calc(100vh - var(--header-height));
+    padding-bottom: var(--tabbar-height);
+    overflow: visible;
+  }
+
+  .shell-view,
+  .welcome-view,
+  .quiz-view,
+  .completion-view {
+    width: min(calc(100% - 28px), 920px);
+    padding: 34px 0 56px;
+  }
+
+  .welcome-view {
+    min-height: 0;
+  }
+
+  .welcome-heading h1,
+  .completion-view h1,
+  .view-heading h1 {
+    font-size: 28px;
+  }
+
+  .stat-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  /* Four numbers across a tablet width leave no room for a bilingual label, so they pair up instead. */
+  .stat-grid-home {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stat-card {
+    padding: 12px;
+  }
+
+  .stat-card strong {
+    font-size: 21px;
+  }
+
+  .shell-card {
+    padding: 18px;
+  }
+
+  .action-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .plan-row {
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+  }
+
+  .plan-arrow {
+    display: none;
+  }
+
+  .source-group-link {
+    margin-left: 0;
+    flex-basis: 100%;
+  }
+
+  .completion-view {
+    min-height: 0;
+    align-items: stretch;
+  }
+
+  .completion-review {
+    margin-top: 34px;
+    padding-top: 26px;
+  }
+
+  .completion-review-row {
+    padding: 16px;
+  }
+
+  .question-title {
+    font-size: 23px;
+  }
+
+  .question-actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .question-actions > .button,
+  .action-group,
+  .action-group .button {
+    width: 100%;
+  }
+
+  .quiz-header {
+    grid-template-columns: 1fr;
+  }
+
+  .score-block {
+    text-align: left;
+  }
+
+  .local-library {
+    padding: 16px;
+  }
+
+  .import-drop-label {
+    padding: 24px 16px;
+  }
+
+  .agent-hints {
+    padding: 14px 16px;
+  }
+
+  .agent-prompt {
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 430px) {
+  .app-header {
+    padding-inline: 12px;
+  }
+
+  .app-brand div {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .locale-switch {
+    width: 88px;
+  }
+
+  .question-panel {
+    padding-top: 24px;
+  }
+
+  .citation-locator,
+  .local-section-locator,
+  .library-result-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  /* On a narrow screen the source link gets its own line and a taller hit area: at 12px it is otherwise a
+     thin target sitting directly under the excerpt it belongs to. */
+  .agent-source-link,
+  .completion-source-link,
+  .feedback-source-link {
+    padding-block: 6px;
+  }
+
+  /* The clear button drops below the field: side by side, a bilingual label squeezes the input to
+     nothing or pushes the row past the viewport. */
+  .library-search-row,
+  .deck-search-row {
+    flex-direction: column;
+  }
+
+  .library-search-kind {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  /* Full-width buttons keep the toggle and remove targets tappable without wrapping mid-label. */
+  .local-source-actions,
+  .local-source-actions .button,
+  .local-confirm .card-actions .button,
+  .library-search-clear,
+  .deck-search-clear,
+  .deck-import-link,
+  .library-result-actions .button {
+    width: 100%;
+  }
+
+  .import-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .completion-score strong {
+    font-size: 52px;
+  }
+
+  /* At this width the row head wraps; the retry button spans the row so it stays a comfortable tap target. */
+  .completion-review-row {
+    padding: 14px;
+  }
+
+  .completion-row-actions .button {
+    width: 100%;
+  }
+
+  .stat-grid,
+  .stat-grid-home {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-card {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .today-card {
+    padding: 14px 16px;
+  }
+
+  .stat-card span {
+    margin-bottom: 0;
+    white-space: normal;
+  }
+
+  .stat-card strong {
+    flex: 0 0 auto;
+    font-size: 19px;
+  }
+
+  /* "Resume your guided session" is long enough to push the dataset mark onto its own line here, which
+     leaves it stranded above the eyebrow while the focus card directly above keeps its mark inline. The
+     head holds its row and the title wraps inside its own column instead. */
+  .home-agent-card .shell-card-head {
+    flex-wrap: nowrap;
+    align-items: start;
+  }
+
+  .home-agent-card .shell-card-head > div {
+    min-width: 0;
+  }
+
+  .plan-row {
+    grid-template-columns: 38px minmax(0, 1fr);
+    row-gap: 6px;
+  }
+
+  .plan-status {
+    grid-column: 2;
+  }
+
+  /* Full-width targets keep the session controls tappable without a label wrapping mid-word. */
+  .agent-actions .button,
+  .agent-links .button,
+  .agent-panel > .card-actions .button,
+  .agent-hints > .button {
+    width: 100%;
+  }
+
+  /* Privacy and backup controls stack so long bilingual labels never force a sideways scroll. */
+  .privacy-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .privacy-row .button,
+  .privacy-confirm .card-actions .button,
+  .backup-actions .button,
+  .backup-actions .restore-picker,
+  .theme-switch {
+    grid-column: 1;
+    grid-row: auto;
+    width: 100%;
+  }
+
+  .storage-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .storage-size {
+    grid-column: 1;
+  }
+
+  .agent-recap-list {
+    padding-left: 18px;
+  }
+
+  .tab-link {
+    font-size: 9px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

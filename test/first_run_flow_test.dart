@@ -1,17 +1,17 @@
-import 'package:dlg_q/core/providers/providers.dart';
-import 'package:dlg_q/data/database/database_helper.dart';
-import 'package:dlg_q/data/models/source.dart';
-import 'package:dlg_q/data/models/source_chunk.dart';
-import 'package:dlg_q/features/ingestion/project_import_screen.dart';
-import 'package:dlg_q/features/onboarding/first_run_screen.dart';
-import 'package:dlg_q/services/agent/learning_agent_planner_service.dart';
-import 'package:dlg_q/services/ai/ai_api_protocol.dart';
-import 'package:dlg_q/services/ai/ai_model_acceptance.dart';
-import 'package:dlg_q/services/ai/tasks/citation_verification_task.dart';
-import 'package:dlg_q/services/ingestion/source_grounded_ingestion_service.dart';
-import 'package:dlg_q/services/onboarding/first_run_model_readiness.dart';
-import 'package:dlg_q/services/onboarding/first_run_progress.dart';
-import 'package:dlg_q/services/openai_service.dart';
+import 'package:anchor_learning/core/providers/providers.dart';
+import 'package:anchor_learning/data/database/database_helper.dart';
+import 'package:anchor_learning/data/models/source.dart';
+import 'package:anchor_learning/data/models/source_chunk.dart';
+import 'package:anchor_learning/features/ingestion/project_import_screen.dart';
+import 'package:anchor_learning/features/onboarding/first_run_screen.dart';
+import 'package:anchor_learning/services/agent/learning_agent_planner_service.dart';
+import 'package:anchor_learning/services/ai/ai_api_protocol.dart';
+import 'package:anchor_learning/services/ai/ai_model_acceptance.dart';
+import 'package:anchor_learning/services/ai/tasks/citation_verification_task.dart';
+import 'package:anchor_learning/services/ingestion/source_grounded_ingestion_service.dart';
+import 'package:anchor_learning/services/onboarding/first_run_model_readiness.dart';
+import 'package:anchor_learning/services/onboarding/first_run_progress.dart';
+import 'package:anchor_learning/services/openai_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -133,7 +133,7 @@ void main() {
       find.byWidgetPredicate(
         (widget) =>
             widget is TextField &&
-            widget.decoration?.hintText == '例如：Duoduo Learn',
+            widget.decoration?.hintText == '例如：Anchor Learning',
       ),
       'Local project',
     );

@@ -1,5 +1,5 @@
-import 'package:dlg_q/features/knowledge_base/learning_target_memory_timeline.dart';
-import 'package:dlg_q/services/agent/learning_agent_memory_record.dart';
+import 'package:anchor_learning/features/knowledge_base/learning_target_memory_timeline.dart';
+import 'package:anchor_learning/services/agent/learning_agent_memory_record.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

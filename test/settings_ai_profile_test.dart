@@ -1,11 +1,11 @@
-import 'package:dlg_q/core/providers/providers.dart';
-import 'package:dlg_q/data/database/database_helper.dart';
-import 'package:dlg_q/data/models/user_stats.dart';
-import 'package:dlg_q/features/settings/settings_screen.dart';
-import 'package:dlg_q/services/ai/ai_api_credential_store.dart';
-import 'package:dlg_q/services/ai/ai_api_protocol.dart';
-import 'package:dlg_q/services/gamification_service.dart';
-import 'package:dlg_q/services/openai_service.dart';
+import 'package:anchor_learning/core/providers/providers.dart';
+import 'package:anchor_learning/data/database/database_helper.dart';
+import 'package:anchor_learning/data/models/user_stats.dart';
+import 'package:anchor_learning/features/settings/settings_screen.dart';
+import 'package:anchor_learning/services/ai/ai_api_credential_store.dart';
+import 'package:anchor_learning/services/ai/ai_api_protocol.dart';
+import 'package:anchor_learning/services/gamification_service.dart';
+import 'package:anchor_learning/services/openai_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -23,7 +23,7 @@ void main() {
       OpenAIService.profilePreferenceKey(
         AIProviders.grokPrimaryId,
         'model',
-      ): 'grok-4.5',
+      ): 'grok-4.6',
       OpenAIService.profilePreferenceKey(
         AIProviders.grokPrimaryId,
         'protocol',
@@ -61,7 +61,7 @@ void main() {
     _expectVisibleProfile(
       tester,
       baseUrl: 'https://grok-profile.example/v1',
-      model: 'grok-4.5',
+      model: 'grok-4.6',
       protocol: AiApiProtocol.responses,
     );
 
@@ -73,11 +73,11 @@ void main() {
       protocol: AiApiProtocol.chatCompletions,
     );
 
-    await _selectProvider(tester, 'Grok 4.5 通道（主）');
+    await _selectProvider(tester, 'Grok 4.6 通道（主）');
     _expectVisibleProfile(
       tester,
       baseUrl: 'https://grok-profile.example/v1',
-      model: 'grok-4.5',
+      model: 'grok-4.6',
       protocol: AiApiProtocol.responses,
     );
     expect(tester.takeException(), isNull);

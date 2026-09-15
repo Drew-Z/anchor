@@ -31,6 +31,21 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+/**/build/
+/**/.gradle/
+/**/local.properties
+**/node_modules/
+web/playwright-report/
+web/test-results/
+web/.wrangler/
+coverage/
+
+# Local device/simulator captures (never release evidence)
+/agent_*.png
+/device_*.png
+/post_install.png
+/window*.png
+/window*.xml
 
 # Symbolication related
 app.*.symbols

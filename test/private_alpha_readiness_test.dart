@@ -1,4 +1,4 @@
-import 'package:dlg_q/services/release/private_alpha_readiness.dart';
+import 'package:anchor_learning/services/release/private_alpha_readiness.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -23,12 +23,11 @@ void main() {
       'controlled_credential_required',
       'data_processing_owner_required',
       'release_day_acceptance_pending',
-      'cohort_pending',
     ]);
     expect(report.toJson()['status'], 'HOLD');
   });
 
-  test('go requires evidence for every release gate', () {
+  test('go requires technical release evidence without a cohort gate', () {
     final report = service.evaluate(
       const PrivateAlphaReadinessEvidence(
         automatedGatePassed: true,
@@ -37,7 +36,7 @@ void main() {
         controlledCredentialAvailable: true,
         dataProcessingOwnerAssigned: true,
         releaseDayAcceptancePassed: true,
-        cohortCompleted: true,
+        cohortCompleted: false,
       ),
     );
 

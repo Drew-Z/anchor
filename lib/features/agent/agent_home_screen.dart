@@ -80,9 +80,10 @@ class AgentHomeScreen extends ConsumerWidget {
                   child: Text(
                     'Agent 工作台',
                     style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
+                      height: 1.2,
                     ),
                   ),
                 ),
@@ -248,7 +249,12 @@ class AgentHomeScreen extends ConsumerWidget {
             agentMemoryAsync.when(
               data: (memory) {
                 if (memory.sessions.isEmpty) {
-                  return const _EmptyAgentSessionHistory();
+                  return _EmptyAgentSessionHistory(
+                    onOpenHistory: () => _openAgentSessionHistory(
+                      context,
+                      ref,
+                    ),
+                  );
                 }
                 return Column(
                   children: [
@@ -492,6 +498,7 @@ class AgentHomeScreen extends ConsumerWidget {
     WidgetRef ref,
     LearningAgentPlan plan,
   ) async {
+    if (!context.mounted) return;
     final nextAction = plan.nextAction;
     if (nextAction != null && !nextAction.executable) {
       _showAgentMessage(
@@ -502,8 +509,16 @@ class AgentHomeScreen extends ConsumerWidget {
     }
     if (nextAction?.resumesCheckpoint == true) {
       final sessionId = nextAction!.checkpointSessionId!;
-      final checkpoint =
-          await ref.read(learningAgentCheckpointStoreProvider).load(sessionId);
+      final LearningAgentCheckpoint? checkpoint;
+      try {
+        checkpoint = await ref
+            .read(learningAgentCheckpointStoreProvider)
+            .load(sessionId);
+      } catch (error) {
+        if (!context.mounted) return;
+        _showAgentMessage(context, '未完成会话读取失败: $error');
+        return;
+      }
       if (!context.mounted) return;
       if (checkpoint == null) {
         ref.invalidate(learningAgentActiveCheckpointListProvider);
@@ -610,7 +625,7 @@ class AgentHomeScreen extends ConsumerWidget {
     final isUnknownOutcome =
         request.reason == LearningAgentUserDecisionReason.toolOutcomeUnknown;
 
-    final noteController = TextEditingController();
+    var decisionNote = '';
     final action = await showDialog<LearningAgentUserDecisionAction>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -671,7 +686,7 @@ class AgentHomeScreen extends ConsumerWidget {
               ],
               const SizedBox(height: 16),
               TextField(
-                controller: noteController,
+                onChanged: (value) => decisionNote = value,
                 maxLines: 3,
                 decoration: const InputDecoration(
                   labelText: '决策备注（可选）',
@@ -712,8 +727,6 @@ class AgentHomeScreen extends ConsumerWidget {
         ],
       ),
     );
-    final note = noteController.text;
-    noteController.dispose();
     if (action == null || !context.mounted) return;
 
     final runtime = ref.read(learningAgentRuntimeProvider);
@@ -721,7 +734,7 @@ class AgentHomeScreen extends ConsumerWidget {
       final result = await runtime.resolveUserDecision(
         checkpoint,
         action: action,
-        note: note,
+        note: decisionNote,
       );
       if (!context.mounted) return;
       ref.invalidate(learningAgentActiveCheckpointListProvider);
@@ -990,9 +1003,17 @@ class AgentHomeScreen extends ConsumerWidget {
     WidgetRef ref,
     LearningAgentFocusPoint focusPoint,
   ) async {
-    final point = await ref
-        .read(knowledgePointRepositoryProvider)
-        .getKnowledgePoint(focusPoint.id);
+    if (!context.mounted) return;
+    final KnowledgePoint? point;
+    try {
+      point = await ref
+          .read(knowledgePointRepositoryProvider)
+          .getKnowledgePoint(focusPoint.id);
+    } catch (error) {
+      if (!context.mounted) return;
+      _showAgentMessage(context, '知识点读取失败: $error');
+      return;
+    }
     if (!context.mounted) return;
 
     if (point == null) {
@@ -1012,6 +1033,7 @@ class AgentHomeScreen extends ConsumerWidget {
   void _refreshPlanInputs(WidgetRef ref) {
     final goal = ref.read(learningAgentGoalProvider);
     invalidateLearningAgentPlanInputProviders(ref, goal);
+    ref.invalidate(learningAgentWorkspaceProvider(goal));
   }
 
   void _refreshAgentSessionInputs(WidgetRef ref) {
@@ -1043,7 +1065,7 @@ class _ProjectInterviewOutcomeEntry extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.border, width: 2),
+            border: Border.all(color: AppColors.border, width: 1),
           ),
           child: Row(
             children: [
@@ -1051,12 +1073,13 @@ class _ProjectInterviewOutcomeEntry extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: AppColors.green.withValues(alpha: 0.1),
+                  color: AppColors.green.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
                   Icons.fact_check_outlined,
                   color: AppColors.greenDark,
+                  size: 22,
                 ),
               ),
               const SizedBox(width: 12),
@@ -1067,8 +1090,8 @@ class _ProjectInterviewOutcomeEntry extends StatelessWidget {
                     const Text(
                       '项目面试成果',
                       style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
                         color: AppColors.textPrimary,
                       ),
                     ),
@@ -1082,7 +1105,7 @@ class _ProjectInterviewOutcomeEntry extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 12,
                         height: 1.35,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
                         color: AppColors.textSecondary,
                       ),
                     ),
@@ -1090,7 +1113,8 @@ class _ProjectInterviewOutcomeEntry extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 6),
-              const Icon(Icons.chevron_right, color: AppColors.textLight),
+              const Icon(Icons.chevron_right,
+                  color: AppColors.textLight, size: 20),
             ],
           ),
         ),
@@ -1109,7 +1133,7 @@ class _ProjectInterviewOutcomeEntrySkeleton extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.border, width: 2),
+        border: Border.all(color: AppColors.border, width: 1),
       ),
       alignment: Alignment.center,
       child: const SizedBox.square(
@@ -1179,11 +1203,12 @@ class _AgentResumeCheckpointCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.restore, color: AppColors.blueDark),
-              const SizedBox(width: 8),
-              const Expanded(
+              Icon(Icons.restore, color: AppColors.blueDark),
+              SizedBox(width: 8),
+              Expanded(
                 child: Text(
                   '未完成 Agent Session',
                   style: TextStyle(
@@ -1193,12 +1218,19 @@ class _AgentResumeCheckpointCard extends StatelessWidget {
                   ),
                 ),
               ),
-              Text(
-                state.phase.label,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.blueDark,
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  state.phase.label,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.blueDark,
+                  ),
                 ),
               ),
               const SizedBox(width: 4),
@@ -1217,10 +1249,9 @@ class _AgentResumeCheckpointCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             '${state.goal.label} · ${tool?.title ?? '未记录工具'}',
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontSize: 13,
+              height: 1.4,
               fontWeight: FontWeight.w800,
               color: AppColors.textPrimary,
             ),
@@ -1228,8 +1259,6 @@ class _AgentResumeCheckpointCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             readiness.message,
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontSize: 12,
               height: 1.35,
@@ -1648,11 +1677,11 @@ class _LearningAgentGoalSelector extends StatelessWidget {
           backgroundColor: Colors.white,
           side: BorderSide(
             color: isSelected ? AppColors.green : AppColors.border,
-            width: 1.5,
+            width: 1,
           ),
           labelStyle: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
             color: isSelected ? AppColors.greenDark : AppColors.textSecondary,
           ),
           shape: RoundedRectangleBorder(
@@ -1693,29 +1722,30 @@ class _LearningAgentPlanCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.greenLight,
+        color: AppColors.cardBackground,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.green, width: 2),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.route, color: AppColors.greenDark, size: 24),
+              const Icon(Icons.route, color: AppColors.greenDark, size: 22),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   '${plan.goal.label}路线',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.greenDark,
+                    height: 1.4,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
                   ),
                 ),
               ),
+              const SizedBox(width: 8),
               _PlanScoreChip(score: plan.readiness.score),
             ],
           ),
@@ -1723,8 +1753,8 @@ class _LearningAgentPlanCard extends StatelessWidget {
           _PlanScopeChip(scope: plan.knowledgeScope),
           const SizedBox(height: 10),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 16,
+            runSpacing: 4,
             children: [
               _PlanMetric(
                 label: '有来源',
@@ -1767,7 +1797,8 @@ class _LearningAgentPlanCard extends StatelessWidget {
                     '下一复习：${_dateText(workspace.nextReviewAt!)}',
                     style: const TextStyle(
                       fontSize: 12,
-                      fontWeight: FontWeight.w800,
+                      height: 1.4,
+                      fontWeight: FontWeight.w500,
                       color: AppColors.textSecondary,
                     ),
                   ),
@@ -1775,7 +1806,10 @@ class _LearningAgentPlanCard extends StatelessWidget {
               ],
             ),
           ],
-          const SizedBox(height: 12),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 14),
+            child: Divider(height: 1, color: AppColors.border),
+          ),
           Text(
             nextAction == null
                 ? nextStep == null
@@ -1784,7 +1818,8 @@ class _LearningAgentPlanCard extends StatelessWidget {
                 : '${nextAction.priority.label}：${nextAction.title}',
             style: const TextStyle(
               fontSize: 14,
-              fontWeight: FontWeight.w800,
+              height: 1.4,
+              fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
             ),
           ),
@@ -1795,7 +1830,7 @@ class _LearningAgentPlanCard extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 12,
                 height: 1.4,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w500,
                 color: AppColors.textSecondary,
               ),
             ),
@@ -1804,8 +1839,9 @@ class _LearningAgentPlanCard extends StatelessWidget {
               '对应工具：${selectedTool?.title ?? nextAction.toolId ?? '无'}',
               style: const TextStyle(
                 fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: AppColors.greenDark,
+                height: 1.4,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textSecondary,
               ),
             ),
             if (!nextAction.executable &&
@@ -1816,7 +1852,7 @@ class _LearningAgentPlanCard extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 12,
                   height: 1.35,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                   color: AppColors.red,
                 ),
               ),
@@ -1828,7 +1864,7 @@ class _LearningAgentPlanCard extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 12,
                 height: 1.4,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w500,
                 color: AppColors.textSecondary,
               ),
             ),
@@ -1840,7 +1876,7 @@ class _LearningAgentPlanCard extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 12,
                 height: 1.35,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w500,
                 color: AppColors.textSecondary,
               ),
             ),
@@ -1863,15 +1899,21 @@ class _LearningAgentPlanCard extends StatelessWidget {
                     : isFollowUpStep
                         ? '查看未处理追问'
                         : '执行下一步',
-                style: const TextStyle(fontWeight: FontWeight.w800),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  height: 1.4,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.green,
                 foregroundColor: Colors.white,
-                disabledForegroundColor: AppColors.textLight,
-                disabledBackgroundColor: Colors.white,
+                disabledForegroundColor: AppColors.textSecondary,
+                disabledBackgroundColor: AppColors.surface,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                minimumSize: const Size(0, 48),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -1908,13 +1950,13 @@ class _PlanDetailsDisclosure extends StatelessWidget {
           tilePadding: EdgeInsets.zero,
           childrenPadding: const EdgeInsets.only(bottom: 4),
           iconColor: AppColors.greenDark,
-          collapsedIconColor: AppColors.greenDark,
+          collapsedIconColor: AppColors.textSecondary,
           title: const Text(
             '计划依据',
             style: TextStyle(
               fontSize: 12,
-              fontWeight: FontWeight.w800,
-              color: AppColors.greenDark,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
             ),
           ),
           children: [
@@ -1927,7 +1969,7 @@ class _PlanDetailsDisclosure extends StatelessWidget {
                   '优先关注',
                   style: TextStyle(
                     fontSize: 13,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary,
                   ),
                 ),
@@ -2177,10 +2219,9 @@ class _FocusPointRow extends StatelessWidget {
                     children: [
                       Text(
                         point.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 13,
+                          height: 1.4,
                           fontWeight: FontWeight.w800,
                           color: AppColors.textPrimary,
                         ),
@@ -2189,8 +2230,6 @@ class _FocusPointRow extends StatelessWidget {
                       Text(
                         '${point.reason} · 掌握 ${point.masteryLevel}% · '
                         '面试 ${point.interviewRelevance}',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 11,
                           height: 1.35,
@@ -2238,10 +2277,9 @@ class _AgentSessionSummaryView extends StatelessWidget {
       children: [
         Text(
           '当前 Agent Session：${summary.title}',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             fontSize: 13,
+            height: 1.4,
             fontWeight: FontWeight.w800,
             color: AppColors.greenDark,
           ),
@@ -2249,8 +2287,6 @@ class _AgentSessionSummaryView extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           summary.objective,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             fontSize: 12,
             height: 1.4,
@@ -2302,8 +2338,6 @@ class _AgentSessionRuleRow extends StatelessWidget {
         Expanded(
           child: Text(
             text,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontSize: 11,
               height: 1.35,
@@ -2357,18 +2391,25 @@ class _PlanMetric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Text(
-        '$label $value',
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Text.rich(
+        TextSpan(
+          text: '$label ',
+          children: [
+            TextSpan(
+              text: '$value',
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
         style: const TextStyle(
           fontSize: 12,
-          fontWeight: FontWeight.w800,
+          height: 1.4,
+          fontWeight: FontWeight.w500,
           color: AppColors.textSecondary,
         ),
       ),
@@ -2383,31 +2424,26 @@ class _PlanScopeChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.green),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Icon(
             Icons.account_tree_outlined,
             size: 15,
-            color: AppColors.greenDark,
+            color: AppColors.textSecondary,
           ),
           const SizedBox(width: 5),
           Flexible(
             child: Text(
               '知识范围：${scope.label}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 fontSize: 12,
-                fontWeight: FontWeight.w800,
-                color: AppColors.greenDark,
+                height: 1.4,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textSecondary,
               ),
             ),
           ),
@@ -2427,15 +2463,15 @@ class _PlanScoreChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.green),
+        color: AppColors.greenLight,
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         '$score%',
         style: const TextStyle(
           fontSize: 12,
-          fontWeight: FontWeight.w800,
+          height: 1.4,
+          fontWeight: FontWeight.w700,
           color: AppColors.greenDark,
         ),
       ),
@@ -3016,7 +3052,9 @@ class _EmptyHistory extends StatelessWidget {
 }
 
 class _EmptyAgentSessionHistory extends StatelessWidget {
-  const _EmptyAgentSessionHistory();
+  final VoidCallback onOpenHistory;
+
+  const _EmptyAgentSessionHistory({required this.onOpenHistory});
 
   @override
   Widget build(BuildContext context) {
@@ -3028,13 +3066,36 @@ class _EmptyAgentSessionHistory extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.border, width: 2),
       ),
-      child: const Text(
-        '完成一次 Agent Session 后，这里会出现目标、成功标准和复盘摘要',
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textSecondary,
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '完成一次 Agent Session 后，这里会出现目标、成功标准和复盘摘要',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: onOpenHistory,
+            icon: const Icon(Icons.history),
+            label: const Text(
+              '查看 Agent Session 历史',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.greenDark,
+              side: const BorderSide(color: AppColors.green),
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              minimumSize: const Size(double.infinity, 44),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

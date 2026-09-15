@@ -1,6 +1,25 @@
 # 下一步行动计划
 
-本文档是 [OPEN_SOURCE_PLAN.md](OPEN_SOURCE_PLAN.md) 的执行版,列出了本周可以立即开始的任务。
+本文档保留早期开源准备阶段的执行草案。当前开发模式和任务指针以
+[CURRENT_STATE.md](CURRENT_STATE.md) 及根目录 [AGENTS.md](../AGENTS.md) 为准；当前发布状态以
+[OPEN_SOURCE_CHECKLIST.md](OPEN_SOURCE_CHECKLIST.md) 和
+[OPEN_SOURCE_READY.md](OPEN_SOURCE_READY.md) 为准。
+
+> 更新于 2026-09-15：已切换为 Codex 单独开发；正式 cohort 已从 release gate 移除，当前签名候选、真机冒烟和 Windhub 主备模型五项验收已写入 readiness，技术 evaluator 返回 `GO`。
+> `.env.example` 只说明配置边界，应用凭据必须在“设置 → AI 配置”中保存。
+
+## 当前有效队列
+
+以下事项取代本文档后面的早期时间估算和草案任务：
+
+1. 按 [DEVELOPMENT_LOOP.md](DEVELOPMENT_LOOP.md) 执行持续开发主任务：分析当前项目 → 选择一个 leaf → 实现并验收 → 返回主任务重新分析。唯一运行指针、当前 leaf 和精确验证结果在 `CURRENT_STATE.md`，本列表不另存状态。
+2. DL-001 至 DL-029 已完成。DL-029 已独立复现并修复批量核验写入中退出知识库后，共享缓存及重新打开列表仍显示旧状态的问题；95 项聚焦、654 项全量、静态分析、格式和差异检查通过，普通屏及短屏大字号 Android 验收、截图复核、普通 APK/显示/数据库恢复、模拟器关闭和五个本轮临时文件清理均完成。唯一指针、范围和精确结果见 `CURRENT_STATE.md`。以下发布工作仍等待授权或真实证据。用户已于 2026-09-08 取消自动唤醒；后续通过当前任务直接消息恢复。已结束的 Claude 任务、旧执行队列和上游故障排查不作为后续产品任务恢复。
+3. 分支 `codex/anchor-web-demo`、PR #1 的验证数量和 CI 记录、`web/landing` 的 Cloudflare Pages 部署及官网 `/app/` smoke check 已完成；仍待单独授权的是将 PR #1 合并到 `main`。
+4. [x] 临近发布窗口，用同一 `1.0.0+2005` 签名候选重新完成真机与模型五项验收，并更新 readiness 证据。
+5. 正式 cohort 与 D0/D7/D14 观察保留为可选研究工作，不再作为 release gate；不得用合成记录替代真实研究。
+6. 技术 evaluator 已返回 `GO`；Private Alpha 分发仍需单独的发布授权，且当前不创建 GitHub release 或外部下载发布。
+
+后文的“历史待办事项”不再是当前执行队列。
 
 ---
 
@@ -29,7 +48,7 @@
 - [x] 项目根文件
   - [x] README.md - 完整改写
   - [x] LICENSE - MIT 许可
-  - [x] .env.example - 配置模板
+  - [x] .env.example - 配置边界说明（不是应用配置入口）
 
 ### 代码改进(4 小时)
 - [x] 实现 SemanticChunker 服务
@@ -38,7 +57,10 @@
 
 ---
 
-## 📋 待办事项(优先级排序)
+## 📋 历史待办事项(不代表当前阻塞)
+
+以下清单来自早期开源准备阶段。Git 提交整理、Demo 录制、截图和推广素材均不构成
+Private Alpha 的技术放行条件；当前真正的阻塞项请查看发布清单。
 
 ### 高优先级 - 本周完成
 
@@ -74,7 +96,7 @@ git commit -m "docs: prepare for open source release
 - Add CONTRIBUTING guide
 - Add ROADMAP and CHANGELOG
 - MIT License
-- .env.example template"
+- .env.example configuration boundary, not a runtime credential entry point"
 
 # 第四批: 集成改进
 git add lib/features/ingestion/project_import_screen.dart
@@ -190,5 +212,9 @@ Widget 是 Flutter 的核心概念...
 不可变的 Widget...
 
 ### StatefulWidget
+
+```
+
+> 上述未完成示例保留自历史草案；当前执行规则和队列见本文档开头。
 
 可变状态的 Widget...

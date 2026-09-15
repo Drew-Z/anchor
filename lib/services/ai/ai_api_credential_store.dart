@@ -9,7 +9,7 @@ abstract class AiApiCredentialStore {
 }
 
 class SecureAiApiCredentialStore implements AiApiCredentialStore {
-  static const String _keyPrefix = 'duoduo.ai.api_key.';
+  static const String _keyPrefix = 'anchor_learning.ai.api_key.';
 
   final FlutterSecureStorage _storage;
 

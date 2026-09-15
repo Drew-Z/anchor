@@ -20,8 +20,8 @@
 
 - **文档位置**: ROADMAP.md - v0.3 近期计划
 - **文档描述**: "本地 LLM 支持 - Ollama 集成,LM Studio 支持,完全离线运行"
-- **代码现状**: 仅支持 OpenAI API (`lib/services/openai_service.dart`)
-- **影响**: 用户必须联网并配置 OpenAI API Key 才能使用
+- **代码现状**: 通过 OpenAI-compatible 协议调用用户配置的模型端点 (`lib/services/openai_service.dart`)
+- **影响**: 用户必须联网并配置一个可用的模型服务商端点和凭据才能使用 AI 生成;本地导入和复习仍可离线进行
 - **状态**: 规划中,优先级:高
 
 ---
@@ -83,17 +83,6 @@
 - **曾经状态**: 文档提及但未实现
 - **解决时间**: 2026-07-26 (commit: ac377ab)
 - **实现位置**: `lib/services/ai/tasks/answer_evaluation_task.dart`
-
----
-
-## 📝 轻微不一致
-
-### 示例数据
-
-- **文档**: README.md 提到"项目内置了示例数据,首次运行即可体验完整功能"
-- **代码**: 无内置示例数据,用户需自己导入
-- **影响**: 轻微,新用户需要自己准备测试文档
-- **状态**: 可选优化
 
 ---
 

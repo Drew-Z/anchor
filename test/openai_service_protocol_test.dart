@@ -1,6 +1,6 @@
-import 'package:dlg_q/services/ai/ai_api_credential_store.dart';
-import 'package:dlg_q/services/ai/ai_api_protocol.dart';
-import 'package:dlg_q/services/openai_service.dart';
+import 'package:anchor_learning/services/ai/ai_api_credential_store.dart';
+import 'package:anchor_learning/services/ai/ai_api_protocol.dart';
+import 'package:anchor_learning/services/openai_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -97,76 +97,16 @@ void main() {
     });
   });
 
-  test('migrates legacy global configuration only into the active profile',
-      () async {
-    SharedPreferences.setMockInitialValues({
-      'ai_provider_id': 'custom',
-      'ai_model': 'legacy-model',
-      'ai_base_url': 'https://legacy.example/v1',
-      'ai_api_protocol': 'chat_completions',
-    });
-    final service = OpenAIService(credentialStore: _MemoryCredentialStore());
-
-    expect(await service.getModel(), 'legacy-model');
-    expect(await service.getBaseUrl(), 'https://legacy.example/v1');
-    expect(
-      await service.getApiProtocol(),
-      AiApiProtocol.chatCompletions,
-    );
-    expect(
-      await service.getModelForProvider(AIProviders.grokPrimaryId),
-      isEmpty,
-    );
-    expect(
-      await service.getBaseUrlForProvider(AIProviders.grokPrimaryId),
-      isEmpty,
-    );
-    expect(
-      await service.getApiProtocolForProvider(AIProviders.grokPrimaryId),
-      AiApiProtocol.responses,
-    );
-
-    final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getString('ai_model'), isNull);
-    expect(prefs.getString('ai_base_url'), isNull);
-    expect(prefs.getString('ai_api_protocol'), isNull);
-    expect(
-      prefs.getString(OpenAIService.profilePreferenceKey('custom', 'model')),
-      'legacy-model',
-    );
-  });
-
-  test('migrates a plaintext legacy key into provider-scoped secure storage',
-      () async {
-    SharedPreferences.setMockInitialValues({
-      'ai_provider_id': 'custom',
-      'ai_api_key': ' legacy-key ',
-    });
-    final credentials = _MemoryCredentialStore();
-    final service = OpenAIService(credentialStore: credentials);
-
-    expect(await service.getApiKey(), 'legacy-key');
-    expect(credentials.values['custom'], 'legacy-key');
-    final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getString('ai_api_key'), isNull);
-    expect(prefs.getString('openai_api_key'), isNull);
-  });
-
   test('stores and clears credentials without writing SharedPreferences',
       () async {
     SharedPreferences.setMockInitialValues({
       'ai_provider_id': 'custom',
-      'ai_api_key': 'stale-plaintext-key',
     });
     final credentials = _MemoryCredentialStore();
     final service = OpenAIService(credentialStore: credentials);
 
     await service.setApiKey(' secure-key ');
     expect(credentials.values['custom'], 'secure-key');
-    expect(
-      (await SharedPreferences.getInstance()).getString('ai_api_key'),
-      isNull,
-    );
 
     await service.clearApiKey();
     expect(credentials.values, isEmpty);
@@ -177,9 +117,10 @@ void main() {
       () async {
     SharedPreferences.setMockInitialValues({
       'ai_provider_id': 'custom',
-      'ai_model': 'responses-model',
-      'ai_base_url': 'https://provider.example/v1/',
-      'ai_api_protocol': 'responses',
+      OpenAIService.profilePreferenceKey('custom', 'model'): 'responses-model',
+      OpenAIService.profilePreferenceKey('custom', 'base_url'):
+          'https://provider.example/v1/',
+      OpenAIService.profilePreferenceKey('custom', 'protocol'): 'responses',
     });
     final credentials = _MemoryCredentialStore()
       ..values['custom'] = 'secure-key';
@@ -225,9 +166,11 @@ void main() {
   test('keeps Chat Completions request and response compatibility', () async {
     SharedPreferences.setMockInitialValues({
       'ai_provider_id': 'custom',
-      'ai_model': 'chat-model',
-      'ai_base_url': 'https://provider.example/v1',
-      'ai_api_protocol': 'chat_completions',
+      OpenAIService.profilePreferenceKey('custom', 'model'): 'chat-model',
+      OpenAIService.profilePreferenceKey('custom', 'base_url'):
+          'https://provider.example/v1',
+      OpenAIService.profilePreferenceKey('custom', 'protocol'):
+          'chat_completions',
     });
     final credentials = _MemoryCredentialStore()
       ..values['custom'] = 'secure-key';
@@ -262,13 +205,205 @@ void main() {
     expect(transport.body, isNot(contains('input')));
   });
 
+  test('uses the acceptance output budget for Responses requests', () async {
+    SharedPreferences.setMockInitialValues({
+      'ai_provider_id': 'custom',
+      OpenAIService.profilePreferenceKey('custom', 'model'): 'responses-model',
+      OpenAIService.profilePreferenceKey('custom', 'base_url'):
+          'https://provider.example/v1',
+      OpenAIService.profilePreferenceKey('custom', 'protocol'): 'responses',
+    });
+    final credentials = _MemoryCredentialStore()
+      ..values['custom'] = 'secure-key';
+    final transport = _RecordingTransport(
+      const AiHttpResponse(
+        statusCode: 200,
+        data: {
+          'output_text': 'acceptance result',
+        },
+      ),
+    );
+    final service = OpenAIService(
+      credentialStore: credentials,
+      transport: transport,
+    );
+
+    final result = await service.generateCompletion(
+      systemPrompt: 'system',
+      userContent: 'user',
+      bypassAcceptanceGate: true,
+    );
+
+    expect(result.text, 'acceptance result');
+    expect(transport.body['max_output_tokens'], 2048);
+  });
+
+  test('uses the acceptance output budget for Chat Completions requests',
+      () async {
+    SharedPreferences.setMockInitialValues({
+      'ai_provider_id': 'custom',
+      OpenAIService.profilePreferenceKey('custom', 'model'): 'chat-model',
+      OpenAIService.profilePreferenceKey('custom', 'base_url'):
+          'https://provider.example/v1',
+      OpenAIService.profilePreferenceKey('custom', 'protocol'):
+          'chat_completions',
+    });
+    final credentials = _MemoryCredentialStore()
+      ..values['custom'] = 'secure-key';
+    final transport = _RecordingTransport(
+      const AiHttpResponse(
+        statusCode: 200,
+        data: {
+          'choices': [
+            {
+              'message': {'content': 'acceptance result'},
+            },
+          ],
+        },
+      ),
+    );
+    final service = OpenAIService(
+      credentialStore: credentials,
+      transport: transport,
+    );
+
+    final result = await service.generateCompletion(
+      systemPrompt: 'system',
+      userContent: 'user',
+      bypassAcceptanceGate: true,
+    );
+
+    expect(result.text, 'acceptance result');
+    expect(transport.body['max_tokens'], 2048);
+  });
+
+  test('unwraps relay envelopes and nested Chat message text', () async {
+    SharedPreferences.setMockInitialValues({
+      'ai_provider_id': 'custom',
+      OpenAIService.profilePreferenceKey('custom', 'model'): 'chat-model',
+      OpenAIService.profilePreferenceKey('custom', 'base_url'):
+          'https://provider.example/v1',
+      OpenAIService.profilePreferenceKey('custom', 'protocol'):
+          'chat_completions',
+    });
+    final credentials = _MemoryCredentialStore()
+      ..values['custom'] = 'secure-key';
+    final transport = _RecordingTransport(
+      const AiHttpResponse(
+        statusCode: 200,
+        data: {
+          'data': {
+            'choices': [
+              {
+                'message': {
+                  'content': [
+                    {
+                      'type': 'text',
+                      'text': {'value': 'wrapped result'},
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+          'model': 'relay-model',
+          'usage': {
+            'prompt_tokens': 4,
+            'completion_tokens': 2,
+            'total_tokens': 6,
+          },
+        },
+      ),
+    );
+    final service = OpenAIService(
+      credentialStore: credentials,
+      transport: transport,
+    );
+
+    expect(
+      await service.chatCompletion(systemPrompt: 'system', userContent: 'user'),
+      'wrapped result',
+    );
+  });
+
+  test('joins a complete SSE response when a relay ignores stream false',
+      () async {
+    SharedPreferences.setMockInitialValues({
+      'ai_provider_id': 'custom',
+      OpenAIService.profilePreferenceKey('custom', 'model'): 'chat-model',
+      OpenAIService.profilePreferenceKey('custom', 'base_url'):
+          'https://provider.example/v1',
+      OpenAIService.profilePreferenceKey('custom', 'protocol'):
+          'chat_completions',
+    });
+    final credentials = _MemoryCredentialStore()
+      ..values['custom'] = 'secure-key';
+    final transport = _RecordingTransport(
+      const AiHttpResponse(
+        statusCode: 200,
+        data: 'data: {"choices":[{"delta":{"content":"first"}}]}\n\n'
+            'data: {"choices":[{"delta":{"content":" second"}}]}\n\n'
+            'data: [DONE]\n\n',
+      ),
+    );
+    final service = OpenAIService(
+      credentialStore: credentials,
+      transport: transport,
+    );
+
+    expect(
+      await service.chatCompletion(systemPrompt: 'system', userContent: 'user'),
+      'first second',
+    );
+  });
+
+  test('surfaces an error body even when the relay returns HTTP 2xx', () async {
+    SharedPreferences.setMockInitialValues({
+      'ai_provider_id': 'custom',
+      OpenAIService.profilePreferenceKey('custom', 'model'): 'chat-model',
+      OpenAIService.profilePreferenceKey('custom', 'base_url'):
+          'https://provider.example/v1',
+      OpenAIService.profilePreferenceKey('custom', 'protocol'):
+          'chat_completions',
+    });
+    final service = OpenAIService(
+      credentialStore: _MemoryCredentialStore()
+        ..values['custom'] = 'secure-key',
+      transport: _RecordingTransport(
+        const AiHttpResponse(
+          statusCode: 200,
+          data: {
+            'error': {
+              'code': 'upstream_timeout',
+              'message': 'upstream completed after client deadline',
+            },
+          },
+        ),
+      ),
+    );
+
+    expect(
+      () => service.chatCompletion(systemPrompt: 'system', userContent: 'user'),
+      throwsA(
+        isA<AiProviderException>()
+            .having((error) => error.code, 'code', 'upstream_timeout')
+            .having(
+              (error) => error.message,
+              'message',
+              'upstream completed after client deadline',
+            ),
+      ),
+    );
+  });
+
   test('preserves provider error codes for configuration diagnostics',
       () async {
     SharedPreferences.setMockInitialValues({
       'ai_provider_id': 'custom',
-      'ai_model': 'restricted-model',
-      'ai_base_url': 'https://provider.example/v1',
-      'ai_api_protocol': 'responses',
+      OpenAIService.profilePreferenceKey('custom', 'model'): 'restricted-model',
+      OpenAIService.profilePreferenceKey('custom', 'base_url'):
+          'https://provider.example/v1',
+      OpenAIService.profilePreferenceKey('custom', 'protocol'): 'responses',
     });
     final credentials = _MemoryCredentialStore()
       ..values['custom'] = 'secure-key';
@@ -304,9 +439,10 @@ void main() {
   test('captures resolved model, latency and Responses token usage', () async {
     SharedPreferences.setMockInitialValues({
       'ai_provider_id': 'custom',
-      'ai_model': 'requested-model',
-      'ai_base_url': 'https://provider.example/v1',
-      'ai_api_protocol': 'responses',
+      OpenAIService.profilePreferenceKey('custom', 'model'): 'requested-model',
+      OpenAIService.profilePreferenceKey('custom', 'base_url'):
+          'https://provider.example/v1',
+      OpenAIService.profilePreferenceKey('custom', 'protocol'): 'responses',
     });
     final credentials = _MemoryCredentialStore()
       ..values['custom'] = 'secure-key';

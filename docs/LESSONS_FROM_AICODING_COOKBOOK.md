@@ -55,7 +55,7 @@ class SemanticChunker {
 七. 参考规范 (开发规范 / 漂移清单)
 ```
 
-**映射到多多学的 KnowledgePointKind**:
+**映射到锚学的 KnowledgePointKind**:
 ```dart
 enum KnowledgePointKind {
   concept,        // 对应「三.方法论」- 领域概念
@@ -113,7 +113,7 @@ Phase 4: 验证       (抽查准确性 → verify.js → 视觉终检)
 
 **docs-to-book 的 quality-checks.md 教训**:
 
-| 检查项 | 为什么重要 | 在多多学怎么做 |
+| 检查项 | 为什么重要 | 在锚学怎么做 |
 |--------|-----------|--------------|
 | **数字类事实** | AI 会编数字(端口/阈值/计数) | 生成题目后,grep 源文档确认所有数字 |
 | **否定结论** | AI 会瞎断言"无 X" | 选择题的"错误"选项必须真的错(代码验证) |
@@ -166,7 +166,7 @@ class QuestionValidator {
 - 主 agent 收到后统一 Write,避免文件冲突
 ```
 
-**在多多学的应用场景**:
+**在锚学的应用场景**:
 
 #### 大文档导入
 ```dart

@@ -114,14 +114,10 @@ class _ConceptLearningPathScreenState
   }
 
   Future<void> _generateCandidates() async {
+    if (_isGenerating || _isSaving) return;
     final scopePoints = _scopePoints;
     if (scopePoints.length < 2) {
       _showMessage('请至少选择两个有来源的通用概念');
-      return;
-    }
-    final hasKey = await ref.read(openaiServiceProvider).hasApiKey();
-    if (!hasKey) {
-      _showMessage('请先在设置中配置 AI API Key');
       return;
     }
 
@@ -130,6 +126,14 @@ class _ConceptLearningPathScreenState
       _errorMessage = null;
     });
     try {
+      final hasKey = await ref.read(openaiServiceProvider).hasApiKey();
+      if (!mounted) return;
+      if (!hasKey) {
+        setState(() => _isGenerating = false);
+        _showMessage('请先在设置中配置 AI API Key');
+        return;
+      }
+
       final chunksByPointId = {
         for (final point in scopePoints)
           point.id: _chunksByPointId[point.id] ?? const <SourceChunk>[],

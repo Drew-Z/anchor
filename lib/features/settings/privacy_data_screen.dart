@@ -204,7 +204,7 @@ class _PrivacyDataScreenState extends ConsumerState<PrivacyDataScreen> {
     LocalTextExport artifact, {
     required String dialogTitle,
   }) async {
-    final path = await FilePicker.platform.saveFile(
+    final path = await FilePicker.saveFile(
       dialogTitle: dialogTitle,
       fileName: artifact.fileName,
       type: FileType.custom,
@@ -219,7 +219,7 @@ class _PrivacyDataScreenState extends ConsumerState<PrivacyDataScreen> {
     LocalDataBackupArtifact? artifact;
     try {
       artifact = await ref.read(localDataBackupServiceProvider).createBackup();
-      final path = await FilePicker.platform.saveFile(
+      final path = await FilePicker.saveFile(
         dialogTitle: '导出本地数据备份',
         fileName: artifact.fileName,
         type: FileType.custom,
@@ -248,50 +248,47 @@ class _PrivacyDataScreenState extends ConsumerState<PrivacyDataScreen> {
   }
 
   Future<void> _restoreDatabaseBackup() async {
-    final selection = await FilePicker.platform.pickFiles(
-      dialogTitle: '选择本地数据备份',
-      type: FileType.custom,
-      allowedExtensions: const ['db'],
-      allowMultiple: false,
-      withData: false,
-    );
-    if (selection == null || !mounted) return;
-    final sourcePath = selection.files.single.path;
-    if (sourcePath == null || sourcePath.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('无法读取所选备份文件')),
-      );
-      return;
-    }
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('替换本地学习数据？'),
-        content: const Text(
-          '恢复会用备份中的学习内容、学习记录和产品事件替换当前数据库。模型凭据、模型配置、首次运行状态和隐私偏好保持不变。\n\n恢复前会自动创建回滚快照；如果校验或迁移失败，应用会恢复当前数据。',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('取消'),
-          ),
-          FilledButton.icon(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            icon: const Icon(Icons.settings_backup_restore),
-            label: const Text('确认恢复'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-
+    if (_isBusy) return;
     setState(() => _isRestoring = true);
     try {
-      final result = await ref
-          .read(localDataBackupServiceProvider)
-          .restoreBackup(sourcePath);
-      invalidateDatabaseBackedProviders(ref);
+      final selection = await FilePicker.pickFile(
+        dialogTitle: '选择本地数据备份',
+        type: FileType.custom,
+        allowedExtensions: const ['db'],
+      );
+      if (selection == null || !mounted) return;
+      final sourcePath = selection.path;
+      if (sourcePath == null || sourcePath.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('无法读取所选备份文件')),
+        );
+        return;
+      }
+
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('替换本地学习数据？'),
+          content: const Text(
+            '恢复会用备份中的学习内容、学习记录和产品事件替换当前数据库。模型凭据、模型配置、首次运行状态和隐私偏好保持不变。\n\n恢复前会自动创建回滚快照；如果校验或迁移失败，应用会恢复当前数据。',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('取消'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              icon: const Icon(Icons.settings_backup_restore),
+              label: const Text('确认恢复'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+
+      final result =
+          await ref.read(localDataOperationsProvider).restoreBackup(sourcePath);
       if (!mounted) return;
       final message =
           result.migrationApplied ? '恢复完成，旧版备份已升级到当前数据库版本' : '本地数据恢复完成';
@@ -368,8 +365,7 @@ class _PrivacyDataScreenState extends ConsumerState<PrivacyDataScreen> {
 
     setState(() => _isDeleting = true);
     try {
-      await ref.read(localDataDeletionServiceProvider).delete(selected);
-      _invalidateDeletedData(selected);
+      await ref.read(localDataOperationsProvider).delete(selected);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -421,42 +417,6 @@ class _PrivacyDataScreenState extends ConsumerState<PrivacyDataScreen> {
   static String _backupErrorMessage(Object error) {
     if (error is LocalDataBackupException) return error.message;
     return error.toString();
-  }
-
-  void _invalidateDeletedData(Set<LocalDataScope> scopes) {
-    if (scopes.contains(LocalDataScope.productEvents)) {
-      ref.invalidate(productEventListProvider);
-    }
-    if (scopes.contains(LocalDataScope.onboardingState)) {
-      ref.invalidate(firstRunProgressProvider);
-    }
-    if (scopes.contains(LocalDataScope.modelConfiguration)) {
-      ref.invalidate(firstRunModelReadinessProvider);
-    }
-
-    final learningDataChanged =
-        scopes.contains(LocalDataScope.learningHistory) ||
-            scopes.contains(LocalDataScope.learningContent);
-    if (!learningDataChanged) return;
-
-    ref.invalidate(deckListProvider);
-    ref.invalidate(knowledgePointListProvider);
-    ref.invalidate(allQuestionsProvider);
-    ref.invalidate(verifiedQuestionsProvider);
-    ref.invalidate(pendingQuestionListProvider);
-    ref.invalidate(learningSessionListProvider);
-    ref.invalidate(agentSessionListProvider);
-    ref.invalidate(agentSessionMemoryIndexProvider);
-    ref.invalidate(todayReviewQueueProvider);
-    ref.invalidate(userStatsProvider);
-
-    if (scopes.contains(LocalDataScope.learningContent)) {
-      ref.invalidate(sourceListProvider);
-      ref.invalidate(allProgrammingExercisesProvider);
-      ref.invalidate(allProgrammingExerciseAttemptsProvider);
-      ref.invalidate(allProgrammingReviewActionsProvider);
-      ref.invalidate(knowledgeSearchCorpusProvider);
-    }
   }
 }
 

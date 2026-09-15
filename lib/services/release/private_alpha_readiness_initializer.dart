@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 
+import 'repository_relative_path.dart';
+
 class PrivateAlphaReadinessInitializer {
   const PrivateAlphaReadinessInitializer();
 
@@ -78,7 +80,6 @@ class PrivateAlphaReadinessInitializer {
       'controlled_credential_available': false,
       'data_processing_owner_assigned': false,
       'release_day_acceptance_passed': false,
-      'cohort_completed': false,
     };
   }
 
@@ -87,7 +88,7 @@ class PrivateAlphaReadinessInitializer {
     required String value,
     required String label,
   }) {
-    if (value.trim().isEmpty || p.isAbsolute(value)) {
+    if (value.trim().isEmpty || isAbsolutePathOnAnyPlatform(value)) {
       throw FormatException('$label path must be repository-relative.');
     }
     final normalized = p.normalize(value.trim());

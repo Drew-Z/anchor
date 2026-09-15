@@ -374,20 +374,27 @@ class AiModelAcceptanceRunner {
   final AiModelAcceptanceStore _store;
   final DateTime Function() _clock;
   final Duration _caseTimeout;
+  final Duration _dartCodingCaseTimeout;
   final Duration _runTimeout;
 
   AiModelAcceptanceRunner({
     required AiCompletionClient client,
     AiModelAcceptanceStore? store,
     DateTime Function()? clock,
-    Duration caseTimeout = const Duration(seconds: 60),
-    Duration runTimeout = const Duration(minutes: 4),
+    // The configured relay has produced valid non-streaming responses in the
+    // 2-3 minute range. Keep the client-side budget above that observed tail
+    // so a late but valid response is not reported as a false failure.
+    Duration caseTimeout = const Duration(minutes: 3),
+    Duration dartCodingCaseTimeout = const Duration(minutes: 4),
+    Duration runTimeout = const Duration(minutes: 12),
   })  : assert(caseTimeout > Duration.zero),
+        assert(dartCodingCaseTimeout > Duration.zero),
         assert(runTimeout > Duration.zero),
         _client = client,
         _store = store ?? SharedPreferencesAiModelAcceptanceStore(),
         _clock = clock ?? DateTime.now,
         _caseTimeout = caseTimeout,
+        _dartCodingCaseTimeout = dartCodingCaseTimeout,
         _runTimeout = runTimeout;
 
   Future<AiModelAcceptanceReport> run(
@@ -417,7 +424,10 @@ class AiModelAcceptanceRunner {
         blocked = true;
         continue;
       }
-      final timeout = remaining < _caseTimeout ? remaining : _caseTimeout;
+      final caseBudget = testCase.kind == AiAcceptanceCaseKind.dartCoding
+          ? _dartCodingCaseTimeout
+          : _caseTimeout;
+      final timeout = remaining < caseBudget ? remaining : caseBudget;
       final caseStopwatch = Stopwatch()..start();
       try {
         final result = await _client
@@ -445,7 +455,8 @@ class AiModelAcceptanceRunner {
         results.add(AiAcceptanceCaseResult(
           kind: testCase.kind,
           status: AiAcceptanceCaseStatus.failed,
-          detail: '请求超时: 单项验收超过 ${_durationLabel(timeout)}',
+          detail: '请求超时: 单项验收超过 ${_durationLabel(timeout)}。'
+              '供应商仍可能稍后完成并计费，但迟到响应不计为通过',
           latencyMs: caseStopwatch.elapsedMilliseconds,
           failureKind: AiProviderFailureKind.timeout,
         ));

@@ -1,8 +1,8 @@
-# Duoduo Private Alpha Participant Guide
+# Anchor Learning Private Alpha Participant Guide
 
 ## Before You Start
 
-Use Duoduo only with a project that you own or are allowed to process. Do not use
+Use Anchor Learning only with a project that you own or are allowed to process. Do not use
 employer-confidential code, production credentials, customer data, or private
 third-party source material.
 
@@ -54,7 +54,7 @@ If you cancel the Android save dialog, no feedback event is recorded.
 
 ## D7 Return
 
-Open Duoduo without help, review the next action, and complete one grounded
+Open Anchor Learning without help, review the next action, and complete one grounded
 learning turn plus its follow-up or scheduled review. Export local product
 events after finishing.
 

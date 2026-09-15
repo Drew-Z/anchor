@@ -7,7 +7,7 @@
 - [lib/core/theme/app_theme.dart](file://lib/core/theme/app_theme.dart)
 - [lib/core/constants/app_colors.dart](file://lib/core/constants/app_colors.dart)
 - [lib/core/providers/providers.dart](file://lib/core/providers/providers.dart)
-- [lib/shared/widgets/duo_button.dart](file://lib/shared/widgets/duo_button.dart)
+- [lib/shared/widgets/anchor_button.dart](file://lib/shared/widgets/anchor_button.dart)
 - [lib/shared/widgets/stats_widgets.dart](file://lib/shared/widgets/stats_widgets.dart)
 - [lib/features/home/home_screen.dart](file://lib/features/home/home_screen.dart)
 - [lib/features/learning/widgets/question_widgets.dart](file://lib/features/learning/widgets/question_widgets.dart)
@@ -28,7 +28,7 @@
 10. [附录：使用示例与自定义指南](#附录使用示例与自定义指南)
 
 ## 简介
-本文件系统化梳理 Dlg-Q 的 UI 组件体系，重点覆盖以下方面：
+本文件系统化梳理 Anchor Learning 的 UI 组件体系，重点覆盖以下方面：
 - 共享组件的设计与实现：按钮、卡片、输入框等基础组件的样式与行为
 - 动画系统：页面过渡、交互动画与视觉反馈
 - 主题系统：颜色方案、字体配置与响应式支持
@@ -50,7 +50,7 @@ C["lib/core/constants/app_colors.dart<br/>颜色常量"]
 P["lib/core/providers/providers.dart<br/>Riverpod 提供器"]
 end
 subgraph "共享组件"
-B["lib/shared/widgets/duo_button.dart<br/>凸起按钮"]
+B["lib/shared/widgets/anchor_button.dart<br/>凸起按钮"]
 S["lib/shared/widgets/stats_widgets.dart<br/>统计栏/进度条"]
 end
 subgraph "功能页面"
@@ -75,7 +75,7 @@ P --> QW
 - [lib/core/theme/app_theme.dart:1-116](file://lib/core/theme/app_theme.dart#L1-L116)
 - [lib/core/constants/app_colors.dart:1-43](file://lib/core/constants/app_colors.dart#L1-L43)
 - [lib/core/providers/providers.dart:1-178](file://lib/core/providers/providers.dart#L1-L178)
-- [lib/shared/widgets/duo_button.dart:1-103](file://lib/shared/widgets/duo_button.dart#L1-L103)
+- [lib/shared/widgets/anchor_button.dart:1-103](file://lib/shared/widgets/anchor_button.dart#L1-L103)
 - [lib/shared/widgets/stats_widgets.dart:1-139](file://lib/shared/widgets/stats_widgets.dart#L1-L139)
 - [lib/features/home/home_screen.dart:1-335](file://lib/features/home/home_screen.dart#L1-L335)
 - [lib/features/learning/widgets/question_widgets.dart:1-656](file://lib/features/learning/widgets/question_widgets.dart#L1-L656)
@@ -86,7 +86,7 @@ P --> QW
 - [lib/core/theme/app_theme.dart:1-116](file://lib/core/theme/app_theme.dart#L1-L116)
 - [lib/core/constants/app_colors.dart:1-43](file://lib/core/constants/app_colors.dart#L1-L43)
 - [lib/core/providers/providers.dart:1-178](file://lib/core/providers/providers.dart#L1-L178)
-- [lib/shared/widgets/duo_button.dart:1-103](file://lib/shared/widgets/duo_button.dart#L1-L103)
+- [lib/shared/widgets/anchor_button.dart:1-103](file://lib/shared/widgets/anchor_button.dart#L1-L103)
 - [lib/shared/widgets/stats_widgets.dart:1-139](file://lib/shared/widgets/stats_widgets.dart#L1-L139)
 - [lib/features/home/home_screen.dart:1-335](file://lib/features/home/home_screen.dart#L1-L335)
 - [lib/features/learning/widgets/question_widgets.dart:1-656](file://lib/features/learning/widgets/question_widgets.dart#L1-L656)
@@ -96,7 +96,7 @@ P --> QW
   - 主题：基于 Material Design 2（useMaterial3=false），以 AppColors 为核心颜色体系，结合 Google Fonts 的 Nunito 字体族，统一标题、正文、按钮与输入框等组件的视觉规范。
   - 颜色：定义主色（绿、蓝、红、金、紫）、中性色（背景、表面、卡片、文字、边框、阴影）以及图标强调色（心形、连击橙）。
 - 共享组件
-  - 凸起按钮（DuoButton）：模拟 3D 凸起效果，支持按下态位移与边框粗细变化，内置禁用态与图标集成。
+  - 凸起按钮（AnchorButton）：模拟 3D 凸起效果，支持按下态位移与边框粗细变化，内置禁用态与图标集成。
   - 统计栏与进度条（TopStatsBar、QuizProgressBar）：展示 XP、连续天数、心数等用户状态，并提供答题进度可视化。
 - 动画系统
   - 页面与元素：使用 flutter_animate 对节点入场、缩放等进行轻量动画；结合 AnimatedContainer 实现交互态过渡。
@@ -107,21 +107,21 @@ P --> QW
 章节来源
 - [lib/core/theme/app_theme.dart:9-114](file://lib/core/theme/app_theme.dart#L9-L114)
 - [lib/core/constants/app_colors.dart:4-42](file://lib/core/constants/app_colors.dart#L4-L42)
-- [lib/shared/widgets/duo_button.dart:4-102](file://lib/shared/widgets/duo_button.dart#L4-L102)
+- [lib/shared/widgets/anchor_button.dart:4-102](file://lib/shared/widgets/anchor_button.dart#L4-L102)
 - [lib/shared/widgets/stats_widgets.dart:5-138](file://lib/shared/widgets/stats_widgets.dart#L5-L138)
 - [lib/core/providers/providers.dart:11-177](file://lib/core/providers/providers.dart#L11-L177)
 
 ## 架构总览
-Dlg-Q 的 UI 架构围绕“主题驱动 + 共享组件 + 功能页面 + 状态管理”的模式展开。应用入口设置主题与系统 UI 样式；主容器负责页面切换与底部导航；共享组件提供一致的交互体验；功能页面组合共享组件与动画，完成业务场景；Riverpod 提供跨页面的状态与数据。
+Anchor Learning 的 UI 架构围绕“主题驱动 + 共享组件 + 功能页面 + 状态管理”的模式展开。应用入口设置主题与系统 UI 样式；主容器负责页面切换与底部导航；共享组件提供一致的交互体验；功能页面组合共享组件与动画，完成业务场景；Riverpod 提供跨页面的状态与数据。
 
 ```mermaid
 graph TB
-Main["lib/main.dart<br/>DIYDuolingoApp<br/>MaterialApp + AppTheme"] --> App["lib/app.dart<br/>MainApp + IndexedStack + BottomNavigationBar"]
+Main["lib/main.dart<br/>AnchorLearningApp<br/>MaterialApp + AppTheme"] --> App["lib/app.dart<br/>MainApp + IndexedStack + BottomNavigationBar"]
 App --> Home["lib/features/home/home_screen.dart<br/>HomeScreen"]
 Home --> Stats["lib/shared/widgets/stats_widgets.dart<br/>TopStatsBar"]
 Home --> QW["lib/features/learning/widgets/question_widgets.dart<br/>题型组件"]
 Home --> Anim["flutter_animate<br/>页面/元素动画"]
-QW --> Btn["lib/shared/widgets/duo_button.dart<br/>DuoButton"]
+QW --> Btn["lib/shared/widgets/anchor_button.dart<br/>AnchorButton"]
 Theme["lib/core/theme/app_theme.dart<br/>AppTheme"] --> Main
 Colors["lib/core/constants/app_colors.dart<br/>AppColors"] --> Btn
 Colors --> Stats
@@ -136,7 +136,7 @@ Providers --> QW
 - [lib/features/home/home_screen.dart:14-57](file://lib/features/home/home_screen.dart#L14-L57)
 - [lib/shared/widgets/stats_widgets.dart:5-42](file://lib/shared/widgets/stats_widgets.dart#L5-L42)
 - [lib/features/learning/widgets/question_widgets.dart:598-656](file://lib/features/learning/widgets/question_widgets.dart#L598-L656)
-- [lib/shared/widgets/duo_button.dart:4-31](file://lib/shared/widgets/duo_button.dart#L4-L31)
+- [lib/shared/widgets/anchor_button.dart:4-31](file://lib/shared/widgets/anchor_button.dart#L4-L31)
 - [lib/core/theme/app_theme.dart:9-114](file://lib/core/theme/app_theme.dart#L9-L114)
 - [lib/core/constants/app_colors.dart:4-42](file://lib/core/constants/app_colors.dart#L4-L42)
 - [lib/core/providers/providers.dart:11-177](file://lib/core/providers/providers.dart#L11-L177)
@@ -145,7 +145,7 @@ Providers --> QW
 
 ### 主题系统与颜色方案
 - 主题特性
-  - 使用 Material Design 2，关闭 Material 3，确保与多邻国风格一致的视觉语言。
+  - 使用 Material Design 2，关闭 Material 3，确保与 Anchor Learning 游戏化风格一致的视觉语言。
   - 颜色方案：primary/surface/error 等基于 AppColors，保证全局一致性。
   - 字体：Nunito 字体族，针对各级文本设定字号与字重。
   - 控件主题：按钮、输入框、卡片、底栏等均基于 AppColors 与 Google Fonts 统一风格。
@@ -158,7 +158,7 @@ Providers --> QW
 - [lib/core/theme/app_theme.dart:9-114](file://lib/core/theme/app_theme.dart#L9-L114)
 - [lib/core/constants/app_colors.dart:4-42](file://lib/core/constants/app_colors.dart#L4-L42)
 
-### 共享组件：按钮（DuoButton）
+### 共享组件：按钮（AnchorButton）
 - 设计要点
   - 3D 凸起：通过 AnimatedContainer 在按下时产生轻微位移与边框加粗，模拟实体按键触感。
   - 禁用态：禁用或无回调时，背景与边框切换为浅色，避免误点击。
@@ -168,7 +168,7 @@ Providers --> QW
 ```mermaid
 sequenceDiagram
 participant U as "用户"
-participant BTN as "DuoButton"
+participant BTN as "AnchorButton"
 participant W as "父级Widget"
 U->>BTN : "按下"
 BTN->>BTN : "setState(_isPressed=true)"
@@ -180,10 +180,10 @@ W-->>U : "执行业务逻辑"
 ```
 
 图表来源
-- [lib/shared/widgets/duo_button.dart:44-91](file://lib/shared/widgets/duo_button.dart#L44-L91)
+- [lib/shared/widgets/anchor_button.dart:44-91](file://lib/shared/widgets/anchor_button.dart#L44-L91)
 
 章节来源
-- [lib/shared/widgets/duo_button.dart:4-102](file://lib/shared/widgets/duo_button.dart#L4-L102)
+- [lib/shared/widgets/anchor_button.dart:4-102](file://lib/shared/widgets/anchor_button.dart#L4-L102)
 
 ### 共享组件：统计栏与进度条（TopStatsBar、QuizProgressBar）
 - TopStatsBar
@@ -272,7 +272,7 @@ graph LR
 PUB["pubspec.yaml<br/>依赖声明"] --> FA["flutter_animate"]
 PUB --> GF["google_fonts"]
 PUB --> RP["flutter_riverpod"]
-BTN["DuoButton"] --> AC["AppColors"]
+BTN["AnchorButton"] --> AC["AppColors"]
 STATS["StatsWidgets"] --> AC
 QW["QuestionWidgets"] --> AC
 HOME["HomeScreen"] --> STATS
@@ -283,14 +283,14 @@ QW --> RP
 
 图表来源
 - [pubspec.yaml:9-22](file://pubspec.yaml#L9-L22)
-- [lib/shared/widgets/duo_button.dart:2](file://lib/shared/widgets/duo_button.dart#L2)
+- [lib/shared/widgets/anchor_button.dart:2](file://lib/shared/widgets/anchor_button.dart#L2)
 - [lib/shared/widgets/stats_widgets.dart:2](file://lib/shared/widgets/stats_widgets.dart#L2)
 - [lib/features/learning/widgets/question_widgets.dart:2-6](file://lib/features/learning/widgets/question_widgets.dart#L2-L6)
 - [lib/features/home/home_screen.dart:2-9](file://lib/features/home/home_screen.dart#L2-L9)
 
 章节来源
 - [pubspec.yaml:9-22](file://pubspec.yaml#L9-L22)
-- [lib/shared/widgets/duo_button.dart:1-103](file://lib/shared/widgets/duo_button.dart#L1-L103)
+- [lib/shared/widgets/anchor_button.dart:1-103](file://lib/shared/widgets/anchor_button.dart#L1-L103)
 - [lib/shared/widgets/stats_widgets.dart:1-139](file://lib/shared/widgets/stats_widgets.dart#L1-L139)
 - [lib/features/learning/widgets/question_widgets.dart:1-656](file://lib/features/learning/widgets/question_widgets.dart#L1-L656)
 - [lib/features/home/home_screen.dart:1-335](file://lib/features/home/home_screen.dart#L1-L335)
@@ -324,7 +324,7 @@ QW --> RP
 - [lib/core/providers/providers.dart:42-81](file://lib/core/providers/providers.dart#L42-L81)
 
 ## 结论
-Dlg-Q 的 UI 组件系统以主题与颜色常量为核心，通过共享组件与动画系统实现一致且富有表现力的交互体验；配合 Riverpod 的状态管理，既保证了可维护性，也为后续扩展打下良好基础。遵循本文的最佳实践与自定义指南，可进一步提升组件的复用性、性能与可访问性。
+Anchor Learning 的 UI 组件系统以主题与颜色常量为核心，通过共享组件与动画系统实现一致且富有表现力的交互体验；配合 Riverpod 的状态管理，既保证了可维护性，也为后续扩展打下良好基础。遵循本文的最佳实践与自定义指南，可进一步提升组件的复用性、性能与可访问性。
 
 [本节为总结，不直接分析具体文件]
 
@@ -332,8 +332,8 @@ Dlg-Q 的 UI 组件系统以主题与颜色常量为核心，通过共享组件�
 
 ### 如何在页面中使用共享组件
 - 使用凸起按钮
-  - 在需要的地方引入 DuoButton，传入标签、颜色、图标与回调；若需禁用，设置 enabled=false。
-  - 参考路径：[lib/shared/widgets/duo_button.dart:16-31](file://lib/shared/widgets/duo_button.dart#L16-L31)
+  - 在需要的地方引入 AnchorButton，传入标签、颜色、图标与回调；若需禁用，设置 enabled=false。
+  - 参考路径：[lib/shared/widgets/anchor_button.dart:16-31](file://lib/shared/widgets/anchor_button.dart#L16-L31)
 - 使用统计栏与进度条
   - 在页面顶部放置 TopStatsBar，传入用户统计对象；在答题页顶部放置 QuizProgressBar，传入进度与心数。
   - 参考路径：[lib/shared/widgets/stats_widgets.dart:6-42](file://lib/shared/widgets/stats_widgets.dart#L6-L42)，[lib/shared/widgets/stats_widgets.dart:76-138](file://lib/shared/widgets/stats_widgets.dart#L76-L138)
@@ -348,8 +348,8 @@ Dlg-Q 的 UI 组件系统以主题与颜色常量为核心，通过共享组件�
 
 ### 自定义指南
 - 自定义按钮样式
-  - 通过 color/darkColor/width/height/icon/fontSize 等参数微调；若需更复杂样式，可复制 DuoButton 的结构封装为新组件。
-  - 参考路径：[lib/shared/widgets/duo_button.dart:16-31](file://lib/shared/widgets/duo_button.dart#L16-L31)
+  - 通过 color/darkColor/width/height/icon/fontSize 等参数微调；若需更复杂样式，可复制 AnchorButton 的结构封装为新组件。
+  - 参考路径：[lib/shared/widgets/anchor_button.dart:16-31](file://lib/shared/widgets/anchor_button.dart#L16-L31)
 - 自定义颜色方案
   - 在 AppColors 中新增颜色常量；在 ThemeData 中映射到相应控件主题；确保与现有图标/强调色协调。
   - 参考路径：[lib/core/constants/app_colors.dart:4-42](file://lib/core/constants/app_colors.dart#L4-L42)，[lib/core/theme/app_theme.dart:9-114](file://lib/core/theme/app_theme.dart#L9-L114)

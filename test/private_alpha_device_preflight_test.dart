@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
-import 'package:dlg_q/services/release/private_alpha_device_preflight.dart';
+import 'package:anchor_learning/services/release/private_alpha_device_preflight.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -10,7 +10,8 @@ void main() {
   late String apkHash;
 
   setUp(() async {
-    tempDirectory = await Directory.systemTemp.createTemp('duoduo-preflight-');
+    tempDirectory =
+        await Directory.systemTemp.createTemp('anchor-learning-preflight-');
     apk = File('${tempDirectory.path}${Platform.pathSeparator}app-debug.apk');
     await apk.writeAsBytes(const [1, 2, 3, 4]);
     apkHash = sha256.convert(const [1, 2, 3, 4]).toString();
@@ -98,6 +99,39 @@ void main() {
     expect(report.reasons, ['install_failed']);
     expect(report.executionAttempted, isTrue);
     expect(report.installSucceeded, isFalse);
+  });
+
+  test('accepts Android OEM UNKNOWN launch state when activity starts',
+      () async {
+    final responses = _physicalResponses(apk.absolute.path);
+    responses[_commandKey('adb', const [
+      '-s',
+      'physical-01',
+      'shell',
+      'am',
+      'start',
+      '-W',
+      '-n',
+      PrivateAlphaDevicePreflight.launchActivity,
+    ])] = const DeviceCommandResult(
+      exitCode: 0,
+      stdoutText: 'Status: ok\nLaunchState: UNKNOWN (0)\n'
+          'Activity: cc.eu.playlab.anchor/.MainActivity\n',
+    );
+
+    final report = await PrivateAlphaDevicePreflight(
+      runner: _FakeCommandRunner(responses),
+    ).run(
+      PrivateAlphaDevicePreflightOptions(
+        apkPath: apk.path,
+        expectedSha256: apkHash,
+        execute: true,
+      ),
+    );
+
+    expect(report.status, PrivateAlphaDeviceStatus.passed);
+    expect(report.coldStartSucceeded, isTrue);
+    expect(report.processAlive, isTrue);
   });
 }
 

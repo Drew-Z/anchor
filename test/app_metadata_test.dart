@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:dlg_q/core/constants/app_metadata.dart';
-import 'package:dlg_q/services/privacy/product_event_recorder.dart';
+import 'package:anchor_learning/core/constants/app_metadata.dart';
+import 'package:anchor_learning/services/privacy/product_event_recorder.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

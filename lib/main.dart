@@ -3,20 +3,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app.dart';
+import 'core/constants/app_metadata.dart';
 import 'core/theme/app_theme.dart';
 import 'features/onboarding/first_run_gate.dart';
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  // 捕获 Flutter 框架渲染错误
-  FlutterError.onError = (FlutterErrorDetails details) {
-    FlutterError.presentError(details);
-    debugPrint('=== Flutter Error ===\n${details.exceptionAsString()}');
-  };
-
-  // 捕获所有未处理的异步异常
   runZonedGuarded(() {
+    // Keep binding initialization and runApp in the same zone.
+    WidgetsFlutterBinding.ensureInitialized();
+
+    // 捕获 Flutter 框架渲染错误
+    FlutterError.onError = (FlutterErrorDetails details) {
+      FlutterError.presentError(details);
+      debugPrint('=== Flutter Error ===\n${details.exceptionAsString()}');
+    };
+
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -25,7 +26,7 @@ void main() {
     );
     runApp(
       const ProviderScope(
-        child: DIYDuolingoApp(),
+        child: AnchorLearningApp(),
       ),
     );
   }, (error, stack) {
@@ -33,8 +34,8 @@ void main() {
   });
 }
 
-class DIYDuolingoApp extends StatelessWidget {
-  const DIYDuolingoApp({super.key});
+class AnchorLearningApp extends StatelessWidget {
+  const AnchorLearningApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +57,7 @@ class DIYDuolingoApp extends StatelessWidget {
     };
 
     return MaterialApp(
-      title: '多多学',
+      title: AppMetadata.productName,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       home: const FirstRunGate(completedChild: MainApp()),

@@ -1,4 +1,4 @@
-# Duoduo Private Alpha Recruitment Register
+# Anchor Learning Private Alpha Recruitment Register
 
 ## Storage Rule
 

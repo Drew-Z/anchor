@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 
-/// 多邻国风格主题
+/// Anchor Learning 主题。
 class AppTheme {
   AppTheme._();
 
@@ -64,38 +64,35 @@ class AppTheme {
           backgroundColor: AppColors.green,
           foregroundColor: Colors.white,
           elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          textStyle: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-          ),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: AppColors.border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: AppColors.blue, width: 2),
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
       ),
       cardTheme: CardThemeData(
         color: AppColors.cardBackground,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AppColors.border, width: 2),
+          borderRadius: BorderRadius.circular(8),
+          side: const BorderSide(color: AppColors.border, width: 1),
         ),
         margin: EdgeInsets.zero,
       ),
@@ -103,10 +100,14 @@ class AppTheme {
         backgroundColor: AppColors.background,
         selectedItemColor: AppColors.blue,
         unselectedItemColor: AppColors.textLight,
-        selectedLabelStyle:
-            TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
-        unselectedLabelStyle:
-            TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+        selectedLabelStyle: TextStyle(
+          fontWeight: FontWeight.w800,
+          fontSize: 12,
+        ),
+        unselectedLabelStyle: TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 12,
+        ),
         type: BottomNavigationBarType.fixed,
         elevation: 0,
       ),

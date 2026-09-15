@@ -1,7 +1,11 @@
+import 'package:sqflite/sqflite.dart';
+
 import '../database/database_helper.dart';
 import '../models/source.dart';
 import '../models/source_chunk.dart';
 import '../models/knowledge_point.dart';
+import '../models/knowledge_point_prerequisite.dart';
+import '../models/knowledge_point_source.dart';
 
 /// Demo 数据播种器 - 用于新用户首次启动时自动导入示例内容
 class DemoDataSeeder {
@@ -11,7 +15,8 @@ class DemoDataSeeder {
 
   /// 导入 Vue.js 核心响应式系统 Demo
   Future<void> seedVueCoreDemo() async {
-    final sourceId = 'demo_vue_reactivity_${DateTime.now().millisecondsSinceEpoch}';
+    final sourceId =
+        'demo_vue_reactivity_${DateTime.now().millisecondsSinceEpoch}';
     final now = DateTime.now();
 
     // 1. 创建 Source
@@ -190,7 +195,8 @@ function reactive(target) {
     ];
 
     for (final chunk in chunks) {
-      await _db.database.then((db) => db.insert('source_chunks', chunk.toMap()));
+      await _db.database
+          .then((db) => db.insert('source_chunks', chunk.toMap()));
     }
 
     // 3. 创建 Knowledge Points (从内容中提取的知识点)
@@ -198,7 +204,8 @@ function reactive(target) {
       KnowledgePoint(
         id: '${sourceId}_kp_1',
         title: 'Object.defineProperty 数据劫持',
-        summary: '通过 Object.defineProperty 拦截对象属性的 get/set 操作,在 get 时收集依赖,在 set 时触发更新',
+        summary:
+            '通过 Object.defineProperty 拦截对象属性的 get/set 操作,在 get 时收集依赖,在 set 时触发更新',
         kind: KnowledgePointKind.concept,
         tags: ['vue', 'reactive', 'javascript'],
         difficulty: 2,
@@ -231,7 +238,8 @@ function reactive(target) {
       KnowledgePoint(
         id: '${sourceId}_kp_4',
         title: 'Proxy 响应式代理',
-        summary: 'Vue 3 使用 Proxy 替代 Object.defineProperty,可以拦截更多操作,支持数组和集合类型,性能更优',
+        summary:
+            'Vue 3 使用 Proxy 替代 Object.defineProperty,可以拦截更多操作,支持数组和集合类型,性能更优',
         kind: KnowledgePointKind.implementation,
         tags: ['vue3', 'proxy', 'reactive'],
         difficulty: 2,
@@ -242,33 +250,45 @@ function reactive(target) {
     ];
 
     for (final kp in knowledgePoints) {
-      await _db.database.then((db) => db.insert('knowledge_points', kp.toMap()));
+      await _db.database
+          .then((db) => db.insert('knowledge_points', kp.toMap()));
     }
 
-    // 4. 创建知识点依赖关系
-    await _db.database.then((db) async {
-      // Watcher 依赖 Dep
-      await db.insert('knowledge_point_prerequisites', {
-        'knowledge_point_id': '${sourceId}_kp_3',
-        'prerequisite_id': '${sourceId}_kp_2',
-        'strength': 0.8,
-      });
-      // Dep 依赖 defineReactive
-      await db.insert('knowledge_point_prerequisites', {
-        'knowledge_point_id': '${sourceId}_kp_2',
-        'prerequisite_id': '${sourceId}_kp_1',
-        'strength': 0.9,
-      });
-    });
+    // 4. 创建知识点依赖关系，使用当前 schema 的稳定模型字段。
+    final prerequisiteRelations = [
+      KnowledgePointPrerequisite(
+        knowledgePointId: '${sourceId}_kp_3',
+        prerequisiteKnowledgePointId: '${sourceId}_kp_2',
+        rationale: 'Watcher 依赖 Dep 完成依赖收集。',
+        createdAt: now,
+      ),
+      KnowledgePointPrerequisite(
+        knowledgePointId: '${sourceId}_kp_2',
+        prerequisiteKnowledgePointId: '${sourceId}_kp_1',
+        rationale: 'Dep 依赖 defineReactive 提供属性拦截。',
+        createdAt: now,
+      ),
+    ];
+    final db = await _db.database;
+    for (final relation in prerequisiteRelations) {
+      await db.insert(
+        'knowledge_point_prerequisites',
+        relation.toMap(),
+      );
+    }
 
-    // 5. 关联 Source 和 Knowledge Points
-    for (final kp in knowledgePoints) {
-      await _db.database.then((db) => db.insert('knowledge_point_sources', {
-            'knowledge_point_id': kp.id,
-            'source_id': sourceId,
-            'relevance_score': 1.0,
-            'created_at': now.toIso8601String(),
-          }));
+    // 5. 将知识点关联到实际 source chunks，而不是已废弃的 source_id 字段。
+    for (var index = 0; index < knowledgePoints.length; index++) {
+      final kp = knowledgePoints[index];
+      final chunk = chunks[index + 1];
+      await db.insert(
+        'knowledge_point_sources',
+        KnowledgePointSource(
+          knowledgePointId: kp.id,
+          sourceChunkId: chunk.id,
+        ).toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
     }
   }
 }

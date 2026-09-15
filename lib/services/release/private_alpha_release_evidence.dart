@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 
+import 'repository_relative_path.dart';
+
 class PrivateAlphaAutomatedGateEvidence {
   final DateTime completedAt;
   final int testsPassed;
@@ -66,7 +68,7 @@ class PrivateAlphaAndroidBuildEvidence {
     Map<String, dynamic> json,
   ) {
     final apkPath = _readString(json, 'apk_path').trim();
-    if (apkPath.isEmpty || p.isAbsolute(apkPath)) {
+    if (apkPath.isEmpty || isAbsolutePathOnAnyPlatform(apkPath)) {
       throw const FormatException(
         'android_build.apk_path must be a non-empty repository-relative path.',
       );
@@ -126,17 +128,27 @@ class PrivateAlphaReleaseEvidenceVerification {
 }
 
 class PrivateAlphaReleaseEvidenceVerifier {
-  const PrivateAlphaReleaseEvidenceVerifier();
+  final Duration maximumAge;
+
+  const PrivateAlphaReleaseEvidenceVerifier({
+    this.maximumAge = const Duration(hours: 24),
+  });
 
   Future<PrivateAlphaReleaseEvidenceVerification> verify({
     required PrivateAlphaReleaseEvidence evidence,
     required String repositoryRoot,
+    required DateTime evaluatedAt,
   }) async {
     final blockers = <String>[
       if (!evidence.automatedGate.isPassing) 'automated_gate_evidence_invalid',
       if (!evidence.androidBuild.isDeclaredPassing)
         'android_build_evidence_invalid',
     ];
+    final gateAge =
+        evaluatedAt.toUtc().difference(evidence.automatedGate.completedAt);
+    if (gateAge.isNegative || gateAge > maximumAge) {
+      blockers.add('automated_gate_evidence_stale');
+    }
     final root = p.normalize(p.absolute(repositoryRoot));
     final apkPath =
         p.normalize(p.absolute(root, evidence.androidBuild.apkPath));

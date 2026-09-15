@@ -165,26 +165,33 @@ class ProfileScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                '每日目标',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
+          SizedBox(
+            width: double.infinity,
+            child: Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 12,
+              runSpacing: 8,
+              children: [
+                const Text(
+                  '每日目标',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
-              ),
-              Text(
-                '${stats.todayXp} / ${stats.dailyGoal} XP',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: isComplete ? AppColors.green : AppColors.textSecondary,
+                Text(
+                  '${stats.todayXp} / ${stats.dailyGoal} XP',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color:
+                        isComplete ? AppColors.green : AppColors.textSecondary,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: 12),
           // 进度条
@@ -211,12 +218,14 @@ class ProfileScreen extends ConsumerWidget {
               children: [
                 const Icon(Icons.emoji_events, color: AppColors.gold, size: 20),
                 const SizedBox(width: 4),
-                const Text(
-                  '今日目标已达成！',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.gold,
+                const Expanded(
+                  child: Text(
+                    '今日目标已达成！',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.gold,
+                    ),
                   ),
                 ),
               ],
@@ -251,36 +260,43 @@ class ProfileScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                '月度打卡',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: hasMedal
-                      ? AppColors.gold.withValues(alpha: 0.15)
-                      : AppColors.surface,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '$checkInCount / 20 天',
+          SizedBox(
+            width: double.infinity,
+            child: Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 12,
+              runSpacing: 8,
+              children: [
+                const Text(
+                  '月度打卡',
                   style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: hasMedal ? AppColors.gold : AppColors.textSecondary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
                   ),
                 ),
-              ),
-            ],
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: hasMedal
+                        ? AppColors.gold.withValues(alpha: 0.15)
+                        : AppColors.surface,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '$checkInCount / 20 天',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color:
+                          hasMedal ? AppColors.gold : AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 12),
           // 日历网格
@@ -574,19 +590,29 @@ class ProfileScreen extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 12),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 4,
-            childAspectRatio: 0.85,
-            crossAxisSpacing: 8,
-            mainAxisSpacing: 8,
-          ),
-          itemCount: achievements.length,
-          itemBuilder: (context, index) => _AchievementBadge(
-            achievement: achievements[index],
-          ),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth <= 0) return const SizedBox.shrink();
+            const spacing = 8.0;
+            final minimumWidth = MediaQuery.textScalerOf(context).scale(64);
+            final columns =
+                ((constraints.maxWidth + spacing) / (minimumWidth + spacing))
+                    .floor()
+                    .clamp(1, 4);
+            final width =
+                (constraints.maxWidth - (columns - 1) * spacing) / columns;
+            return Wrap(
+              spacing: spacing,
+              runSpacing: spacing,
+              children: [
+                for (final achievement in achievements)
+                  SizedBox(
+                    width: width,
+                    child: _AchievementBadge(achievement: achievement),
+                  ),
+              ],
+            );
+          },
         ),
       ],
     );
@@ -700,24 +726,33 @@ class _AchievementBadge extends StatelessWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Icon(achievement.icon,
                     color:
                         achievement.unlocked ? achievement.color : Colors.grey,
                     size: 20),
                 const SizedBox(width: 8),
-                Text(
-                  '${achievement.title} - ${achievement.desc}',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const Spacer(),
-                Text(
-                  achievement.unlocked ? '已解锁' : '未解锁',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: achievement.unlocked
-                        ? AppColors.green
-                        : AppColors.textLight,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${achievement.title} - ${achievement.desc}',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        achievement.unlocked ? '已解锁' : '未解锁',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: achievement.unlocked
+                              ? AppColors.green
+                              : AppColors.textLight,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -728,6 +763,8 @@ class _AchievementBadge extends StatelessWidget {
         );
       },
       child: Container(
+        constraints: const BoxConstraints(minHeight: 88),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
         decoration: BoxDecoration(
           color: achievement.unlocked
               ? achievement.color.withValues(alpha: 0.1)
@@ -754,8 +791,6 @@ class _AchievementBadge extends StatelessWidget {
             Text(
               achievement.title,
               textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w700,

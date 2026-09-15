@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:dlg_q/services/ingestion/semantic_chunker.dart';
+import 'package:anchor_learning/services/ingestion/semantic_chunker.dart';
 
 void main() {
   late SemanticChunker chunker;
@@ -60,7 +60,8 @@ class Example {
 
       // 代码块不应该被切分
       final hasCompleteCodeBlock = chunks.any(
-        (chunk) => chunk.content.contains('```dart') && chunk.content.contains('```'),
+        (chunk) =>
+            chunk.content.contains('```dart') && chunk.content.contains('```'),
       );
       expect(hasCompleteCodeBlock, isTrue);
     });
@@ -87,7 +88,8 @@ $largeParagraph
 
       // 每个 chunk 不应该超过最大限制
       for (final chunk in chunks) {
-        expect(chunk.content.length, lessThanOrEqualTo(SemanticChunker.maxChunkSize + 500));
+        expect(chunk.content.length,
+            lessThanOrEqualTo(SemanticChunker.maxChunkSize + 500));
       }
     });
 
@@ -127,7 +129,8 @@ $largeParagraph
       );
 
       // locator 应该包含完整路径
-      expect(chunks.any((c) => c.locator?.contains('README.md') ?? false), isTrue);
+      expect(
+          chunks.any((c) => c.locator?.contains('README.md') ?? false), isTrue);
     });
 
     test('空内容返回空列表', () {
@@ -173,6 +176,34 @@ $largeParagraph
       );
 
       expect(chunks.length, greaterThan(1));
+    });
+
+    test('遵守自定义最大行数', () {
+      final code = List.generate(5, (i) => 'line $i').join('\n');
+
+      final chunks = chunker.chunkCode(
+        sourceId: 'test_source',
+        code: code,
+        filePath: 'main.dart',
+        createdAt: DateTime.now(),
+        maxLinesPerChunk: 2,
+      );
+
+      expect(chunks, hasLength(3));
+      expect(chunks.map((chunk) => chunk.endLine), [2, 4, 5]);
+    });
+
+    test('拒绝非正数最大行数', () {
+      expect(
+        () => chunker.chunkCode(
+          sourceId: 'test_source',
+          code: 'line 1',
+          filePath: 'main.dart',
+          createdAt: DateTime.now(),
+          maxLinesPerChunk: 0,
+        ),
+        throwsArgumentError,
+      );
     });
 
     test('locator 包含文件路径和行号', () {

@@ -1,13 +1,13 @@
-import 'package:dlg_q/data/database/database_helper.dart';
-import 'package:dlg_q/data/models/programming_exercise.dart';
-import 'package:dlg_q/data/models/programming_exercise_attempt.dart';
-import 'package:dlg_q/data/models/programming_review_action.dart';
-import 'package:dlg_q/data/models/tutor_turn.dart';
-import 'package:dlg_q/data/repositories/knowledge_point_repository.dart';
-import 'package:dlg_q/data/repositories/programming_exercise_repository.dart';
-import 'package:dlg_q/data/repositories/programming_review_action_repository.dart';
-import 'package:dlg_q/data/repositories/question_repository.dart';
-import 'package:dlg_q/services/scheduling/programming_review_closure_service.dart';
+import 'package:anchor_learning/data/database/database_helper.dart';
+import 'package:anchor_learning/data/models/programming_exercise.dart';
+import 'package:anchor_learning/data/models/programming_exercise_attempt.dart';
+import 'package:anchor_learning/data/models/programming_review_action.dart';
+import 'package:anchor_learning/data/models/tutor_turn.dart';
+import 'package:anchor_learning/data/repositories/knowledge_point_repository.dart';
+import 'package:anchor_learning/data/repositories/programming_exercise_repository.dart';
+import 'package:anchor_learning/data/repositories/programming_review_action_repository.dart';
+import 'package:anchor_learning/data/repositories/question_repository.dart';
+import 'package:anchor_learning/services/scheduling/programming_review_closure_service.dart';
 
 class FakeProgrammingReviewClosureService
     extends ProgrammingReviewClosureService {

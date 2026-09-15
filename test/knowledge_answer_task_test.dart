@@ -2,10 +2,10 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:dlg_q/data/models/grounded_claim.dart';
-import 'package:dlg_q/data/models/source_chunk.dart';
-import 'package:dlg_q/services/ai/tasks/knowledge_answer_task.dart';
-import 'package:dlg_q/services/openai_service.dart';
+import 'package:anchor_learning/data/models/grounded_claim.dart';
+import 'package:anchor_learning/data/models/source_chunk.dart';
+import 'package:anchor_learning/services/ai/tasks/knowledge_answer_task.dart';
+import 'package:anchor_learning/services/openai_service.dart';
 
 void main() {
   test('keeps only answer claims with verifiable evidence quotes', () async {

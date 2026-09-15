@@ -62,7 +62,7 @@ class SupportBundleService {
           .toList(growable: false),
     };
     return LocalTextExport(
-      fileName: 'duoduo-events-${_fileTimestamp(generatedAt)}.json',
+      fileName: 'anchor-learning-events-${_fileTimestamp(generatedAt)}.json',
       content: const JsonEncoder.withIndent('  ').convert(payload),
       includedSections: const ['product_events'],
     );
@@ -159,7 +159,7 @@ class SupportBundleService {
     };
     final encoded = const JsonEncoder.withIndent('  ').convert(payload);
     return LocalTextExport(
-      fileName: 'duoduo-support-${_fileTimestamp(generatedAt)}.json',
+      fileName: 'anchor-learning-support-${_fileTimestamp(generatedAt)}.json',
       content: _redactor.redact(encoded),
       includedSections: includedSections,
     );

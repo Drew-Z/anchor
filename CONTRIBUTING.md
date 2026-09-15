@@ -26,8 +26,8 @@
 ```bash
 # Fork 项目到你的 GitHub 账户
 # 然后克隆到本地
-git clone https://github.com/your-username/duoduo.git
-cd duoduo
+git clone https://github.com/your-username/anchor.git
+cd anchor
 
 # 添加上游仓库
 git remote add upstream https://github.com/Drew-Z/anchor.git
@@ -318,7 +318,7 @@ git push origin feature/your-feature-name
 - [Flutter](https://docs.flutter.dev/)
 - [Riverpod](https://riverpod.dev/)
 - [SQLite](https://www.sqlite.org/docs.html)
-- [OpenAI API](https://platform.openai.com/docs/api-reference)
+- [OpenAI-compatible API 约定](https://platform.openai.com/docs/api-reference)
 
 ---
 
@@ -326,7 +326,7 @@ git push origin feature/your-feature-name
 
 ### 创建有效的 Bug 报告
 
-使用 [Bug Report 模板](https://github.com/Drew-Z/anchor/issues/new?template=bug_report.md),包含:
+使用 [Bug Report 模板](https://github.com/Drew-Z/anchor/issues/new?template=bug_report.yml),包含:
 
 1. **Bug 描述**: 简洁明了地说明问题
 2. **复现步骤**:
@@ -351,7 +351,7 @@ git push origin feature/your-feature-name
 
 ### 使用 Feature Request 模板
 
-使用 [Feature Request 模板](https://github.com/Drew-Z/anchor/issues/new?template=feature_request.md),说明:
+使用 [Feature Request 模板](https://github.com/Drew-Z/anchor/issues/new?template=feature_request.yml),说明:
 
 1. **问题陈述**: 你遇到了什么问题?
 2. **建议方案**: 你希望如何解决?
@@ -402,7 +402,7 @@ git push origin feature/your-feature-name
 ## 📞 需要帮助?
 
 - 💬 在 [Discussions](https://github.com/Drew-Z/anchor/discussions) 提问
-- 📧 发送邮件至 your-email@example.com
+- 📧 安全问题请使用仓库的 [Security Advisories](https://github.com/Drew-Z/anchor/security/advisories)，一般反馈请创建 Issue
 - 🐛 对于 Bug,请创建 Issue
 
 祝你编码愉快! 🚀

@@ -297,8 +297,9 @@ class _TrueFalseWidgetState extends State<TrueFalseWidget> {
         Color textColor = AppColors.textSecondary;
         if (isSelected || showCorrect) textColor = Colors.white;
         if (showWrong) textColor = Colors.white;
-        if (!isSelected && !widget.showResult)
+        if (!isSelected && !widget.showResult) {
           textColor = AppColors.textSecondary;
+        }
 
         Color borderColor = AppColors.border;
         if (isSelected && !widget.showResult) borderColor = AppColors.blue;

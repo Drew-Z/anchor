@@ -1,11 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:dlg_q/data/models/question.dart';
-import 'package:dlg_q/data/models/question_type.dart';
-import 'package:dlg_q/data/models/source.dart';
-import 'package:dlg_q/data/models/source_chunk.dart';
-import 'package:dlg_q/services/agent/knowledge_answer_context_service.dart';
-import 'package:dlg_q/services/agent/knowledge_search_service.dart';
+import 'package:anchor_learning/data/models/question.dart';
+import 'package:anchor_learning/data/models/question_type.dart';
+import 'package:anchor_learning/data/models/source.dart';
+import 'package:anchor_learning/data/models/source_chunk.dart';
+import 'package:anchor_learning/services/agent/knowledge_answer_context_service.dart';
+import 'package:anchor_learning/services/agent/knowledge_search_service.dart';
 
 void main() {
   test('trust is scaled by relevance and ranking reasons are inspectable', () {

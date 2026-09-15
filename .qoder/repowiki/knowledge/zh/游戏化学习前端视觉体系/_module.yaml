@@ -1,0 +1,12 @@
+schema_version: 1
+module_path: frontend_style
+title: 游戏化学习前端视觉体系
+scope: []
+source_files:
+    - lib/core/constants/app_colors.dart
+    - lib/core/theme/app_theme.dart
+    - lib/shared/widgets/anchor_button.dart
+    - lib/shared/widgets/stats_widgets.dart
+    - pubspec.yaml
+depends_on: []
+related_to: []

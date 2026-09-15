@@ -1,4 +1,4 @@
-# Duoduo Execution Roadmap v2
+# Anchor Learning Execution Roadmap v2
 
 ## North Star
 
@@ -163,7 +163,7 @@ closed on 2026-07-16.
 Status: in progress. Leaves 21.1 through 21.5 were completed on 2026-07-16;
 Leaf 21.6a readiness is implemented and the real Leaf 21.6 cohort is pending.
 
-Branch outcome: ten interview-preparation developers can install Duoduo, reach a
+Branch outcome: ten interview-preparation developers can install Anchor Learning, reach a
 first source-grounded learning turn, inspect a project interview outcome, export
 or delete their data, and provide redacted feedback without developer help.
 
@@ -171,7 +171,7 @@ or delete their data, and provide redacted feedback without developer help.
   immutable local event model, metric hypotheses, release gate, and source-backed
   product research. Completed on 2026-07-16. The provider gate now has bounded
   per-case and whole-run timeouts; no newly supplied relay passed the five-task
-  App matrix, so Duoduo currently has no approved default model profile.
+  App matrix, so Anchor Learning currently has no approved default model profile.
 - Leaf 21.2: implement a resumable, goal-led first run that reuses secure model
   setup, local project import, coverage review, and the unified Agent workspace.
   Completed on 2026-07-16 with a versioned orchestration record, legacy-user

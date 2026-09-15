@@ -165,7 +165,7 @@ JSON schema：
   /// **参数**:
   /// - [sourceChunks]: 原文片段列表(不能为空)
   ///
-  /// **返回**: AiTaskResult<KnowledgeExtractionResult>
+  /// **返回**: `AiTaskResult<KnowledgeExtractionResult>`
   /// - 成功: 包含提取的知识点列表
   /// - 失败: 包含错误类型和详细信息
   ///

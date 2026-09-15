@@ -1,4 +1,4 @@
-# Duoduo Private Alpha Decision Log
+# Anchor Learning Private Alpha Decision Log
 
 ## Purpose
 

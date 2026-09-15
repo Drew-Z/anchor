@@ -18,6 +18,17 @@ class HomeScreen extends ConsumerWidget {
     final statsAsync = ref.watch(userStatsProvider);
     final mode = ref.watch(learningModeProvider);
 
+    // Determine if we're showing empty state to control FAB visibility
+    final hasContent = mode == LearningMode.random
+        ? ref.watch(verifiedQuestionsProvider).maybeWhen(
+              data: (questions) => questions.isNotEmpty,
+              orElse: () => true, // Show FAB during loading/error
+            )
+        : ref.watch(deckListProvider).maybeWhen(
+              data: (decks) => decks.isNotEmpty,
+              orElse: () => true, // Show FAB during loading/error
+            );
+
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -36,20 +47,23 @@ class HomeScreen extends ConsumerWidget {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const IngestionScreen()),
-          );
-        },
-        backgroundColor: AppColors.green,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
-        label: const Text(
-          '添加内容',
-          style: TextStyle(fontWeight: FontWeight.w800),
-        ),
-      ),
+      floatingActionButton: hasContent
+          ? FloatingActionButton.extended(
+              heroTag: 'home-add-content',
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const IngestionScreen()),
+                );
+              },
+              backgroundColor: AppColors.green,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.add),
+              label: const Text(
+                '添加内容',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            )
+          : null,
     );
   }
 
@@ -59,8 +73,10 @@ class HomeScreen extends ConsumerWidget {
       data: (items) {
         if (items.isEmpty) return const SizedBox.shrink();
 
-        final questionCount =
-            items.fold<int>(0, (sum, item) => sum + item.questionCount);
+        final questionCount = items.fold<int>(
+          0,
+          (sum, item) => sum + item.questionCount,
+        );
         final topTitles =
             items.take(3).map((item) => item.knowledgePoint.title).join('、');
 
@@ -69,71 +85,78 @@ class HomeScreen extends ConsumerWidget {
           child: Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: AppColors.blueLight,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.blue, width: 2),
+              color: AppColors.cardBackground,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.border, width: 1),
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: const BoxDecoration(
-                    color: AppColors.blue,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.refresh,
-                    color: Colors.white,
-                    size: 22,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '今日复习 · ${items.length} 个知识点 · $questionCount 题',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
-                        ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        shape: BoxShape.circle,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        topTitles,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textSecondary,
-                        ),
+                      child: const Icon(
+                        Icons.refresh,
+                        color: AppColors.textSecondary,
+                        size: 20,
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 10),
-                ElevatedButton.icon(
-                  onPressed: () => _startTodayReview(context, ref),
-                  icon: const Icon(Icons.play_arrow, size: 18),
-                  label: const Text(
-                    '复习',
-                    style: TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.blue,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
                     ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '今日复习 · ${items.length} 个知识点 · $questionCount 题',
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            topTitles,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _startTodayReview(context, ref),
+                    icon: const Icon(Icons.play_arrow, size: 18),
+                    label: const Text(
+                      '复习',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                   ),
                 ),
@@ -183,78 +206,192 @@ class HomeScreen extends ConsumerWidget {
   ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          // 模式切换器（左上角，类似多邻国换语言）
-          GestureDetector(
-            onTap: () => _showModeSelector(context, ref),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.border, width: 2),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    mode == LearningMode.random
-                        ? Icons.shuffle
-                        : Icons.list_alt,
-                    size: 18,
-                    color: AppColors.blue,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    mode == LearningMode.random ? '随机模式' : '知识点模式',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Two-state responsive layout: single row when spacious, wrap when tight
+          final needsWrap = constraints.maxWidth < 500;
+          final statSpacing = needsWrap ? 4.0 : 12.0;
+
+          if (needsWrap) {
+            // Narrow or large text: two rows, mode left-aligned, stats right-aligned
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Mode selector row
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: GestureDetector(
+                    onTap: () => _showModeSelector(context, ref),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: AppColors.border, width: 1),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            mode == LearningMode.random
+                                ? Icons.shuffle
+                                : Icons.list_alt,
+                            size: 18,
+                            color: AppColors.blue,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            mode == LearningMode.random ? '随机' : '知识点',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const Icon(
+                            Icons.arrow_drop_down,
+                            size: 18,
+                            color: AppColors.textLight,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  const Icon(Icons.arrow_drop_down,
-                      size: 18, color: AppColors.textLight),
-                ],
+                ),
+                const SizedBox(height: 8),
+                // Stats row
+                statsAsync.when(
+                  data: (stats) {
+                    final heartColor = stats.hearts <= 0
+                        ? AppColors.red
+                        : (stats.hearts <= 1
+                            ? AppColors.streakOrange
+                            : AppColors.heartRed);
+                    return Align(
+                      alignment: Alignment.centerRight,
+                      child: Wrap(
+                        alignment: WrapAlignment.end,
+                        runAlignment: WrapAlignment.end,
+                        spacing: statSpacing,
+                        runSpacing: 4,
+                        children: [
+                          _StatChip(
+                            icon: Icons.local_fire_department,
+                            iconColor: AppColors.streakOrange,
+                            value: stats.streak.toString(),
+                            isCompact: true,
+                          ),
+                          _StatChip(
+                            icon: Icons.diamond,
+                            iconColor: AppColors.blue,
+                            value: stats.xp.toString(),
+                            isCompact: true,
+                          ),
+                          _StatChip(
+                            icon: stats.hearts <= 1
+                                ? Icons.favorite
+                                : Icons.favorite,
+                            iconColor: heartColor,
+                            value: '${stats.hearts}/${stats.maxHearts}',
+                            isCompact: true,
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                  loading: () => const SizedBox(height: 24),
+                  error: (_, __) => const SizedBox(height: 24),
+                ),
+              ],
+            );
+          }
+
+          // Wide layout: single row with spacer, left mode / right stats
+          return Row(
+            children: [
+              // 模式切换器（左上角）
+              GestureDetector(
+                onTap: () => _showModeSelector(context, ref),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppColors.border, width: 1),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        mode == LearningMode.random
+                            ? Icons.shuffle
+                            : Icons.list_alt,
+                        size: 18,
+                        color: AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        mode == LearningMode.random ? '随机模式' : '知识点模式',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const Icon(
+                        Icons.arrow_drop_down,
+                        size: 18,
+                        color: AppColors.textLight,
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ),
-          const Spacer(),
-          // 统计
-          statsAsync.when(
-            data: (stats) {
-              final heartColor = stats.hearts <= 0
-                  ? AppColors.red
-                  : (stats.hearts <= 1
-                      ? AppColors.streakOrange
-                      : AppColors.heartRed);
-              return Row(
-                children: [
-                  _StatChip(
-                    icon: Icons.local_fire_department,
-                    iconColor: AppColors.streakOrange,
-                    value: stats.streak.toString(),
-                  ),
-                  const SizedBox(width: 12),
-                  _StatChip(
-                    icon: Icons.diamond,
-                    iconColor: AppColors.blue,
-                    value: stats.xp.toString(),
-                  ),
-                  const SizedBox(width: 12),
-                  _StatChip(
-                    icon: stats.hearts <= 1 ? Icons.favorite : Icons.favorite,
-                    iconColor: heartColor,
-                    value: '${stats.hearts}/${stats.maxHearts}',
-                  ),
-                ],
-              );
-            },
-            loading: () => const SizedBox(height: 24),
-            error: (_, __) => const SizedBox(height: 24),
-          ),
-        ],
+              const Spacer(),
+              // 统计
+              statsAsync.when(
+                data: (stats) {
+                  final heartColor = stats.hearts <= 0
+                      ? AppColors.red
+                      : (stats.hearts <= 1
+                          ? AppColors.streakOrange
+                          : AppColors.heartRed);
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _StatChip(
+                        icon: Icons.local_fire_department,
+                        iconColor: AppColors.streakOrange,
+                        value: stats.streak.toString(),
+                        isCompact: false,
+                      ),
+                      SizedBox(width: statSpacing),
+                      _StatChip(
+                        icon: Icons.diamond,
+                        iconColor: AppColors.blue,
+                        value: stats.xp.toString(),
+                        isCompact: false,
+                      ),
+                      SizedBox(width: statSpacing),
+                      _StatChip(
+                        icon:
+                            stats.hearts <= 1 ? Icons.favorite : Icons.favorite,
+                        iconColor: heartColor,
+                        value: '${stats.hearts}/${stats.maxHearts}',
+                        isCompact: false,
+                      ),
+                    ],
+                  );
+                },
+                loading: () => const SizedBox(height: 24),
+                error: (_, __) => const SizedBox(height: 24),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -315,7 +452,7 @@ class HomeScreen extends ConsumerWidget {
       context: context,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (context) {
         return SafeArea(
@@ -328,7 +465,7 @@ class HomeScreen extends ConsumerWidget {
                   '选择学习模式',
                   style: TextStyle(
                     fontSize: 18,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary,
                   ),
                 ),
@@ -389,7 +526,10 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Widget _buildRandomPath(
-      BuildContext context, WidgetRef ref, int completedLevels) {
+    BuildContext context,
+    WidgetRef ref,
+    int completedLevels,
+  ) {
     return CustomScrollView(
       slivers: [
         // 标题区
@@ -401,8 +541,8 @@ class HomeScreen extends ConsumerWidget {
                 const Text(
                   '学习路径',
                   style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary,
                   ),
                 ),
@@ -422,61 +562,59 @@ class HomeScreen extends ConsumerWidget {
         ),
         // 无限关卡列表（SliverList 懒加载，只构建可见项）
         SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) {
-              final level = index + 1;
-              // S型波浪布局：使用正弦函数实现连续曲线
-              final waveOffset = math.sin(index * 0.7) * 140;
+          delegate: SliverChildBuilderDelegate((context, index) {
+            final level = index + 1;
+            // S型波浪布局：使用正弦函数实现连续曲线
+            final waveOffset = math.sin(index * 0.7) * 140;
 
-              // 根据相邻单元的水平距离动态调整垂直间距：
-              // 水平距离大（图标分得开）→ 垂直间距小
-              // 水平距离小（图标靠得近）→ 垂直间距大
-              final nextOffset = math.sin((index + 1) * 0.7) * 140;
-              final horizontalDiff = (nextOffset - waveOffset).abs();
-              double verticalSpacing = (14 - horizontalDiff * 0.1).clamp(3, 14);
+            // 根据相邻单元的水平距离动态调整垂直间距：
+            // 水平距离大（图标分得开）→ 垂直间距小
+            // 水平距离小（图标靠得近）→ 垂直间距大
+            final nextOffset = math.sin((index + 1) * 0.7) * 140;
+            final horizontalDiff = (nextOffset - waveOffset).abs();
+            double verticalSpacing = (14 - horizontalDiff * 0.1).clamp(3, 14);
 
-              final isCompleted = level <= completedLevels;
-              final isCurrent = level == completedLevels + 1;
-              final isLocked = !isCompleted && !isCurrent;
+            final isCompleted = level <= completedLevels;
+            final isCurrent = level == completedLevels + 1;
+            final isLocked = !isCompleted && !isCurrent;
 
-              return Padding(
-                padding: EdgeInsets.only(
-                  left: 16 + (waveOffset > 0 ? waveOffset : 0),
-                  right: 16 + (waveOffset < 0 ? -waveOffset : 0),
-                  top: 0,
-                  bottom: 0,
-                ),
-                child: Column(
-                  children: [
-                    // 关卡节点
-                    _RandomPathNode(
-                      level: level,
-                      isCompleted: isCompleted,
-                      isCurrent: isCurrent,
-                      isLocked: isLocked,
-                      onTap: isLocked
-                          ? null
-                          : () => _startRandomLevel(context, ref, level),
-                    ),
-                    // 动态垂直间距
-                    SizedBox(height: verticalSpacing),
-                  ],
-                ),
-              ).animate().fadeIn(duration: 200.ms);
-            },
-            childCount: 100000,
-          ),
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 16 + (waveOffset > 0 ? waveOffset : 0),
+                right: 16 + (waveOffset < 0 ? -waveOffset : 0),
+                top: 0,
+                bottom: 0,
+              ),
+              child: Column(
+                children: [
+                  // 关卡节点
+                  _RandomPathNode(
+                    level: level,
+                    isCompleted: isCompleted,
+                    isCurrent: isCurrent,
+                    isLocked: isLocked,
+                    onTap: isLocked
+                        ? null
+                        : () => _startRandomLevel(context, ref, level),
+                  ),
+                  // 动态垂直间距
+                  SizedBox(height: verticalSpacing),
+                ],
+              ),
+            ).animate().fadeIn(duration: 200.ms);
+          }, childCount: 100000),
         ),
         // 底部间距
-        const SliverToBoxAdapter(
-          child: SizedBox(height: 80),
-        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 80)),
       ],
     );
   }
 
   Future<void> _startRandomLevel(
-      BuildContext context, WidgetRef ref, int level) async {
+    BuildContext context,
+    WidgetRef ref,
+    int level,
+  ) async {
     final verifiedQuestions = await ref.read(verifiedQuestionsProvider.future);
     final questions = [...verifiedQuestions]..shuffle(math.Random());
     final levelQuestions = questions.take(5).toList();
@@ -484,9 +622,7 @@ class HomeScreen extends ConsumerWidget {
     if (!context.mounted) return;
 
     final completed = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) => QuizScreen(questions: levelQuestions),
-      ),
+      MaterialPageRoute(builder: (_) => QuizScreen(questions: levelQuestions)),
     );
 
     if (completed == true) {
@@ -524,8 +660,8 @@ class HomeScreen extends ConsumerWidget {
           const Text(
             '学习路径',
             style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
+              fontSize: 26,
+              fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
             ),
           ),
@@ -569,11 +705,10 @@ class HomeScreen extends ConsumerWidget {
             isCurrent: isCurrent,
             onTap: () => _startDeckPractice(context, ref, deck),
           ),
-        ).animate().fadeIn(duration: 300.ms, delay: (i * 100).ms).slideY(
-              begin: 0.2,
-              duration: 300.ms,
-              delay: (i * 100).ms,
-            ),
+        )
+            .animate()
+            .fadeIn(duration: 300.ms, delay: (i * 100).ms)
+            .slideY(begin: 0.2, duration: 300.ms, delay: (i * 100).ms),
       );
 
       if (i < decks.length - 1) {
@@ -605,9 +740,7 @@ class HomeScreen extends ConsumerWidget {
     Deck deck,
   ) async {
     await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) => QuizScreen(deckId: deck.id),
-      ),
+      MaterialPageRoute(builder: (_) => QuizScreen(deckId: deck.id)),
     );
     if (!context.mounted) return;
     _refreshLearningState(ref, deckId: deck.id);
@@ -616,69 +749,91 @@ class HomeScreen extends ConsumerWidget {
   // ============ 空状态 ============
 
   Widget _buildEmptyState(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 100,
-              height: 100,
-              decoration: const BoxDecoration(
-                color: AppColors.greenLight,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.school,
-                size: 50,
-                color: AppColors.green,
-              ),
-            ).animate().scale(duration: 500.ms),
-            const SizedBox(height: 24),
-            const Text(
-              '开始你的学习之旅',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
-              ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Detect very constrained layouts (narrow + likely large text scale)
+        final isVeryConstrained = constraints.maxWidth < 350;
+        final horizontalPadding = 32.0;
+        final verticalPadding = isVeryConstrained ? 16.0 : 24.0;
+        final iconSize = isVeryConstrained ? 64.0 : 80.0;
+        final titleSize = isVeryConstrained ? 19.0 : 22.0;
+        final bodySize = isVeryConstrained ? 13.0 : 15.0;
+        final spacing1 = isVeryConstrained ? 16.0 : 24.0;
+        final spacing2 = isVeryConstrained ? 6.0 : 12.0;
+        final spacing3 = isVeryConstrained ? 16.0 : 32.0;
+
+        return Center(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.symmetric(
+              horizontal: horizontalPadding,
+              vertical: verticalPadding,
             ),
-            const SizedBox(height: 8),
-            const Text(
-              '从知乎、小红书等 APP 中分享内容到这里\nAI 会自动帮你拆解成题目',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 15,
-                color: AppColors.textSecondary,
-                height: 1.6,
-              ),
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const IngestionScreen()),
-                );
-              },
-              icon: const Icon(Icons.add),
-              label: const Text(
-                '添加第一条内容',
-                style: TextStyle(fontWeight: FontWeight.w800),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.green,
-                foregroundColor: Colors.white,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: iconSize,
+                  height: iconSize,
+                  decoration: BoxDecoration(
+                    color: AppColors.greenLight,
+                    borderRadius: BorderRadius.circular(iconSize / 2),
+                  ),
+                  child: Icon(
+                    Icons.school,
+                    size: iconSize / 2,
+                    color: AppColors.green,
+                  ),
+                ).animate().scale(duration: 500.ms),
+                SizedBox(height: spacing1),
+                Text(
+                  '开始你的学习之旅',
+                  style: TextStyle(
+                    fontSize: titleSize,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
-              ),
+                SizedBox(height: spacing2),
+                Text(
+                  '从你的知识源添加内容，建立个人题库\n本地存储，自主掌控',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: bodySize,
+                    color: AppColors.textSecondary,
+                    height: 1.6,
+                  ),
+                ),
+                SizedBox(height: spacing3),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => const IngestionScreen()),
+                    );
+                  },
+                  icon: const Icon(Icons.add, size: 20),
+                  label: const Text(
+                    '添加内容',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 28,
+                      vertical: 14,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -689,25 +844,31 @@ class _StatChip extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
   final String value;
+  final bool isCompact;
 
   const _StatChip({
     required this.icon,
     required this.iconColor,
     required this.value,
+    this.isCompact = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final iconSize = isCompact ? 18.0 : 20.0;
+    final fontSize = isCompact ? 14.0 : 16.0;
+    final spacing = isCompact ? 3.0 : 4.0;
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, color: iconColor, size: 20),
-        const SizedBox(width: 4),
+        Icon(icon, color: iconColor, size: iconSize),
+        SizedBox(width: spacing),
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
+          style: TextStyle(
+            fontSize: fontSize,
+            fontWeight: FontWeight.w700,
             color: AppColors.textPrimary,
           ),
         ),
@@ -744,7 +905,7 @@ class _ModeOption extends StatelessWidget {
         height: 40,
         decoration: BoxDecoration(
           color: iconColor.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(icon, color: iconColor, size: 22),
       ),
@@ -752,16 +913,13 @@ class _ModeOption extends StatelessWidget {
         title,
         style: TextStyle(
           fontSize: 16,
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w700,
           color: isSelected ? iconColor : AppColors.textPrimary,
         ),
       ),
       subtitle: Text(
         subtitle,
-        style: const TextStyle(
-          fontSize: 13,
-          color: AppColors.textSecondary,
-        ),
+        style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
       ),
       trailing: isSelected
           ? Icon(Icons.check_circle, color: iconColor, size: 24)
@@ -815,13 +973,13 @@ class _RandomPathNode extends StatelessWidget {
             decoration: BoxDecoration(
               color: nodeColor,
               shape: BoxShape.circle,
-              border: Border.all(color: borderColor, width: 3), // 边框从4缩小到3
+              border: Border.all(color: borderColor, width: 2.5), // 边框从3改为2.5
               boxShadow: isCurrent
                   ? [
                       BoxShadow(
-                        color: AppColors.green.withValues(alpha: 0.3),
-                        blurRadius: 10, // 从12缩小到10
-                        spreadRadius: 1, // 从2缩小到1
+                        color: AppColors.green.withValues(alpha: 0.25),
+                        blurRadius: 8,
+                        spreadRadius: 0,
                       ),
                     ]
                   : null,
@@ -835,7 +993,7 @@ class _RandomPathNode extends StatelessWidget {
                           '$level',
                           style: TextStyle(
                             fontSize: 20, // 从24缩小到20
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w700,
                             color: iconColor,
                           ),
                         ),
@@ -845,17 +1003,19 @@ class _RandomPathNode extends StatelessWidget {
           Container(
             constraints: const BoxConstraints(maxWidth: 100), // 从120缩小到100
             padding: const EdgeInsets.symmetric(
-                horizontal: 5, vertical: 2), // 从6,3缩小到5,2
+              horizontal: 5,
+              vertical: 2,
+            ), // 从6,3缩小到5,2
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(6), // 从8缩小到6
-              border: Border.all(color: AppColors.border, width: 1), // 从1.5缩小到1
+              borderRadius: BorderRadius.circular(4), // 从6缩小到4
+              border: Border.all(color: AppColors.border, width: 1),
             ),
             child: Text(
               '单元 $level',
               style: const TextStyle(
                 fontSize: 8, // 从9缩小到8
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary,
               ),
             ),
@@ -883,8 +1043,9 @@ class _PathNode extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final verifiedQuestionsAsync =
-        ref.watch(verifiedDeckQuestionsProvider(deck.id));
+    final verifiedQuestionsAsync = ref.watch(
+      verifiedDeckQuestionsProvider(deck.id),
+    );
     final verifiedCount = verifiedQuestionsAsync.maybeWhen(
       data: (questions) => questions.length,
       orElse: () => null,
@@ -928,13 +1089,13 @@ class _PathNode extends ConsumerWidget {
             decoration: BoxDecoration(
               color: nodeColor,
               shape: BoxShape.circle,
-              border: Border.all(color: borderColor, width: 4),
+              border: Border.all(color: borderColor, width: 3),
               boxShadow: canStudy && isCurrent
                   ? [
                       BoxShadow(
-                        color: AppColors.green.withValues(alpha: 0.3),
-                        blurRadius: 12,
-                        spreadRadius: 2,
+                        color: AppColors.green.withValues(alpha: 0.25),
+                        blurRadius: 10,
+                        spreadRadius: 0,
                       ),
                     ]
                   : null,
@@ -947,8 +1108,8 @@ class _PathNode extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.border, width: 2),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.border, width: 1),
             ),
             child: Column(
               children: [
@@ -958,7 +1119,7 @@ class _PathNode extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 13,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary,
                   ),
                 ),

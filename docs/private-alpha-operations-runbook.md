@@ -1,4 +1,4 @@
-# Duoduo Private Alpha Operations Runbook
+# Anchor Learning Private Alpha Operations Runbook
 
 ## Purpose
 
@@ -6,21 +6,22 @@ This runbook executes Leaf 21.6 without changing the targets defined in
 `docs/private-alpha-product-contract.md`. Internal shakedown participants do not
 count toward the formal ten-user cohort.
 
-Formal cohort work must not begin until every entry gate below has an owner and
-recorded evidence.
+Optional cohort research must not begin until every entry gate below has an
+owner and recorded evidence.
 
-Current launch status on 2026-07-17: `HOLD FOR CONTROLLED CREDENTIAL`.
+Current launch status on 2026-09-15: technical `GO`.
 
 - Implementation and Tier A emulator acceptance are complete.
-- A development-only Grok primary profile using Responses and `grok-4.5` passed
-  the App matrix at `5/5`, completed the real project-generation flow, and kept
-  its acceptance record after database restore.
+- The signed `1.0.0+2005` Arm64 release candidate passed the physical-device
+  smoke and current release-day Chat Completions matrices with primary
+  `grok-4.6` and fallback `glm-5.3-flash`, each at `5/5`, on 2026-09-15.
 - Arm64 physical install, cold start, process, App-log, first-screen, local
   project import, feedback export, model acceptance, onboarding, database backup,
   and database restore checks pass.
-- The current credential is a shared public relay. Formal invitations must not be
-  sent until a controlled or participant-owned exact profile passes the same
-  `5/5` check and has a named data-handling owner.
+- The participant-owned credential governance and data-processing owner records
+  are bound through `CRED-PRIMARY-2005`, `CRED-FALLBACK-2005`, and
+  `OPS-ALPHA-2005`. The technical readiness evaluator returns `GO`; A01-A10
+  and D0/D7/D14 are optional research work and are not release gates.
 
 ## Roles
 
@@ -72,11 +73,13 @@ commit participant evidence or credentials. Validate the final file with
 tool/private_alpha_readiness.dart before changing invitation status.
 ## Candidate Model Gate
 
-Use `Grok 4.5 通道（主）` as the first candidate and `Mimo 通道（备）` as the
-fallback candidate. These are isolated configuration slots, not embedded relay
-definitions: each starts without an endpoint, model, or credential. The labels
-set the operator's evaluation order only; the App does not automatically fail
-over between them.
+Use `custom_grok_primary` as the first candidate and `custom_mimo_fallback` as
+the fallback candidate. These are isolated configuration slots, not embedded
+relay definitions: each starts without an endpoint, model, or credential. The
+labels set the operator's evaluation order only; the App does not automatically
+fail over between them. The current release-day exact profile is Chat
+Completions with `grok-4.6`; any later model, endpoint, protocol, or APK change
+requires a new in-app matrix run.
 
 Configure and approve the two channels separately. Neither channel is
 considered stable or approved from anecdotal availability, and a `5/5` report
@@ -244,4 +247,3 @@ Stop or pause the cohort when any condition occurs:
 
 Do not weaken a target, remove a failed participant, or change the activation
 definition to continue the study.
-

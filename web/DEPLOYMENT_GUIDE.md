@@ -1,195 +1,87 @@
-# Anchor Learning - 部署指南
+# Anchor Learning Web 部署指南
 
-## ✅ 已完成的步骤
+## 发布边界
 
-### 1. Cloudflare Pages 项目创建
-- **项目名称**: `anchor-learning`
-- **默认 URL**: https://anchor-learning.pages.dev
-- **最新部署**: https://0fdf4957.anchor-learning.pages.dev
-- **状态**: ✅ 部署成功
+- Cloudflare Pages 输出目录：`web/landing`
+- 产品官网：`https://anchor.playlab.eu.cc/`
+- 交互演示：`https://anchor.playlab.eu.cc/app/`（唯一规范地址）
+- 直接页面：`https://anchor.playlab.eu.cc/app/index.html`（重定向到 `/app/`）
 
-### 2. 本地配置文件
-- ✅ `wrangler.toml` 已创建
-- ✅ `landing/` 目录包含完整的静态网站
+Demo 必须保存在 `web/landing/app`。同级的 `web/app` 不会进入 Pages 发布物，也不能作为线上入口。
 
----
+## Demo 规范入口
 
-## 🔧 接下来的步骤
+`/app/` 是 Demo 唯一的规范地址。`web/landing/_redirects` 用永久重定向把 `/app` 和 `/app/index.html` 都指向 `/app/`，因此指向该文档的书签或搜索结果会落到规范地址，而不是同一页面的第二份副本。
 
-### 步骤 1: 配置自定义域名
+`npm run serve` 只是普通静态文件服务器，不读取 `_redirects`，本地请求无法验证该行为。这两条规则由 `npm run test:unit` 针对发布文件断言，并由下面的线上验收针对部署结果核对。
 
-通过 Cloudflare 控制台配置 `anchor.playlab.eu.cc`:
+## 缓存策略
 
-1. **打开 Pages 项目**
-   - 访问: https://dash.cloudflare.com/2741446a7478f2d8a5ff31df7e077f17/pages/view/anchor-learning
+缓存策略写在 `web/landing/_headers`，只有两类，并以保守的那一类为默认：
 
-2. **添加自定义域名**
-   ```
-   进入: Custom domains 标签
-   点击: "Set up a custom domain"
-   输入: anchor.playlab.eu.cc
-   点击: "Continue"
-   ```
+- `/assets/*` 使用 `public, max-age=86400, stale-while-revalidate=604800, no-transform`。图片和图标通过发布新文件替换，而不是原地修改已发布文件，因此缓存副本不会与加载它的页面自相矛盾。
+- 所有发布的 HTML 文档、脚本和样式表使用 `public, max-age=0, must-revalidate, no-transform`。响应仍然可缓存，但缓存只能在源站确认其仍为最新之后才可复用：代价是一次条件请求，内容未变时返回 `304`。
 
-3. **DNS 配置**
-   
-   Cloudflare 会自动检测到 `playlab.eu.cc` 域名在同一账户下,并提示:
-   
-   ```
-   ✅ We'll automatically add the DNS records for you
-   ```
-   
-   它会创建以下 CNAME 记录:
-   ```
-   CNAME  anchor  anchor-learning.pages.dev
-   ```
+第二类之所以严格，是因为这些文件都没有内容哈希，而现有的 `?v=` 版本号并不完整：`app.js` 带版本号，但它导入的 `data.js` 没有；`i18n.js` 既被带版本号地请求，也被不带版本号地请求。若不强制重新验证，浏览器可能把过期模块与新文档搭配运行，而这种组合从未作为整体发布过。
 
-4. **等待激活**
-   - 预计时间: 1-5 分钟
-   - 状态显示: "Active" 表示配置成功
+这些规则显式列出路径，而不依赖后缀通配：`/`、`/index.html`、`/404.html`、`/app/`、`/app/index.html`，以及 `/assets/*` 已经验证过的前缀写法 `/scripts/*`、`/styles/*`、`/app/scripts/*`、`/app/styles/*`。每个块都写出完整的 `Cache-Control` 值，因此没有任何路径依赖从 `/*` 基线继承；每个值都以 `no-transform` 结尾，使基线自身的 `Cache-Control` 始终是它的子集。
 
----
+该策略是纯静态、不依赖任何服务方：没有 Service Worker，没有运行时缓存，也没有 cache-busting 代码。向发布物新增文档、脚本或样式表时必须同时新增对应规则。`npm run test:unit` 会从磁盘读取已发布的 `_headers`，断言必需的路径与指令，并在某个已发布文件缺少规则时失败。
 
-### 步骤 2: 验证部署
+`npm run serve` 同样不读取 `_headers`，本地请求无法呈现这些响应头。发布文件即契约，实际响应头由下面的线上验收核对。
 
-配置完成后,访问以下 URL 验证:
-
-1. **Cloudflare Pages 默认域名**
-   ```
-   https://anchor-learning.pages.dev
-   ```
-
-2. **自定义域名**
-   ```
-   https://anchor.playlab.eu.cc
-   ```
-
-3. **检查项目**
-   - ✅ 页面加载正常
-   - ✅ CSS 样式生效
-   - ✅ 所有链接可点击
-   - ✅ GitHub 链接指向正确仓库
-
----
-
-## 📝 后续维护
-
-### 更新网站内容
-
-1. **修改本地文件**
-   ```bash
-   cd D:/workspace4Cursor/learn/duoduo/web/landing
-   # 编辑 index.html 或其他文件
-   ```
-
-2. **重新部署**
-   ```bash
-   cd D:/workspace4Cursor/learn/duoduo/web
-   wrangler pages deploy landing --project-name=anchor-learning
-   ```
-
-3. **查看部署历史**
-   ```bash
-   wrangler pages deployment list --project-name=anchor-learning
-   ```
-
-### 自动化部署 (可选)
-
-如果你希望每次推送到 GitHub 时自动部署,可以:
-
-1. **在 Cloudflare Pages 控制台中**
-   ```
-   Settings → Builds & deployments → Connect to Git
-   ```
-
-2. **连接 GitHub 仓库**
-   ```
-   Repository: Drew-Z/anchor
-   Production branch: main
-   Build directory: web/landing
-   ```
-
-3. **配置构建设置**
-   ```
-   Framework preset: None (static site)
-   Build command: (留空)
-   Build output directory: /
-   ```
-
----
-
-## 🔗 重要链接
-
-### Cloudflare 控制台
-- **Pages 项目**: https://dash.cloudflare.com/2741446a7478f2d8a5ff31df7e077f17/pages/view/anchor-learning
-- **域名管理**: https://dash.cloudflare.com/2741446a7478f2d8a5ff31df7e077f17/playlab.eu.cc/dns
-
-### 项目 URL
-- **临时 URL**: https://0fdf4957.anchor-learning.pages.dev
-- **生产 URL**: https://anchor-learning.pages.dev
-- **自定义域名**: https://anchor.playlab.eu.cc (待配置)
-
-### GitHub
-- **仓库**: https://github.com/Drew-Z/anchor
-- **网站源码**: `/web/landing/`
-
----
-
-## 🎯 快速命令参考
+## 本地验证
 
 ```bash
-# 查看当前认证状态
-wrangler whoami
-
-# 列出所有 Pages 项目
-wrangler pages project list
-
-# 部署到生产环境
-wrangler pages deploy landing --project-name=anchor-learning
-
-# 查看部署历史
-wrangler pages deployment list --project-name=anchor-learning
-
-# 查看项目详情
-# (需通过控制台查看)
+cd D:/workspace4Cursor/learn/anchor/web
+npm ci
+npm test
 ```
 
----
+浏览器测试覆盖中英文切换、三套数据、答题、解释、来源引用、预置导师提示、移动端菜单、视觉截图和无外部请求约束。
 
-## ✅ 检查清单
+## 生产部署
 
-在 GitHub README 中更新网站链接前,请确认:
+只有本地验证通过并审查 Git diff 后，才执行：
 
-- [ ] 自定义域名 `anchor.playlab.eu.cc` 配置成功
-- [ ] HTTPS 证书已激活
-- [ ] 网站可以正常访问
-- [ ] 所有页面元素加载正确
-- [ ] GitHub 仓库链接指向正确
-- [ ] README.md 和 GITHUB_SETUP.md 中的 URL 已更新
+```bash
+cd D:/workspace4Cursor/learn/anchor/web
+npx wrangler pages deploy landing --project-name anchor-learning --branch main
+```
 
----
+仓库文档不得记录 Cloudflare 账号 ID、API Token 或带账号标识的控制台 URL。
 
-## 🚀 完成后的最终步骤
+## 线上验收
 
-1. **更新 README.md**
-   ```markdown
-   **Website**: `https://anchor.playlab.eu.cc`
-   ```
+```bash
+curl -I https://anchor.playlab.eu.cc/
+curl -I https://anchor.playlab.eu.cc/app/
+curl -I https://anchor.playlab.eu.cc/app/index.html
+curl -sI https://anchor.playlab.eu.cc/app/index.html | grep -i '^location:'
 
-2. **更新 GITHUB_SETUP.md**
-   ```markdown
-   **Website**: https://anchor.playlab.eu.cc
-   ```
+for path in / /app/ /app/scripts/app.js /app/scripts/data.js /app/styles/app.css /scripts/main.js /scripts/i18n.js /styles/main.css /assets/anchor-icon.svg; do
+  printf '%s ' "$path"
+  curl -sI "https://anchor.playlab.eu.cc$path" | grep -i '^cache-control:'
+done
+```
 
-3. **提交更改**
-   ```bash
-   git add .
-   git commit -m "docs: update website URL to anchor.playlab.eu.cc"
-   git push origin main
-   ```
+必须满足：
 
----
+- `/` 返回 `200`。
+- `/app/` 返回 `200`。
+- `/app/index.html` 返回永久重定向（`301` 或 `308`），且 `Location: /app/`。返回 `200` 说明重定向没有发布到线上；返回 `302` 或 `307` 说明发布成了临时重定向，不能让 `/app/` 成为规范地址。
+- 循环里的每个路径都返回 `Cache-Control`。`/assets/anchor-icon.svg` 返回 `max-age=86400` 且带 `stale-while-revalidate=604800`；其余路径返回 `max-age=0` 且带 `must-revalidate`；所有路径都带 `no-transform`。
+- 缺少 `Cache-Control`、缺少 `must-revalidate`，或 `/assets/` 之外出现大于零的 `max-age`，都说明该路径的 `_headers` 规则没有发布到线上。本仓库没有观测过这些线上响应，请在部署后执行上述循环并记录实际结果。
 
-**状态**: 🟡 等待自定义域名配置
+还需在真实浏览器确认：
 
-**下一步**: 在 Cloudflare 控制台添加 `anchor.playlab.eu.cc` 作为自定义域名
+- 官网与 Demo 返回不同页面。
+- 打开 `/app/index.html` 后地址栏停在 `/app/`。
+- 语言选择能在两个页面之间持久化。
+- 三个数据集都可进入，答题后能看到解释、locator、原文和预置导师提示。
+- Demo 不发起模型、分析、上传或后端请求。
+- 桌面、平板和手机没有横向溢出或控件遮挡。
+
+## 回滚
+
+从 Cloudflare Pages 部署历史恢复上一个生产版本，并回滚独立的 Web 提交。本次发布不迁移数据库、Android 包名或本地存储标识。

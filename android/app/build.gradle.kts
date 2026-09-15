@@ -4,8 +4,32 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val signingStoreFile = System.getenv("ANCHOR_SIGNING_STORE_FILE")
+val signingStorePassword = System.getenv("ANCHOR_SIGNING_STORE_PASSWORD")
+val signingKeyAlias = System.getenv("ANCHOR_SIGNING_KEY_ALIAS")
+val signingKeyPassword = System.getenv("ANCHOR_SIGNING_KEY_PASSWORD")
+val signingStoreType = System.getenv("ANCHOR_SIGNING_STORE_TYPE") ?: "PKCS12"
+val hasReleaseSigning = listOf(
+    signingStoreFile,
+    signingStorePassword,
+    signingKeyAlias,
+    signingKeyPassword,
+).all { !it.isNullOrBlank() } && file(signingStoreFile!!).isFile
+val releaseBuildRequested = gradle.startParameter.taskNames.any {
+    it.contains("release", ignoreCase = true)
+}
+
+if (releaseBuildRequested && !hasReleaseSigning) {
+    throw GradleException(
+        "Release signing is not configured. Set " +
+            "ANCHOR_SIGNING_STORE_FILE, ANCHOR_SIGNING_STORE_PASSWORD, " +
+            "ANCHOR_SIGNING_KEY_ALIAS, and ANCHOR_SIGNING_KEY_PASSWORD. " +
+            "Use `flutter build apk --debug` for private-alpha smoke tests.",
+    )
+}
+
 android {
-    namespace = "com.example.dlg_q"
+    namespace = "cc.eu.playlab.anchor"
     compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
@@ -15,8 +39,7 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.dlg_q"
+        applicationId = "cc.eu.playlab.anchor"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -25,11 +48,23 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("anchorRelease") {
+                storeFile = file(signingStoreFile!!)
+                storeType = signingStoreType
+                storePassword = signingStorePassword
+                keyAlias = signingKeyAlias
+                keyPassword = signingKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("anchorRelease")
+            }
             // 禁用 R8 代码混淆，避免 release 模式下第三方库被混淆导致渲染异常
             isMinifyEnabled = false
             isShrinkResources = false

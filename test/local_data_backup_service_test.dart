@@ -1,10 +1,12 @@
 import 'dart:io';
 
-import 'package:dlg_q/data/database/database_helper.dart';
-import 'package:dlg_q/data/models/deck.dart';
-import 'package:dlg_q/services/privacy/local_data_backup_service.dart';
+import 'package:anchor_learning/data/database/database_helper.dart';
+import 'package:anchor_learning/data/models/deck.dart';
+import 'package:anchor_learning/services/gamification_service.dart';
+import 'package:anchor_learning/services/privacy/local_data_backup_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
@@ -13,8 +15,9 @@ void main() {
   late Directory temporaryDirectory;
 
   setUp(() async {
+    SharedPreferences.setMockInitialValues({});
     temporaryDirectory =
-        await Directory.systemTemp.createTemp('duoduo_backup_test_');
+        await Directory.systemTemp.createTemp('anchor-learning_backup_test_');
   });
 
   tearDown(() async {
@@ -46,7 +49,7 @@ void main() {
     final service = serviceFor(helper);
 
     final artifact = await service.createBackup();
-    expect(artifact.fileName, startsWith('duoduo-backup-v23-'));
+    expect(artifact.fileName, startsWith('anchor-learning-backup-v24-'));
     expect(artifact.validation.schemaVersion, DatabaseHelper.schemaVersion);
     expect(artifact.validation.foreignKeyViolationCount, 0);
     expect(await File(artifact.filePath).exists(), isTrue);
@@ -77,6 +80,8 @@ void main() {
       p.join(temporaryDirectory.path, 'candidate.db'),
     );
     await candidateDatabase.execute('DROP TABLE product_events');
+    await candidateDatabase.execute('DROP TABLE gamification_state');
+    await candidateDatabase.execute('DROP TABLE quiz_save_operations');
     await candidateDatabase.setVersion(22);
     await candidateDatabase.close();
 
@@ -85,7 +90,7 @@ void main() {
     );
 
     expect(result.candidateValidation.schemaVersion, 22);
-    expect(result.restoredValidation.schemaVersion, 23);
+    expect(result.restoredValidation.schemaVersion, 24);
     expect(result.migrationApplied, isTrue);
     expect((await liveHelper.getAllDecks()).single.id, 'deck-new');
     final tables = await (await liveHelper.database).rawQuery(
@@ -112,6 +117,55 @@ void main() {
       ),
     );
     expect((await helper.getAllDecks()).single.id, 'deck-keep');
+  });
+
+  test('backup includes migrated legacy statistics and durable save receipts',
+      () async {
+    SharedPreferences.setMockInitialValues({
+      'total_correct': 37,
+      'perfect_count': 4,
+      'checkin_2026_9': ['2026-09-01'],
+    });
+    final helper = helperAt('live.db');
+    addTearDown(helper.close);
+    final database = await helper.database;
+    await database.insert('quiz_save_operations', {
+      'operation_id': 'synthetic-receipt',
+      'operation_kind': 'answer',
+      'input_hash': 'synthetic-hash',
+      'result_json': '{}',
+      'created_at': 1,
+    });
+    final artifact = await serviceFor(helper).createBackup();
+    addTearDown(artifact.dispose);
+    final game = GamificationService(helper);
+    await game.incrementTotalCorrect();
+    await database.delete('quiz_save_operations');
+    await serviceFor(helper).restoreBackup(artifact.filePath);
+    expect(await game.getTotalCorrect(), 37);
+    expect(await game.getPerfectCount(), 4);
+    expect(await game.getMonthlyCheckInDates(2026, 9), ['2026-09-01']);
+    expect(await (await helper.database).query('quiz_save_operations'),
+        hasLength(1));
+  });
+
+  test('rejects current-schema backups missing quiz persistence tables',
+      () async {
+    final helper = helperAt('live.db');
+    addTearDown(helper.close);
+    final candidate = helperAt('candidate.db');
+    final database = await candidate.database;
+    await database.execute('DROP TABLE quiz_save_operations');
+    await candidate.close();
+    await expectLater(
+      serviceFor(helper)
+          .validateBackup(p.join(temporaryDirectory.path, 'candidate.db')),
+      throwsA(isA<LocalDataBackupException>().having(
+        (error) => error.code,
+        'code',
+        LocalDataBackupErrorCode.missingTables,
+      )),
+    );
   });
 
   test('rolls back automatically when post-migration validation fails',

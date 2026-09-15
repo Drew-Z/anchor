@@ -1,12 +1,12 @@
-import 'package:dlg_q/data/database/database_helper.dart';
-import 'package:dlg_q/data/models/knowledge_point.dart';
-import 'package:dlg_q/data/models/question.dart';
-import 'package:dlg_q/data/models/question_type.dart';
-import 'package:dlg_q/data/models/source.dart';
-import 'package:dlg_q/data/models/source_chunk.dart';
-import 'package:dlg_q/services/ai/tasks/citation_verification_task.dart';
-import 'package:dlg_q/services/ingestion/source_grounded_ingestion_service.dart';
-import 'package:dlg_q/services/openai_service.dart';
+import 'package:anchor_learning/data/database/database_helper.dart';
+import 'package:anchor_learning/data/models/knowledge_point.dart';
+import 'package:anchor_learning/data/models/question.dart';
+import 'package:anchor_learning/data/models/question_type.dart';
+import 'package:anchor_learning/data/models/source.dart';
+import 'package:anchor_learning/data/models/source_chunk.dart';
+import 'package:anchor_learning/services/ai/tasks/citation_verification_task.dart';
+import 'package:anchor_learning/services/ingestion/source_grounded_ingestion_service.dart';
+import 'package:anchor_learning/services/openai_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 

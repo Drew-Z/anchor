@@ -1,5 +1,5 @@
-import 'package:dlg_q/services/release/private_alpha_controlled_credential_evidence.dart';
-import 'package:dlg_q/services/release/private_alpha_model_acceptance_evidence.dart';
+import 'package:anchor_learning/services/release/private_alpha_controlled_credential_evidence.dart';
+import 'package:anchor_learning/services/release/private_alpha_model_acceptance_evidence.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

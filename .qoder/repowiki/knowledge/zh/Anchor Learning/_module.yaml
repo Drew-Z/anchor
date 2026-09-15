@@ -1,0 +1,16 @@
+schema_version: 1
+module_path: ""
+title: Anchor Learning 锚学
+scope:
+    - README.md
+    - pubspec.yaml
+    - analysis_options.yaml
+    - .gitignore
+    - pubspec.lock
+    - test/
+    - .flutter-plugins-dependencies
+    - .metadata
+    - anchor_learning.iml
+source_files: []
+depends_on: []
+related_to: []

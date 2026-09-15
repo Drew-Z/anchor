@@ -1,15 +1,44 @@
-import 'package:dlg_q/core/providers/providers.dart';
-import 'package:dlg_q/data/models/interview_turn.dart';
-import 'package:dlg_q/data/models/knowledge_point.dart';
-import 'package:dlg_q/data/models/learning_session.dart';
-import 'package:dlg_q/data/models/source_chunk.dart';
-import 'package:dlg_q/features/agent/interview_session_detail_screen.dart';
-import 'package:dlg_q/features/agent/interview_session_screen.dart';
+import 'package:anchor_learning/core/providers/providers.dart';
+import 'package:anchor_learning/data/models/interview_turn.dart';
+import 'package:anchor_learning/data/models/knowledge_point.dart';
+import 'package:anchor_learning/data/models/learning_session.dart';
+import 'package:anchor_learning/data/models/source_chunk.dart';
+import 'package:anchor_learning/features/agent/interview_session_detail_screen.dart';
+import 'package:anchor_learning/features/agent/interview_session_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('incomplete interview review offers a resume action',
+      (tester) async {
+    final now = DateTime(2026, 8, 25, 12);
+    final session = LearningSession(
+      id: 'unfinished-interview',
+      mode: LearningSessionMode.interview,
+      targetId: 'point-1',
+      startedAt: now,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          interviewTurnsProvider(session.id).overrideWith(
+            (ref) => Future.value(const []),
+          ),
+        ],
+        child: MaterialApp(
+          home: InterviewSessionDetailScreen(session: session),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('这次面试尚未完成'), findsOneWidget);
+    expect(find.text('继续面试'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('interview history exposes cited review and retry actions',
       (tester) async {
     final now = DateTime(2026, 7, 15, 12);
@@ -92,6 +121,100 @@ void main() {
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
+  });
+
+  testWidgets('unfinished interview with one scored turn keeps the resume path',
+      (tester) async {
+    final now = DateTime(2026, 8, 25, 12);
+    const pointId = 'point-pending-follow-up';
+    const citationId = 'chunk-pending-follow-up';
+    final session = LearningSession(
+      id: 'unfinished-follow-up',
+      mode: LearningSessionMode.interview,
+      targetId: pointId,
+      startedAt: now,
+    );
+    final turn = InterviewTurn(
+      id: 'turn-pending-follow-up',
+      sessionId: session.id,
+      questionText: '基础问题',
+      userAnswer: '基础回答',
+      aiFeedback: '需要补充边界。',
+      referenceAnswer: '参考回答',
+      knowledgePointId: pointId,
+      citationIds: const [citationId],
+      nextInterviewQuestion: '请补充这个知识点的边界。',
+      createdAt: now,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          interviewTurnsProvider(session.id).overrideWith(
+            (ref) => Future.value([turn]),
+          ),
+          questionCitationChunksProvider(citationId).overrideWith(
+            (ref) => Future.value(const []),
+          ),
+        ],
+        child: MaterialApp(
+          home: InterviewSessionDetailScreen(session: session),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('已保存 1 轮评分。继续后会恢复未完成的来源约束问题。'),
+      findsOneWidget,
+    );
+    expect(find.text('继续面试'), findsOneWidget);
+    expect(find.text('完成面试'), findsNothing);
+  });
+
+  testWidgets('unfinished interview without remaining points offers completion',
+      (tester) async {
+    final now = DateTime(2026, 8, 25, 12);
+    final session = LearningSession(
+      id: 'unfinished-no-path',
+      mode: LearningSessionMode.interview,
+      targetId: 'point-done',
+      startedAt: now,
+    );
+    final turn = InterviewTurn(
+      id: 'turn-done',
+      sessionId: session.id,
+      questionText: '基础问题',
+      userAnswer: '基础回答',
+      aiFeedback: '回答已保存。',
+      referenceAnswer: '参考回答',
+      knowledgePointId: 'point-done',
+      createdAt: now,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          interviewTurnsProvider(session.id).overrideWith(
+            (ref) => Future.value([turn]),
+          ),
+          questionCitationChunksProvider('').overrideWith(
+            (ref) => Future.value(const []),
+          ),
+        ],
+        child: MaterialApp(
+          home: InterviewSessionDetailScreen(session: session),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('已保存 1 轮评分。本次没有可恢复的问题，可以完成面试。'),
+      findsOneWidget,
+    );
+    expect(find.text('完成面试'), findsOneWidget);
+    expect(find.text('继续面试'), findsNothing);
   });
 
   testWidgets('interview completion shows weak evidence and next actions',

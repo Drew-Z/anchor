@@ -33,7 +33,7 @@
 10. [附录](#附录)
 
 ## 简介
-本指南面向Dlg-Q项目的持续集成与持续交付（CI/CD）流水线配置，覆盖以下目标：
+本指南面向Anchor Learning项目的持续集成与持续交付（CI/CD）流水线配置，覆盖以下目标：
 - 自动化构建与测试：Android APK/AAB、Web应用
 - 质量门禁：静态分析、代码规范检查
 - 安全扫描与依赖审计
@@ -43,7 +43,7 @@
 本指南同时给出GitHub Actions与GitLab CI的配置思路与最佳实践，帮助团队在不同CI平台上快速落地。
 
 ## 项目结构
-Dlg-Q为Flutter应用，采用“根工程 + Android子模块 + Web输出”的典型结构。关键目录与文件如下：
+Anchor Learning为Flutter应用，采用“根工程 + Android子模块 + Web输出”的典型结构。关键目录与文件如下：
 - 根工程配置：pubspec.yaml、analysis_options.yaml、README.md、.gitignore
 - Flutter源码：lib/main.dart、lib/app.dart等
 - 测试：test/widget_test.dart
@@ -299,7 +299,7 @@ Analyze["analysis_options.yaml"] --> FlutterLints["Flutter Lints 规则集"]
 - [analysis_options.yaml:1-29](file://analysis_options.yaml#L1-L29)
 
 ## 结论
-通过将静态分析、单元测试、多平台构建与安全扫描整合进CI流水线，并结合版本管理与多环境部署策略，Dlg-Q项目可在保证质量的前提下实现高效迭代与稳定发布。建议优先在GitHub Actions或GitLab CI中落地上述流程，并逐步引入自动化发布与灰度发布机制。
+通过将静态分析、单元测试、多平台构建与安全扫描整合进CI流水线，并结合版本管理与多环境部署策略，Anchor Learning项目可在保证质量的前提下实现高效迭代与稳定发布。建议优先在GitHub Actions或GitLab CI中落地上述流程，并逐步引入自动化发布与灰度发布机制。
 
 ## 附录
 - GitHub Actions参考步骤

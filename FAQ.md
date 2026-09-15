@@ -17,15 +17,15 @@ Anchor Learning (锚学) 是一个**来源可溯源的 AI 学习代理系统**�
 **核心特点**:
 - ✅ 每个知识点和题目都能追溯到源文档
 - ✅ 三层防幻觉机制,确保内容准确性
-- ✅ 100% 本地存储,保护隐私
+- ✅ 默认本地存储,并明确 AI 发送边界
 
 ### Q2: 为什么选择本地优先 (Local-first)?
 
 **优势**:
-- 🔒 **隐私保护**: 你的学习资料和进度不会上传到任何服务器
+- 🔒 **隐私保护**: 学习资料和进度默认保存在设备本地;主动 AI 任务只发送完成任务所需的片段给你选择的模型服务商
 - ⚡ **快速响应**: 除 AI 调用外,所有操作都在本地完成
 - 📴 **离线可用**: 答题和复习可完全离线进行
-- 💰 **无订阅费**: 除了 OpenAI API 费用,无其他成本
+- 💰 **无订阅费**: 应用本身不收订阅费;模型服务商的费用按其自身定价和用量规则计算
 
 **代价**:
 - ⚠️ 需要自行备份数据
@@ -33,25 +33,22 @@ Anchor Learning (锚学) 是一个**来源可溯源的 AI 学习代理系统**�
 
 ### Q3: 需要哪些前置条件?
 
-- **必须**: OpenAI API Key (用于 AI 功能)
-- **推荐**: 
-  - Android 7.0+ 或 iOS 12.0+
+- **必须**: 在应用“设置 → AI 配置”中保存一个通过验收的 OpenAI-compatible 模型配置，才可使用 AI 生成流程
+- **当前私测平台**:
+  - Android API 24-35 Arm64 真实设备（需通过 Private Alpha 验收）
+  - Web 仅提供独立静态 Demo，不是完整 Flutter Web 客户端
+  - iOS、Windows、macOS 和 Linux 当前不是发布支持平台，仍属规划/待验收范围
   - 至少 500MB 可用存储空间
   - 稳定的网络连接 (用于 AI 调用)
 
-### Q4: 如何获取 OpenAI API Key?
+### Q4: 如何配置模型凭据?
 
-1. 访问 [OpenAI Platform](https://platform.openai.com/)
-2. 注册/登录账号
-3. 进入 [API Keys](https://platform.openai.com/api-keys) 页面
-4. 点击 "Create new secret key" 创建密钥
-5. 复制密钥并保存 (仅显示一次)
-6. 在应用的 "设置" 中填入
+1. 从你的模型提供商创建 API Key，并确认使用范围、配额和撤销责任。
+2. 打开应用“设置 → AI 配置”。
+3. 输入 API Key、兼容 OpenAI 协议的 Base URL 和模型名。
+4. 运行应用内五任务验收；未通过验收时，本地导入和 coverage review 仍可用，但 AI 生成会保持阻断。
 
-**费用说明**: 
-- GPT-4: ~$0.03/1k tokens (输入) + $0.06/1k tokens (输出)
-- GPT-3.5-turbo: ~$0.001/1k tokens
-- 生成 10 道题大约消耗 5k-10k tokens (~$0.3-0.6)
+**费用说明**: Anchor Learning 不统一承诺模型价格或单次任务成本。实际费用取决于你选择的模型服务商、模型、上下文长度和账户计费规则，请以服务商当前价格页和用量记录为准。
 
 ---
 
@@ -85,12 +82,12 @@ Anchor Learning (锚学) 是一个**来源可溯源的 AI 学习代理系统**�
 
 ### Q7: 导入的文档会被上传吗?
 
-**不会**。所有导入的文档都存储在你的设备本地 SQLite 数据库中,不会上传到任何服务器。
+导入的文档默认存储在你的设备本地 SQLite 数据库中。只有在你主动发起 AI 任务时,完成该任务所需的文档片段才会发送给你选择的模型服务商。
 
-只有在调用 OpenAI API 时,会将相关的文档片段发送给 OpenAI 用于生成题目/回答问题,但这些数据:
-- 不会被 OpenAI 用于训练模型 (API 政策)
-- 传输过程使用 HTTPS 加密
-- 你可以在设置中查看每次 API 调用的内容
+请注意:
+- 模型服务商对数据的处理、留存和删除遵循其自身政策,Anchor Learning 不替服务商作训练或留存承诺
+- 发送前请确认 Base URL、模型、服务商条款和资料授权范围
+- 生产版本遵循平台的 HTTPS 默认安全策略;自定义服务的网络安全仍取决于该服务端点
 
 ---
 
@@ -160,12 +157,9 @@ Anchor Learning 使用**三层防幻觉机制**确保准确性:
 
 ### Q13: 可以导出复习记录吗?
 
-**当前版本**: 不支持导出。
+**当前版本**: 可在“设置 → 隐私与数据”中导出本地事件、数据库备份，并在需要时恢复或删除数据。导出内容不包含模型凭据。
 
-**计划功能**: 
-- 导出为 CSV (用于数据分析)
-- 导出为 Anki 格式 (迁移到 Anki)
-- 云同步 (自动备份)
+CSV、Anki 和云同步仍是后续规划，不属于当前 Private Alpha 承诺。
 
 ---
 
@@ -188,7 +182,7 @@ Agent 遵循**来源约束**:
 - 无法回答时会明确说 "当前知识库中没有相关内容"
 
 **注意**: 
-- Agent 使用 GPT-4,可能产生幻觉
+- Agent 使用你配置的模型,仍可能产生幻觉
 - 请结合引用链验证答案
 - 发现错误可通过 "反馈" 报告
 
@@ -216,27 +210,16 @@ Agent 遵循**来源约束**:
 
 ### Q18: 如何备份数据?
 
-**方法 1: 手动备份数据库文件**
-
-Android:
-```bash
-adb pull /data/data/com.anchorlearning.app/databases/app_database.db ./backup.db
-```
-
-iOS: 使用 iTunes 文件共享或 iMazing 等工具。
-
-**方法 2: 导出功能 (计划中)**
-
-将支持一键导出所有数据为 ZIP 文件。
+打开“设置 → 隐私与数据 → 导出本地数据备份”，选择保存位置即可。恢复前应用会创建回滚快照；备份不包含模型凭据、隐私偏好和首次运行状态。
 
 ### Q19: 多设备如何同步?
 
 **当前版本**: 不支持自动同步。
 
 **临时方案**:
-1. 在设备 A 备份数据库文件
-2. 复制到设备 B
-3. 替换设备 B 的数据库文件
+1. 在设备 A 导出本地数据备份
+2. 将备份文件安全地复制到设备 B
+3. 在设备 B 的隐私与数据页面选择“从备份恢复”
 
 **计划功能**: 
 - 云同步 (Supabase/Firebase)
@@ -265,29 +248,17 @@ iOS: 使用 iTunes 文件共享或 iMazing 等工具。
 
 **应用本身**: 完全免费开源 (MIT 许可证)
 
-**OpenAI API 费用**: 
-- 按实际使用量计费
-- 生成 10 道题 ≈ $0.3-0.6
-- Agent 对话 ≈ $0.02-0.1/轮
+**模型服务商费用**: 按你选择的服务商、模型和实际用量计费;Anchor Learning 不代收这类费用。
 
-**建议**: 在 OpenAI 账户中设置每月用量限制。
+**建议**: 在所选服务商账户中设置用量或预算限制。
 
 ### Q22: 我的数据会被收集吗?
 
-**不会**。Anchor Learning:
-- ❌ 不收集任何用户数据
-- ❌ 不包含任何分析/追踪代码
-- ❌ 不上传你的文档和学习记录
+Anchor Learning 默认不向 Anchor Learning 自有服务器收集或同步账号数据。应用会在本地保存必要的产品事件;当你主动运行 AI 任务时,会把所需内容发送到你配置的模型服务商端点。请按需查看、导出或删除本地数据,并根据服务商政策管理已发送内容。
 
-**唯一的网络请求**: 调用 OpenAI API (你可以使用代理自建)。
+### Q23: 模型服务商会用我的数据训练模型吗?
 
-### Q23: OpenAI 会用我的数据训练模型吗?
-
-根据 [OpenAI API 数据使用政策](https://openai.com/policies/api-data-usage-policies):
-
-- **API 数据不会被用于训练模型** (自 2023-03-01 起)
-- 数据会保留 30 天用于滥用监控
-- 你可以申请零保留 (Zero Retention)
+这取决于你选择的模型服务商、端点类型和账户策略。Anchor Learning 不代表任何服务商作训练、留存或删除承诺;请在发送资料前阅读对应服务商的最新政策,并在服务商侧配置可用的隐私或零留存选项。
 
 ---
 
@@ -300,19 +271,19 @@ iOS: 使用 iTunes 文件共享或 iMazing 等工具。
 - 🐛 **报告 Bug**: [创建 Issue](https://github.com/Drew-Z/anchor/issues/new?template=bug_report.yml)
 - 💡 **提出建议**: [创建 Feature Request](https://github.com/Drew-Z/anchor/issues/new?template=feature_request.yml)
 - 📝 **改进文档**: 提交文档 PR
-- 💻 **贡献代码**: 阅读 [贡献指南](../CONTRIBUTING.md)
+- 💻 **贡献代码**: 阅读 [贡献指南](CONTRIBUTING.md)
 - 🌐 **翻译**: 帮助国际化 (计划中)
 
 ### Q25: 如何获取帮助?
 
-- 📖 **文档**: 先查看 [README](../README.md) 和本 FAQ
+- 📖 **文档**: 先查看 [README](README.md) 和本 FAQ
 - 💬 **Discussions**: [GitHub Discussions](https://github.com/Drew-Z/anchor/discussions)
 - 🐛 **Bug 报告**: [GitHub Issues](https://github.com/Drew-Z/anchor/issues)
-- 📧 **邮件**: support@example.com
+- **反馈**: [GitHub Issues](https://github.com/Drew-Z/anchor/issues)
 
 ### Q26: 项目的未来规划是什么?
 
-查看 [ROADMAP.md](../ROADMAP.md) 了解详细规划,亮点包括:
+查看 [ROADMAP.md](ROADMAP.md) 了解详细规划,亮点包括:
 
 - **v0.2**: 云同步、多模型支持、国际化
 - **v0.3**: 插件系统、自定义 Prompt、协作学习
@@ -326,20 +297,16 @@ iOS: 使用 iTunes 文件共享或 iMazing 等工具。
 
 - **Android**: 
   - 通过 GitHub Releases 下载最新 APK
-  - 安装覆盖旧版本
-  - 数据会自动迁移
+  - 按当前 Private Alpha 安装说明安装对应候选版本
+  - 发布说明会列出 schema 变更、备份要求和回滚路径
 
-- **iOS**: 
-  - 等待 App Store 上架 (计划中)
-  - 或通过 TestFlight 测试版
+- **iOS**: 当前没有 App Store 或 TestFlight 发布渠道；iOS 支持仍需单独的构建和真实验收。
 
 ### Q28: 旧版本数据兼容吗?
 
-**向前兼容**: 新版本会自动迁移旧版本数据。
+Anchor Learning 当前从正式产品化候选开始分发，不承诺此前未发布开发构建或其他产品名称的安装兼容。
 
-**向后不兼容**: 不建议用新版本数据降级到旧版本。
-
-**建议**: 更新前先备份数据库文件。
+当前版本之间的 schema 升级由应用处理；涉及切换安装、降级或测试前，先在“设置 → 隐私与数据”导出备份，并通过应用内恢复入口导入。
 
 ---
 
@@ -353,6 +320,6 @@ iOS: 使用 iTunes 文件共享或 iMazing 等工具。
 
 ---
 
-**最后更新**: 2024-01-XX
+**最后更新**: 2026-08-24
 
 **反馈建议**: 如果你觉得某个问题应该加入 FAQ,请创建 [Documentation Issue](https://github.com/Drew-Z/anchor/issues/new?template=documentation.yml)。
