@@ -34,10 +34,10 @@ git diff --check
 Flutter 客户端发布仍按 `docs/private-alpha-release-checklist.md` 执行，不能用 Web Demo 验收代替原生应用测试。
 
 当前正式 release 产物为：
-`build/app/outputs/bundle/release/app-release.aab`（64,162,657 bytes），SHA-256
-`f1ced629df2d9b6744749d5ec4303a9965c5d2d10d680f97a955190c231dc1bd`；Arm64 APK
-`build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`（26,403,987 bytes），SHA-256
-`641a1a107c687e4903b3c64a65111c4eeff88804d2cc056374026fafa29c54b3`。包名
+`build/app/outputs/bundle/release/app-release.aab`（64,161,423 bytes），SHA-256
+`d95e5b4209ece0251ddd7326b2508de8703c51d85ff3aa46cefa380cd60b62c7`；Arm64 APK
+`build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`（26,404,187 bytes），SHA-256
+`3371870ee2691f0aa3496e2e6fb1153a6c028b840bfef33c924dbea8cf96d475`。包名
 `cc.eu.playlab.anchor`，versionName `1.0.0`，Flutter build number `2005` / Arm64 split APK
 manifest `versionCode=4005`，Anchor Learning release 证书 v2 签名，已完成 OnePlus PGP110
 真实设备安装、冷启动、进程存活和日志验收。
@@ -47,7 +47,7 @@ manifest `versionCode=4005`，Anchor Learning release 证书 v2 签名，已完�
 - 按 `docs/PRODUCTIZATION_RELEASE_PLAN.md` 准备正式签名、分发、法律和人工验收材料。
 - 分支 `codex/anchor-web-demo` 已推送，PR #1 已于 2026-09-15 合并到 `main`，合并提交为 `94a306a`。
 - `web/landing` 已部署到 Cloudflare Pages 生产环境 `https://anchor.playlab.eu.cc/`，官网、`/app/` 与重定向 smoke check 均通过。
-- 尚未将 APK 发布到外部下载服务，也未创建 GitHub release 或邀请真实用户。
+- APK 已作为 `v1.0.0` Private Alpha GitHub Release 公开发布；尚未邀请真实用户。
 - 当前发布支持范围仍限于通过验收的 Android Arm64 Private Alpha；Web 仅为独立静态 Demo。
 - 在具备真实跨平台兼容证据后，再扩大 iOS、Windows、macOS 或 Linux 的支持声明。
 - Private Alpha 从当前正式标识开始分发；数据迁移仅指当前 schema 升级和用户主动执行的 SQLite 备份/恢复，不承诺旧产品安装兼容。

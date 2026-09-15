@@ -174,7 +174,8 @@ test('landing separates the Android Private Alpha from the static browser demo',
   await expect(page.locator('.product-status')).toContainText('Android Private Alpha');
   await expect(page.locator('.product-status')).toContainText('Local-first SQLite');
   await expect(page.locator('.native-step')).toHaveCount(3);
-  await expect(page.locator('.native-disclosure')).toContainText('No public APK');
+  await expect(page.locator('.native-disclosure')).toContainText('GitHub release');
+  await expect(page.locator('a[data-i18n="actions.downloadApk"]')).toHaveAttribute('href', 'https://github.com/Drew-Z/anchor/releases/tag/v1.0.0');
   await expect(page.locator('.hero-note')).toContainText('static product sample');
 
   const nativeImages = page.locator('.device-frame img');
@@ -186,7 +187,7 @@ test('landing separates the Android Private Alpha from the static browser demo',
 
   await page.locator('[data-locale="zh"]').click();
   await expect(page.locator('.native-heading')).toContainText('Android 上的来源约束学习流程');
-  await expect(page.locator('.native-disclosure')).toContainText('不提供公开 APK');
+  await expect(page.locator('.native-disclosure')).toContainText('GitHub Release');
   expect(offOriginRequests).toEqual([]);
 });
 
