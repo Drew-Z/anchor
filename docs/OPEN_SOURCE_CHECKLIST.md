@@ -45,9 +45,12 @@ readiness 评估命令（使用初始化后的匿名工作区证据）：
 `test/fixtures/release/private_alpha_readiness_current.json` 仅用于 evaluator
 测试，不代表本次设备验收结果。
 
-当前 readiness evaluator 返回 `GO`，无技术 blocker。当前证据绑定签名 Arm64 APK、
-OnePlus PGP110 API 35 真机，以及 Windhub 主 `grok-4.6` / 备 `glm-5.3-flash`
-的五项验收。A01-A10 cohort 仅为可选研究，不得使用合成记录替代真实参与者。
+当前 readiness evaluator 返回 `HOLD`，阻塞码为
+`android_build_bytes_mismatch` 和 `android_build_sha256_mismatch`。现有证据绑定旧签名
+Arm64 APK `641a1a10…fafa29c54b3`，而当前候选是
+`3371870e…cf96d475`；必须在当前候选上重新完成 OnePlus PGP110 API 35 真机及
+Windhub 主 `grok-4.6` / 备 `glm-5.3-flash` 五项验收。A01-A10 cohort 仅为可选研究，
+不得使用合成记录替代真实参与者。
 
 ## 非阻塞推广事项
 

@@ -1,6 +1,6 @@
 # Private Alpha External Evidence Handoff
 
-This checklist is the shortest path from the current technical `GO` to a
+This checklist is the shortest path from the current technical `HOLD` to a
 readiness evaluation. It contains no release evidence itself. Filled records,
 credentials, names, contact details, source files, answers, and model output
 must remain in the access-controlled operations directory outside this
@@ -11,17 +11,18 @@ repository.
 - Product: `Anchor Learning / 锚学`
 - Candidate: `1.0.0+2005`
 - Arm64 APK SHA-256:
-  `641a1a107c687e4903b3c64a65111c4eeff88804d2cc056374026fafa29c54b3`
+  `3371870ee2691f0aa3496e2e6fb1153a6c028b840bfef33c924dbea8cf96d475`
 - Current release-day profile fingerprints:
   - primary `grok-4.6`: `56632da5ea078a596fa6b941751b9bdfb15dcc0ace860653831f05516055a056`
   - fallback `glm-5.3-flash`: `c8a89bf232de988c8bdd9ded8abaae99c6133d4ddd1af8a7363d475c8db5a32f`
 - Current technical credential scope: `participantOwned`
-- Readiness status: `GO`
-- Current blocker: none; technical readiness evaluator returns `GO`
+- Readiness status: `HOLD`
+- Current blocker: `android_build_bytes_mismatch` and `android_build_sha256_mismatch`
 
-The 2026-09-15 Windhub model and physical-device reports are the current
-identity-bound technical records for candidate `1.0.0+2005`. Re-run both real
-checks again if the APK, endpoint, protocol, model, or credential scope changes.
+The existing Windhub model and physical-device reports are bound to the prior
+APK hash `641a1a10…fafa29c54b3`, so they are historical until rerun against the
+current candidate above. Re-run both real checks before treating this candidate
+as technically ready.
 
 ## 1. Controlled Credential
 
@@ -108,9 +109,9 @@ If an optional cohort record exists:
      --format json
    ```
 
-4. Treat `GO` as valid when the technical evaluator returns no blockers and the
-   evidence is bound to the exact APK/profile identity above. Cohort evidence is
-   not required for that result.
+4. Treat `GO` as valid only when the technical evaluator returns no blockers and
+   the evidence is bound to the exact APK/profile identity above. Cohort evidence
+   is not required for that result.
 
 Recruitment may begin only as separately authorized research. Do not fabricate
 participant records or treat optional cohort notes as release approval.
