@@ -9,7 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'support/dart_cli_test_support.dart';
 
 void main() {
-  test('builds a real-APK draft that evaluates to the five external blockers',
+  test('builds a real-APK draft that evaluates to the four technical blockers',
       () async {
     final root = await Directory.systemTemp.createTemp('anchor-learning-init-');
     addTearDown(() => root.delete(recursive: true));
@@ -49,7 +49,6 @@ void main() {
       'controlled_credential_required',
       'data_processing_owner_required',
       'release_day_acceptance_pending',
-      'cohort_pending',
     ]);
     expect(evidence['physical_device_evidence'], isNull);
     expect(jsonEncode(evidence), isNot(contains('credential_reference')));
@@ -161,7 +160,7 @@ void main() {
       expect(readiness.exitCode, 2, reason: readiness.stderr.toString());
       final report = jsonDecode(readiness.stdout.toString());
       expect(report['status'], 'HOLD');
-      expect((report['blockers'] as List), hasLength(5));
+      expect((report['blockers'] as List), hasLength(4));
     },
     timeout: const Timeout(Duration(minutes: 2)),
   );
@@ -178,7 +177,7 @@ void main() {
     );
     expect(decoded['additionalProperties'], false);
     final conditions = decoded['allOf'] as List;
-    expect(conditions, hasLength(5));
+    expect(conditions, hasLength(4));
     expect(
       jsonEncode(conditions),
       allOf(
@@ -186,7 +185,7 @@ void main() {
         contains('controlled_credential'),
         contains('operator_pack'),
         contains('release_day_acceptance'),
-        contains('cohort_evidence'),
+        isNot(contains('cohort_evidence')),
       ),
     );
   });

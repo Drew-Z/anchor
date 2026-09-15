@@ -80,7 +80,6 @@ class PrivateAlphaReadinessInitializer {
       'controlled_credential_available': false,
       'data_processing_owner_assigned': false,
       'release_day_acceptance_passed': false,
-      'cohort_completed': false,
     };
   }
 

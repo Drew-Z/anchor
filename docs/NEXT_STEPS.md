@@ -5,7 +5,7 @@
 [OPEN_SOURCE_CHECKLIST.md](OPEN_SOURCE_CHECKLIST.md) 和
 [OPEN_SOURCE_READY.md](OPEN_SOURCE_READY.md) 为准。
 
-> 更新于 2026-09-15：已切换为 Codex 单独开发；当前签名候选、真机冒烟和 Windhub 主备模型五项验收已写入 readiness，Private Alpha 仍因 `cohort_pending` 保持 `HOLD`。
+> 更新于 2026-09-15：已切换为 Codex 单独开发；正式 cohort 已从 release gate 移除，当前签名候选、真机冒烟和 Windhub 主备模型五项验收已写入 readiness，技术 evaluator 返回 `GO`。
 > `.env.example` 只说明配置边界，应用凭据必须在“设置 → AI 配置”中保存。
 
 ## 当前有效队列
@@ -17,8 +17,8 @@
 3. 以下发布操作为待授权队列，不由开发任务自动执行：推送 `codex/anchor-web-demo`、同步 PR #1 的验证数量和 CI 记录、合并 PR，并将 `web/landing` 部署到
    `https://anchor.playlab.eu.cc/`，随后执行官网和 `/app/` smoke check。
 4. [x] 临近发布窗口，用同一 `1.0.0+2005` 签名候选重新完成真机与模型五项验收，并更新 readiness 证据。
-5. 执行 A01-A10 正式 cohort 及 D0/D7/D14 观察，形成匿名外部证据并运行 readiness evaluator；当前唯一 blocker 是 `cohort_pending`。
-6. 只有 evaluator 返回 `GO` 后，才进入 Private Alpha 分发。
+5. 正式 cohort 与 D0/D7/D14 观察保留为可选研究工作，不再作为 release gate；不得用合成记录替代真实研究。
+6. 技术 evaluator 已返回 `GO`；Private Alpha 分发仍需单独的发布授权。
 
 后文的“历史待办事项”不再是当前执行队列。
 

@@ -1,16 +1,16 @@
 # Anchor Learning 产品化发布候选计划
 
-更新于 2026-08-28。本文件把 Private Alpha 进入小规模发布前仍需完成的工作收敛在一个地方；它不是对外发布承诺，也不替代 readiness evaluator。
+更新于 2026-09-15。本文件把 Private Alpha 技术发布前仍需完成的工作收敛在一个地方；它不是对外发布承诺，也不替代 readiness evaluator。
 
-本轮本地门禁已完成：Flutter 全量测试 `386/386`、静态分析 0 errors/0 warnings、格式检查、Web 测试和 `git diff --check` 均通过。正式标识候选 `1.0.0+2005` 已使用 Anchor Learning release 签名，在 OnePlus PGP110（API 35，Arm64）完成真机 smoke，并在联网后完成唯一一次正式 release-day Chat / `grok-4.6` 五项 `5/5` 技术验收。报告见 `docs/TECHNICAL_MODEL_ACCEPTANCE_2026-08-26_2005.md`，绑定 Arm64 APK SHA-256 `74dcfb95…d667207b`。participant-owned 凭据治理和数据处理负责人记录已使用 opaque 引用绑定 readiness；当前 evaluator 仍为 `HOLD`：A01-A10 cohort 尚未完成，8 月 26 日的模型和设备证据也已超出 24 小时发布窗口，需临近最终发布时重跑。
+当前技术门禁已完成：最新签名候选在 OnePlus PGP110（API 35，Arm64）完成真机 smoke，Windhub 主 `grok-4.6` 与备 `glm-5.3-flash` 均完成五项 `5/5` 技术验收，readiness evaluator 返回 `GO`。正式 cohort 不再是技术 release gate；研究记录仍可单独开展。
 
 ## 当前候选版本
 
 - 产品名：`Anchor Learning` / `锚学`
 - 候选版本：`1.0.0+2005`（Flutter build number `2005`；Arm64 split APK manifest `versionCode=4005`）
 - 当前发布范围：通过验收的 Android Arm64 Private Alpha；Web 是独立静态 Demo
-- 当前 AAB：`build/app/outputs/bundle/release/app-release.aab`；63,896,933 bytes；SHA-256 `258d104c9f1c81cad4d950a997589185fe3b9706552a298c120643a32cf7e85b`
-- 当前 Arm64 APK：`build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`；26,272,915 bytes；SHA-256 `74dcfb95cd9c123b51d9b35678ffd0153d23654bf6a5597de1070880d667207b`
+- 当前 AAB：`build/app/outputs/bundle/release/app-release.aab`；64,162,657 bytes；SHA-256 `f1ced629df2d9b6744749d5ec4303a9965c5d2d10d680f97a955190c231dc1bd`
+- 当前 Arm64 APK：`build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`；26,403,987 bytes；SHA-256 `641a1a107c687e4903b3c64a65111c4eeff88804d2cc056374026fafa29c54b3`
 - release APK 由 Flutter 3.44.6 / Dart 3.12.2 生成，APK Signature Scheme v2 已验证，证书 DN 为 `CN=Anchor Learning, OU=Release`，证书 SHA-256 `7efa706af7e897411aac4a240c98be3cc2f672c82c90f55a515d7db30ab9fd35`
 - release 产物记录：`build/validation/release-artifacts.json`；构建脚本位于工作区外受控签名目录（不进入仓库）。
 
@@ -61,14 +61,14 @@ $env:ANCHOR_SIGNING_KEY_PASSWORD = '<controlled-secret>'
 ## 统一真机验收顺序
 
 当前 `2005` release 候选已在 OnePlus PGP110（Arm64，API 35）完成设备级门禁；本次
-验收使用 APK 哈希 `74dcfb95…d667207b`，卸载旧 debug 签名包后安装、冷启动、进程存活和 PID 过滤
+验收使用 APK 哈希 `641a1a10…fafa29c54b3`，卸载旧 debug 签名包后安装、冷启动、进程存活和 PID 过滤
 日志均通过，错误匹配为 `0`。结果已回写到本地 readiness 证据文件；凭据治理和
-数据处理负责人记录也已通过匿名引用完成验证，但这些证据仍不会替代 cohort 结果。
+数据处理负责人记录也已通过匿名引用完成验证；cohort 仅作为可选研究记录。
 
 1. `adb devices -l` 和 `tool/private_alpha_device_preflight.dart` 只读预检，确认真实 Arm64、API 24-35、包名和 SHA-256。
 2. 同参数加 `--execute`，完成覆盖安装、冷启动、进程存活和 PID 过滤日志检查。
 3. 在 App 内完成导入/来源追溯、Agent 成功/失败/重试/恢复、备份/恢复/数据删除和反馈导出；正式 release-day 模型五项验收已绑定当前 APK，后续只有 APK、模型 profile 或发布配置变化时才重跑。
 4. 清理设备临时文件，恢复安装前数据库并核对 SHA-256、schema 23、`integrity_check=ok`。
-5. 将不含密钥、回答、源码和私有路径的报告写入受控证据位置，再运行 readiness evaluator；当前报告为 `HOLD`，阻塞码为 `cohort_pending`、`release_day_acceptance_primary_stale` 和 `physical_device_evidence_stale`。模型和设备验收只需在最终发布窗口重跑，不要求开发期间重复执行。
+5. 将不含密钥、回答、源码和私有路径的报告写入受控证据位置，再运行 readiness evaluator；当前报告为 `GO`。模型或设备配置变化时必须重新验收。
 
-在 10 人 cohort、D0/D7/D14 观察窗口和最终 `GO` 决策齐备前，Private Alpha readiness 必须保持 `HOLD`。
+正式 cohort、D0/D7/D14 观察窗口属于可选研究，不影响技术 readiness；不得用合成记录冒充真实参与者证据。

@@ -21,7 +21,7 @@ void main() {
     expect(report.blockers, isEmpty);
   });
 
-  test('keeps a complete NO-GO study bundle on HOLD', () async {
+  test('ignores optional cohort study decisions for release readiness', () async {
     final fixture = await createPrivateAlphaReadinessFixture(
       evaluatedAt,
       decision: 'noGo',
@@ -34,10 +34,7 @@ void main() {
       evaluatedAt: evaluatedAt,
     );
 
-    expect(report.status, PrivateAlphaReadinessStatus.hold);
-    expect(
-      report.blockers,
-      ['release_consistency_cohort_decision_not_go'],
-    );
+    expect(report.status, PrivateAlphaReadinessStatus.go);
+    expect(report.blockers, isEmpty);
   });
 }

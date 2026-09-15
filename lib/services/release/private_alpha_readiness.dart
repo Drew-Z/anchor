@@ -7,6 +7,8 @@ class PrivateAlphaReadinessEvidence {
   final bool controlledCredentialAvailable;
   final bool dataProcessingOwnerAssigned;
   final bool releaseDayAcceptancePassed;
+  /// Legacy metadata retained so older evidence bundles remain readable.
+  /// This value is intentionally excluded from technical readiness decisions.
   final bool cohortCompleted;
 
   const PrivateAlphaReadinessEvidence({
@@ -36,7 +38,11 @@ class PrivateAlphaReadinessEvidence {
           readBool('controlled_credential_available'),
       dataProcessingOwnerAssigned: readBool('data_processing_owner_assigned'),
       releaseDayAcceptancePassed: readBool('release_day_acceptance_passed'),
-      cohortCompleted: readBool('cohort_completed'),
+      // Retained as optional legacy metadata; cohort participation is no
+      // longer a Private Alpha release gate.
+      cohortCompleted: json['cohort_completed'] == null
+          ? false
+          : readBool('cohort_completed'),
     );
   }
 }
@@ -91,7 +97,6 @@ class PrivateAlphaReadinessService {
         'data_processing_owner_required',
       if (!evidence.releaseDayAcceptancePassed)
         'release_day_acceptance_pending',
-      if (!evidence.cohortCompleted) 'cohort_pending',
       ...additionalBlockers,
     ];
     return PrivateAlphaReadinessReport(

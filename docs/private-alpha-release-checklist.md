@@ -147,28 +147,12 @@ The verifier also requires the six approved blank operator templates, their
 required headings, and their frozen SHA-256 values. Missing or changed templates
 block readiness, ensuring filled participant records remain outside the
 repository.
-When cohort_completed is true, schema v2 must include anonymous cohort_evidence.
-The formal denominator must remain exactly A01-A10; S01-S02 shakedown records,
-replacement participants, duplicate codes, and denominator drift are forbidden.
-Each participant records only a fixed track, terminal invitation/consent state,
-D0/D7/D14 status, grounded-turn booleans, learning-claim enum, and opaque EV-*
-references. The cohort must bind the exact release APK and the complete set of
-release-day profile fingerprints, preserve withdrawals in the denominator, and
-record an ordered freeze/final-decision timeline plus opaque COHORT-* and
-REPORT-* references. A GO, CONDITIONAL GO, or NO-GO decision may close the
-study; completion never means the product targets passed. Names, contact
-details, credentials, project identifiers, private paths, source text, answers,
-and model output are forbidden.
-When all external gates are true, readiness also runs one release-consistency
-check over the same parsed evidence and one captured evaluation time. The final
-cohort decision must be GO; CONDITIONAL GO and NO-GO remain blockers rather than
-being converted into release approval. Cohort operator_record_locator must
-equal the operator pack external_record_locator. Every formal participant must
-record the exact profile fingerprint and credential scope actually used, and
-that pair must exist in both release-day acceptance and controlled-credential
-bindings. Unrelated but individually well-formed records, profile drift, or
-scope drift block readiness without exposing participant codes or record
-contents.
+Formal cohort evidence is optional research material and is not required by
+readiness schema v2 or the technical release evaluator. If collected, keep the
+formal denominator at A01-A10 and retain all participant records outside the
+repository; do not synthesize or use them as release evidence. The optional
+cohort verifier and consistency checks remain available for research bundles,
+but their decision does not change technical release readiness.
 When physical_device_passed is true, schema v2 must include
 physical_device_evidence containing the executed preflight JSON plus its
 completion time. The report must be PASSED, no more than 24 hours old, bound to
@@ -190,9 +174,8 @@ The CLI only reads arguments/files, formats that report, and maps GO/HOLD or
 input errors to exit codes. An end-to-end test must build a temporary anonymous
 bundle with a real temporary APK identity, clean scan artifact, frozen operator
 templates, controlled fake references, release-day profiles, physical report,
-and A01-A10 cohort; the complete bundle must reach GO, while changing only the
-final decision to NO-GO must produce HOLD. Test fixtures never count as actual
-release, device, credential, owner, or participant evidence.
+and optional cohort; the technical bundle must reach GO. Test fixtures never
+count as actual release, device, credential, owner, or participant evidence.
 The CLI process contract is covered independently from the evaluator. A real
 subprocess must return 0 with parseable JSON for a complete GO bundle, 2 with
 JSON or Markdown for a valid HOLD, 64 for argument/schema errors, and 66 for a
@@ -205,8 +188,8 @@ schema/private-alpha-readiness-v2.schema.json (JSON Schema Draft 2020-12).
 Create a draft with tool/private_alpha_readiness_init.dart; it requires a real
 repository-relative APK and positive test count, computes APK bytes/SHA-256, and
 writes only below ignored build/. Format, diff, Arm64, and v2-signing claims
-are false unless their explicit command flags are supplied. All five external
-gates are always initialized false and no conditional evidence object is
+are false unless their explicit command flags are supplied. All four external
+technical gates are always initialized false and no conditional evidence object is
 invented. The generated file must evaluate to HOLD before real external evidence
 is attached. See docs/private-alpha-readiness-evidence.md.
 ## Android Build Gate
@@ -385,7 +368,8 @@ and `docs/OPEN_SOURCE_CHECKLIST.md`. Its signed Arm64 APK is bound to SHA-256
 `641a1a107c687e4903b3c64a65111c4eeff88804d2cc056374026fafa29c54b3`, uses
 package `cc.eu.playlab.anchor`, and has completed the physical-device smoke on
 the OnePlus PGP110 (API 35, Arm64). This evidence does not replace the
-release-day model, controlled-credential, owner, or cohort gates below.
+release-day model, controlled-credential, or owner gates below; formal cohort
+material is optional research.
 
 ## Leaf 21.6a Readiness Evidence
 

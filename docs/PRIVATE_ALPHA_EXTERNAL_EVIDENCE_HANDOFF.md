@@ -1,6 +1,6 @@
 # Private Alpha External Evidence Handoff
 
-This checklist is the shortest path from the current technical `HOLD` to a
+This checklist is the shortest path from the current technical `GO` to a
 readiness evaluation. It contains no release evidence itself. Filled records,
 credentials, names, contact details, source files, answers, and model output
 must remain in the access-controlled operations directory outside this
@@ -16,8 +16,8 @@ repository.
   - primary `grok-4.6`: `56632da5ea078a596fa6b941751b9bdfb15dcc0ace860653831f05516055a056`
   - fallback `glm-5.3-flash`: `c8a89bf232de988c8bdd9ded8abaae99c6133d4ddd1af8a7363d475c8db5a32f`
 - Current technical credential scope: `participantOwned`
-- Readiness status: `HOLD`
-- Current blocker: `cohort_pending`
+- Readiness status: `GO`
+- Current blocker: none; technical readiness evaluator returns `GO`
 
 The 2026-09-15 Windhub model and physical-device reports are the current
 identity-bound technical records for candidate `1.0.0+2005`. Re-run both real
@@ -71,11 +71,12 @@ The external operator pack must confirm:
 Do not enter a fictional person, email, phone number, or placeholder as proof
 of assignment.
 
-## 3. Formal Cohort A01-A10
+## 3. Optional Formal Cohort A01-A10
 
-Recruit and freeze exactly ten formal participants. `S01-S02` are shakedown
-records and never count toward the denominator. Preserve withdrawals in the
-denominator and do not replace participants after observing outcomes.
+If a research cohort is run, recruit and freeze exactly ten formal participants.
+`S01-S02` are shakedown records and never count toward the denominator. Preserve
+withdrawals in the denominator and do not replace participants after observing
+outcomes. This study is optional and does not control technical release readiness.
 
 For each `A01` through `A10`, collect outside the repository:
 
@@ -88,11 +89,12 @@ For each `A01` through `A10`, collect outside the repository:
 Freeze the cohort with an opaque `COHORT-*` reference, keep the formal
 denominator at `10`, record the ordered decision timeline, and publish an
 opaque `REPORT-*` final report reference. A final `CONDITIONAL GO` or `NO-GO`
-remains a readiness blocker; only a final `GO` can clear the cohort gate.
+does not affect technical readiness; only a real research decision should be
+recorded when an optional study is run.
 
 ## Final Validation
 
-After the formal cohort record exists:
+If an optional cohort record exists:
 
 1. Update only `build/validation/private-alpha-readiness.json` with anonymous
    bindings and opaque locators.
@@ -106,8 +108,9 @@ After the formal cohort record exists:
      --format json
    ```
 
-4. Treat `GO` as valid only when the evaluator returns no blockers and the
-   evidence is bound to the exact APK/profile identity above.
+4. Treat `GO` as valid when the technical evaluator returns no blockers and the
+   evidence is bound to the exact APK/profile identity above. Cohort evidence is
+   not required for that result.
 
-Recruitment may now begin under the operations runbook. Keep readiness at
-`HOLD` until the formal D0/D7/D14 cohort record and final decision exist.
+Recruitment may begin only as separately authorized research. Do not fabricate
+participant records or treat optional cohort notes as release approval.

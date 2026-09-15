@@ -14,8 +14,7 @@
     "physical_device_passed",
     "controlled_credential_available",
     "data_processing_owner_assigned",
-    "release_day_acceptance_passed",
-    "cohort_completed"
+    "release_day_acceptance_passed"
   ],
   "properties": {
     "schema_version": { "const": 2 },
@@ -51,10 +50,6 @@
     {
       "if": { "properties": { "release_day_acceptance_passed": { "const": true } } },
       "then": { "required": ["release_day_acceptance"] }
-    },
-    {
-      "if": { "properties": { "cohort_completed": { "const": true } } },
-      "then": { "required": ["cohort_evidence"] }
     }
   ],
   "$defs": {

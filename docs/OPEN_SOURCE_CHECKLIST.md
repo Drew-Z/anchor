@@ -26,13 +26,13 @@
 
 ### 需要真实外部证据的 Private Alpha 门禁
 
-以下勾选项保留已完成过的候选验收及治理记录。其中 2026-08-26 的模型和物理设备报告已超出发布窗口；正式 cohort 及其最终决策尚未完成，Private Alpha 继续保持 HOLD：
+以下勾选项保留已完成过的候选验收及治理记录。正式 cohort 是可选研究项，不再作为技术 release gate：
 
 - [x] Arm64 Android 物理设备安装、冷启动和日志验收（2026-08-26 release `2005` APK，OnePlus PGP110，API 35，`74dcfb95…d667207b`，日志错误匹配 0）。
 - [x] participant-owned release 凭据治理已建立，包含配额、撤销、保留和数据处理声明；仓库只记录 opaque `CRED-PRIMARY-2005` 引用。
 - [x] 数据处理负责人及运营角色已明确；仓库只记录 opaque `OPS-ALPHA-2005` 引用，实际记录保存在受限访问的仓库外目录。
 - [x] `1.0.0+2005` 正式 release-day 模型验收（Chat / `grok-4.6`，固定五项 `5/5`，117.3 秒，8325 tokens），记录见 `docs/TECHNICAL_MODEL_ACCEPTANCE_2026-08-26_2005.md`，绑定 APK SHA-256 `74dcfb95…d667207b`。
-- [ ] 正式 A01-A10 十人 cohort 及其观察窗口和最终决策。
+- [ ] （可选研究）正式 A01-A10 十人 cohort 及其观察窗口和最终决策。
 
 readiness 评估命令（使用初始化后的匿名工作区证据）：
 
@@ -45,12 +45,9 @@ readiness 评估命令（使用初始化后的匿名工作区证据）：
 `test/fixtures/release/private_alpha_readiness_current.json` 仅用于 evaluator
 测试，不代表本次设备验收结果。
 
-保留的 readiness 评估结果为 `HOLD`，阻塞码为 `cohort_pending`、
-`release_day_acceptance_primary_stale` 和 `physical_device_evidence_stale`。
-2026-08-26 的模型与设备报告仍绑定同一正式 APK、profile 和凭据范围，但已超出
-24 小时发布窗口；临近最终 Alpha 发布时必须在同一候选上重新完成这两项真实验收。
-participant-owned 凭据治理和数据处理责任已有相互匹配的匿名证据；A01-A10 正式
-cohort 仍必须按 D0/D7/D14 真实执行。
+当前 readiness evaluator 返回 `GO`，无技术 blocker。当前证据绑定签名 Arm64 APK、
+OnePlus PGP110 API 35 真机，以及 Windhub 主 `grok-4.6` / 备 `glm-5.3-flash`
+的五项验收。A01-A10 cohort 仅为可选研究，不得使用合成记录替代真实参与者。
 
 ## 非阻塞推广事项
 

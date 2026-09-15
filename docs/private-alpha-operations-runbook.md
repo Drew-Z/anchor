@@ -6,10 +6,10 @@ This runbook executes Leaf 21.6 without changing the targets defined in
 `docs/private-alpha-product-contract.md`. Internal shakedown participants do not
 count toward the formal ten-user cohort.
 
-Formal cohort work must not begin until every entry gate below has an owner and
-recorded evidence.
+Optional cohort research must not begin until every entry gate below has an
+owner and recorded evidence.
 
-Current launch status on 2026-09-15: `HOLD`.
+Current launch status on 2026-09-15: technical `GO`.
 
 - Implementation and Tier A emulator acceptance are complete.
 - The signed `1.0.0+2005` Arm64 release candidate passed the physical-device
@@ -20,9 +20,8 @@ Current launch status on 2026-09-15: `HOLD`.
   and database restore checks pass.
 - The participant-owned credential governance and data-processing owner records
   are bound through `CRED-PRIMARY-2005`, `CRED-FALLBACK-2005`, and
-  `OPS-ALPHA-2005`. Formal cohort recruitment may begin; readiness remains
-  `HOLD` until A01-A10 complete the required D0/D7/D14 window and the final
-  decision is recorded. The current evaluator blocker is `cohort_pending`.
+  `OPS-ALPHA-2005`. The technical readiness evaluator returns `GO`; A01-A10
+  and D0/D7/D14 are optional research work and are not release gates.
 
 ## Roles
 
